@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../core/agentation_scope.dart';
 import '../models/annotation.dart';
 
 /// Numbered circular visual badge rendered on the overlay over an annotated widget.
@@ -10,6 +11,7 @@ class AnnotationMarker extends StatelessWidget {
     required this.annotation,
     required this.onTap,
     this.isSelected = false,
+    this.accentColor,
   });
 
   /// The 1-based sequential display number (1, 2, 3...).
@@ -24,13 +26,18 @@ class AnnotationMarker extends StatelessWidget {
   /// Whether this marker is currently selected.
   final bool isSelected;
 
+  /// Optional accent theme color.
+  final Color? accentColor;
+
   @override
   Widget build(BuildContext context) {
     final bounds = annotation.bounds;
     final left = math.max(4.0, bounds.x - 10.0);
     final top = math.max(4.0, bounds.y - 10.0);
 
-    final borderColor = isSelected ? Colors.white : annotation.severity.color;
+    final borderColor = isSelected
+        ? Colors.white
+        : (accentColor ?? annotation.severity.color);
 
     return Positioned(
       left: left,
@@ -45,14 +52,16 @@ class AnnotationMarker extends StatelessWidget {
             width: 24.0,
             height: 24.0,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E2E), // Dark slate
+              color: isSelected
+                  ? (accentColor ?? const Color(0xFF6366F1))
+                  : const Color(0xFF1E1E2E),
               shape: BoxShape.circle,
               border: Border.all(color: borderColor, width: 2.0),
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(
-                  color: Color(0x66000000),
+                  color: (accentColor ?? Colors.black).withValues(alpha: 0.4),
                   blurRadius: 6.0,
-                  offset: Offset(0, 2),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -74,31 +83,74 @@ class AnnotationMarker extends StatelessWidget {
   }
 }
 
-/// Floating details card displayed when an [AnnotationMarker] is tapped.
-class AnnotationDetailCard extends StatelessWidget {
+/// Floating details card displayed when an [AnnotationMarker] is tapped,
+/// featuring conversational thread messaging between developers and AI agents.
+class AnnotationDetailCard extends StatefulWidget {
   const AnnotationDetailCard({
     super.key,
     required this.index,
     required this.annotation,
     required this.onClose,
     required this.onDelete,
+    this.accentColor,
+    this.isDark = true,
   });
 
   final int index;
   final Annotation annotation;
   final VoidCallback onClose;
   final VoidCallback onDelete;
+  final Color? accentColor;
+  final bool isDark;
+
+  @override
+  State<AnnotationDetailCard> createState() => _AnnotationDetailCardState();
+}
+
+class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
+  late final TextEditingController _replyController;
+
+  @override
+  void initState() {
+    super.initState();
+    _replyController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _replyController.dispose();
+    super.dispose();
+  }
+
+  void _sendReply() {
+    final text = _replyController.text.trim();
+    if (text.isEmpty) return;
+
+    final controller = AgentationScope.maybeOf(context);
+    controller?.addThreadMessage(widget.annotation.id, text);
+    _replyController.clear();
+  }
 
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final bounds = annotation.bounds;
-    const cardWidth = 280.0;
+    final bounds = widget.annotation.bounds;
+    const cardWidth = 310.0;
+    final active = widget.accentColor ?? const Color(0xFF6366F1);
+    final isDark = widget.isDark;
+
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final subtextColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+    final cardBg = isDark ? const Color(0xF2181825) : const Color(0xF7FFFFFF);
+    final bubbleBg = isDark ? const Color(0xFF232336) : const Color(0xFFF1F5F9);
 
     final left = bounds.x.clamp(8.0, math.max(8.0, screenSize.width - cardWidth - 8.0)).toDouble();
-    final top = math.max(16.0, bounds.y + bounds.height + 8.0 < screenSize.height - 180.0
-        ? bounds.y + bounds.height + 8.0
-        : bounds.y - 170.0);
+    final top = math.max(
+      16.0,
+      bounds.y + bounds.height + 8.0 < screenSize.height - 260.0
+          ? bounds.y + bounds.height + 8.0
+          : math.max(16.0, bounds.y - 250.0),
+    );
 
     return Positioned(
       left: left,
@@ -111,14 +163,14 @@ class AnnotationDetailCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(14.0),
           decoration: BoxDecoration(
-            color: const Color(0xF0181825),
+            color: cardBg,
             borderRadius: BorderRadius.circular(14.0),
-            border: Border.all(color: const Color(0x336366F1), width: 1.0),
-            boxShadow: const [
+            border: Border.all(color: active.withValues(alpha: 0.3), width: 1.0),
+            boxShadow: [
               BoxShadow(
-                color: Color(0x7F000000),
+                color: isDark ? const Color(0x7F000000) : const Color(0x26000000),
                 blurRadius: 20.0,
-                offset: Offset(0, 6),
+                offset: const Offset(0, 6),
               ),
             ],
           ),
@@ -133,12 +185,12 @@ class AnnotationDetailCard extends StatelessWidget {
                     width: 20.0,
                     height: 20.0,
                     decoration: BoxDecoration(
-                      color: annotation.severity.color,
+                      color: widget.annotation.severity.color,
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Text(
-                        '$index',
+                        '${widget.index}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10.0,
@@ -150,17 +202,18 @@ class AnnotationDetailCard extends StatelessWidget {
                   const SizedBox(width: 8.0),
                   Expanded(
                     child: Text(
-                      annotation.targetWidget.widgetType,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      widget.annotation.targetWidget.widgetType,
+                      style: TextStyle(
+                        color: textColor,
                         fontWeight: FontWeight.bold,
                         fontSize: 13.0,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 16.0, color: Colors.white60),
-                    onPressed: onClose,
+                    icon: Icon(Icons.close, size: 16.0, color: subtextColor),
+                    onPressed: widget.onClose,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -170,9 +223,119 @@ class AnnotationDetailCard extends StatelessWidget {
 
               // Comment text
               Text(
-                annotation.comment,
-                style: const TextStyle(color: Colors.white, fontSize: 13.0, height: 1.3),
+                widget.annotation.comment,
+                style: TextStyle(color: textColor, fontSize: 13.0, height: 1.3),
               ),
+
+              // Kind metadata badge if placement or rearrange
+              if (widget.annotation.placement != null) ...[
+                const SizedBox(height: 6.0),
+                Text(
+                  'Placement: ${widget.annotation.placement!.componentType}',
+                  style: TextStyle(color: active, fontSize: 11.0, fontWeight: FontWeight.w600),
+                ),
+              ],
+              if (widget.annotation.rearrange != null) ...[
+                const SizedBox(height: 6.0),
+                Text(
+                  'Rearrange: ${widget.annotation.rearrange!.direction ?? "reordered"}',
+                  style: TextStyle(color: active, fontSize: 11.0, fontWeight: FontWeight.w600),
+                ),
+              ],
+
+              // Conversational Thread Messages
+              if (widget.annotation.thread.isNotEmpty) ...[
+                const SizedBox(height: 10.0),
+                Container(
+                  constraints: const BoxConstraints(maxHeight: 140.0),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: widget.annotation.thread.length,
+                    separatorBuilder: (_, _) => const SizedBox(height: 6.0),
+                    itemBuilder: (context, i) {
+                      final msg = widget.annotation.thread[i];
+                      final isAgent = msg.role == 'agent';
+
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                        decoration: BoxDecoration(
+                          color: isAgent ? active.withValues(alpha: 0.15) : bubbleBg,
+                          borderRadius: BorderRadius.circular(8.0),
+                          border: Border.all(
+                            color: isAgent ? active.withValues(alpha: 0.4) : Colors.transparent,
+                            width: 1.0,
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  isAgent ? 'AI Agent' : 'You',
+                                  style: TextStyle(
+                                    color: isAgent ? active : subtextColor,
+                                    fontSize: 10.0,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}',
+                                  style: TextStyle(color: subtextColor, fontSize: 9.0),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2.0),
+                            Text(
+                              msg.content,
+                              style: TextStyle(color: textColor, fontSize: 12.0),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 8.0),
+
+              // Reply Input Row
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 32.0,
+                      child: TextField(
+                        controller: _replyController,
+                        style: TextStyle(color: textColor, fontSize: 12.0),
+                        onSubmitted: (_) => _sendReply(),
+                        decoration: InputDecoration(
+                          hintText: 'Reply to thread...',
+                          hintStyle: TextStyle(color: subtextColor, fontSize: 11.0),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+                          filled: true,
+                          fillColor: bubbleBg,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.0),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4.0),
+                  IconButton(
+                    icon: Icon(Icons.send_rounded, size: 16.0, color: active),
+                    tooltip: 'Send reply',
+                    onPressed: _sendReply,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32.0, minHeight: 32.0),
+                  ),
+                ],
+              ),
+
               const SizedBox(height: 10.0),
 
               // Footer: severity & delete
@@ -182,13 +345,13 @@ class AnnotationDetailCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
                     decoration: BoxDecoration(
-                      color: annotation.severity.color.withValues(alpha: 0.2),
+                      color: widget.annotation.severity.color.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6.0),
                     ),
                     child: Text(
-                      '${annotation.intent.name.toUpperCase()} • ${annotation.severity.name.toUpperCase()}',
+                      '${widget.annotation.intent.name.toUpperCase()} • ${widget.annotation.severity.name.toUpperCase()}',
                       style: TextStyle(
-                        color: annotation.severity.color,
+                        color: widget.annotation.severity.color,
                         fontSize: 9.0,
                         fontWeight: FontWeight.bold,
                       ),
@@ -197,7 +360,7 @@ class AnnotationDetailCard extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.delete_outline, size: 16.0, color: Colors.redAccent),
                     tooltip: 'Delete Note',
-                    onPressed: onDelete,
+                    onPressed: widget.onDelete,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
@@ -210,3 +373,4 @@ class AnnotationDetailCard extends StatelessWidget {
     );
   }
 }
+

@@ -10,14 +10,31 @@ export 'src/core/agentation_scope.dart';
 export 'src/core/agentation_state.dart';
 export 'src/core/flutter_agentation.dart';
 
-// Overlay, Popup & Toolbar Components
+// Overlay, Popup, Freeze & Toolbar Components
 export 'src/overlay/annotation_marker.dart' show AnnotationDetailCard, AnnotationMarker;
 export 'src/overlay/annotation_popup.dart';
+export 'src/overlay/freeze_overlay.dart';
 export 'src/overlay/highlight_style.dart';
 export 'src/overlay/inspection_overlay.dart';
 export 'src/overlay/widget_highlight.dart';
 export 'src/toolbar/agentation_toolbar.dart';
+export 'src/toolbar/output_detail_button.dart';
+export 'src/toolbar/settings_panel.dart';
 export 'src/toolbar/toolbar_action_button.dart';
+
+// Interaction Modes & Handlers
+export 'src/modes/area_selection_handler.dart';
+export 'src/modes/draw_canvas_painter.dart';
+export 'src/modes/multi_select_handler.dart';
+
+// Visual Design Mode & Skeletons Palette
+export 'src/design/component_palette.dart';
+export 'src/design/rearrange_controller.dart';
+export 'src/design/skeleton_templates.dart';
+export 'src/design/spatial_guide_painter.dart';
+
+// Networking & Model Context Protocol (MCP) Client
+export 'src/networking/agent_sync_client.dart';
 
 // Inspection Engine & Resolvers
 export 'src/inspection/bounds_resolver.dart';
@@ -35,7 +52,13 @@ export 'src/models/annotation.dart';
 export 'src/models/annotation_intent.dart';
 export 'src/models/annotation_severity.dart';
 export 'src/models/annotation_status.dart';
+export 'src/models/drawing_stroke.dart';
 export 'src/models/hierarchical_inspection_result.dart';
+export 'src/models/marker_color.dart';
+export 'src/models/placement_data.dart';
+export 'src/models/rearrange_data.dart';
+export 'src/models/thread_message.dart';
+export 'src/models/toolbar_settings.dart';
 export 'src/models/widget_bounds.dart';
 export 'src/models/widget_context.dart';
 export 'src/models/widget_hierarchy_node.dart';
@@ -51,4 +74,3 @@ export 'src/output/agentation_format_adapter.dart';
 export 'src/output/annotation_json_encoder.dart';
 export 'src/output/annotation_markdown_encoder.dart';
 export 'src/output/clipboard_exporter.dart';
-

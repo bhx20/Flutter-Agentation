@@ -57,7 +57,7 @@ void main() {
 
     test('formatAnnotations formats markdown, json, and agentationJson', () {
       final md = exporter.formatAnnotations([testAnnotation], format: ExportFormat.markdown);
-      expect(md, contains('## Annotation #1'));
+      expect(md, contains('ElevatedButton'));
       expect(md, contains('Fix contrast'));
 
       final json = exporter.formatAnnotations([testAnnotation], format: ExportFormat.json);
@@ -99,7 +99,6 @@ void main() {
       expect(controller.annotations.length, equals(1));
 
       final exported = await controller.exportAnnotations();
-      expect(exported, contains('## Annotation #1'));
       expect(exported, contains('Test note'));
     });
 

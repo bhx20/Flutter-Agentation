@@ -5,6 +5,10 @@ import '../models/annotation.dart';
 class AgentationFormatAdapter {
   const AgentationFormatAdapter();
 
+  /// Canonical static helper to adapt a single [Annotation].
+  static Map<String, dynamic> adaptAnnotation(Annotation annotation) =>
+      const AgentationFormatAdapter().adapt(annotation);
+
   /// Converts a single Flutter [Annotation] to an Agentation-compatible map.
   Map<String, dynamic> adapt(Annotation annotation) {
     final path = annotation.metadata['path'] as String? ??

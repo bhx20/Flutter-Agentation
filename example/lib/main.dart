@@ -21,14 +21,39 @@ class InspectionDemoApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: FlutterAgentation(
+        endpoint: 'http://localhost:4747',
+        appName: 'FlutterAgentation Showcase',
         child: const InspectionDemoScreen(),
       ),
     );
   }
 }
 
-class InspectionDemoScreen extends StatelessWidget {
+class InspectionDemoScreen extends StatefulWidget {
   const InspectionDemoScreen({super.key});
+
+  @override
+  State<InspectionDemoScreen> createState() => _InspectionDemoScreenState();
+}
+
+class _InspectionDemoScreenState extends State<InspectionDemoScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,12 +99,60 @@ class InspectionDemoScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 8.0),
                   Text(
-                    '1. Tap the "Inspect" icon button on the floating pill toolbar.\n'
-                    '2. Tap any widget below to open the Annotation Popup editor.\n'
-                    '3. Write your feedback, choose intent/severity, and tap "Save Note".\n'
-                    '4. Numbered markers (①, ②) appear over widgets. Tap any marker to view details.\n'
-                    '5. Drag the floating toolbar anywhere across the screen.',
+                    '1. Tap "Inspect" on the toolbar to start inspecting.\n'
+                    '2. Switch modes: Pointer, Area marquee, Multi-select, Draw canvas, or Design Mode.\n'
+                    '3. Tap the snowflake (❄) to freeze in-flight animations.\n'
+                    '4. Tap detail level button to cycle Compact → Standard → Detailed → Forensic.\n'
+                    '5. Open Settings (⚙) to pick marker colors or configure MCP sync.',
                     style: TextStyle(color: Colors.white70, fontSize: 13.0, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16.0),
+
+            // Live Animation Showcase (for testing Animation Freeze)
+            Container(
+              padding: const EdgeInsets.all(16.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(16.0),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: Row(
+                children: [
+                  RotationTransition(
+                    turns: _animController,
+                    child: Container(
+                      width: 44.0,
+                      height: 44.0,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF10B981),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.refresh, color: Colors.white, size: 24.0),
+                    ),
+                  ),
+                  const SizedBox(width: 14.0),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Live Continuous Animation (Freeze Test)',
+                          style: TextStyle(
+                            color: Color(0xFF065F46),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14.0,
+                          ),
+                        ),
+                        SizedBox(height: 4.0),
+                        Text(
+                          'Tap the snowflake (❄) button on the toolbar to freeze this animation mid-flight and inspect it.',
+                          style: TextStyle(color: Color(0xFF047857), fontSize: 12.0),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
