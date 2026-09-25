@@ -27,3 +27,14 @@ doc/api/
 
 .flutter-plugins
 .flutter-plugins-dependencies
+
+# IDE / editor settings
+.idea/
+
+# Tooling and specifications
+.agents/
+.specify/
+specs/
+
+# External reference / auxiliary directory
+agentation-main/
