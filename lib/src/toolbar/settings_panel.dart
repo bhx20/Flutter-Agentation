@@ -3,6 +3,7 @@ import '../core/agentation_controller.dart';
 import '../core/agentation_scope.dart';
 import '../models/marker_color.dart';
 import '../models/toolbar_settings.dart';
+import '../networking/agent_sync_client.dart';
 import 'agentation_icons.dart';
 
 /// Settings panel matching Screenshot 3 of the Agentation design system.
@@ -20,16 +21,33 @@ class SettingsPanel extends StatefulWidget {
   State<SettingsPanel> createState() => _SettingsPanelState();
 }
 
+class _TestConnectionState {
+  final bool isTesting;
+  final String? testMessage;
+  final bool? testSuccess;
+
+  const _TestConnectionState({
+    this.isTesting = false,
+    this.testMessage,
+    this.testSuccess,
+  });
+}
+
 class _SettingsPanelState extends State<SettingsPanel> {
-  bool _showingAutomations = false;
+  final ValueNotifier<bool> _showingAutomationsNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<_TestConnectionState> _testStateNotifier =
+      ValueNotifier<_TestConnectionState>(const _TestConnectionState());
   late final TextEditingController _mcpController;
   late final TextEditingController _webhookController;
+  late final TextEditingController _sessionController;
 
   @override
   void initState() {
     super.initState();
-    _mcpController = TextEditingController();
-    _webhookController = TextEditingController();
+    final initialSettings = widget.controller?.settings;
+    _mcpController = TextEditingController(text: initialSettings?.mcpEndpoint ?? '');
+    _webhookController = TextEditingController(text: initialSettings?.webhookUrl ?? '');
+    _sessionController = TextEditingController(text: initialSettings?.sessionId ?? '');
   }
 
   @override
@@ -42,12 +60,18 @@ class _SettingsPanelState extends State<SettingsPanel> {
     if (_webhookController.text.isEmpty && ctrl.settings.webhookUrl != null) {
       _webhookController.text = ctrl.settings.webhookUrl!;
     }
+    if (_sessionController.text.isEmpty && ctrl.settings.sessionId != null) {
+      _sessionController.text = ctrl.settings.sessionId!;
+    }
   }
 
   @override
   void dispose() {
+    _showingAutomationsNotifier.dispose();
+    _testStateNotifier.dispose();
     _mcpController.dispose();
     _webhookController.dispose();
+    _sessionController.dispose();
     super.dispose();
   }
 
@@ -59,7 +83,11 @@ class _SettingsPanelState extends State<SettingsPanel> {
     final controller = _ctrl;
 
     return ListenableBuilder(
-      listenable: controller,
+      listenable: Listenable.merge([
+        controller,
+        _showingAutomationsNotifier,
+        _testStateNotifier,
+      ]),
       builder: (context, _) {
         final settings = controller.settings;
         final isDark = settings.isDarkMode;
@@ -70,10 +98,14 @@ class _SettingsPanelState extends State<SettingsPanel> {
         final borderColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
         final dividerColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
 
+        final showingAutomations = _showingAutomationsNotifier.value;
+        final testState = _testStateNotifier.value;
+
         return Material(
           color: Colors.transparent,
           child: Container(
             width: 300.0,
+            constraints: const BoxConstraints(maxHeight: 520.0),
             decoration: BoxDecoration(
               color: cardBg,
               borderRadius: BorderRadius.circular(16.0),
@@ -88,9 +120,18 @@ class _SettingsPanelState extends State<SettingsPanel> {
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16.0),
-              child: _showingAutomations
-                  ? _buildAutomationsPage(controller, isDark, textColor, subtextColor, borderColor)
-                  : _buildMainPage(controller, settings, isDark, textColor, subtextColor, dividerColor),
+              child: SingleChildScrollView(
+                child: showingAutomations
+                    ? _buildAutomationsPage(
+                        controller,
+                        isDark,
+                        textColor,
+                        subtextColor,
+                        borderColor,
+                        testState,
+                      )
+                    : _buildMainPage(controller, settings, isDark, textColor, subtextColor, dividerColor),
+              ),
             ),
           ),
         );
@@ -492,8 +533,13 @@ class _SettingsPanelState extends State<SettingsPanel> {
 
           // ── Manage MCP & Webhooks > ──
           InkWell(
+            key: const ValueKey('manage_mcp_webhooks_tile'),
             onTap: () {
-              setState(() => _showingAutomations = true);
+              _mcpController.text = controller.settings.mcpEndpoint ?? '';
+              _webhookController.text = controller.settings.webhookUrl ?? '';
+              _sessionController.text = controller.settings.sessionId ?? '';
+              _testStateNotifier.value = const _TestConnectionState();
+              _showingAutomationsNotifier.value = true;
             },
             borderRadius: BorderRadius.circular(6.0),
             child: Padding(
@@ -559,7 +605,15 @@ class _SettingsPanelState extends State<SettingsPanel> {
     Color textColor,
     Color subtextColor,
     Color borderColor,
+    _TestConnectionState testState,
   ) {
+    final settings = controller.settings;
+    final hasMcp = settings.mcpEndpoint != null && settings.mcpEndpoint!.isNotEmpty;
+    final hasWebhook = settings.webhookUrl != null && settings.webhookUrl!.isNotEmpty;
+    final activeSession = settings.sessionId;
+
+    final bannerBg = isDark ? const Color(0xFF141416) : const Color(0xFFF2F2F7);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
       child: Column(
@@ -569,31 +623,124 @@ class _SettingsPanelState extends State<SettingsPanel> {
           Row(
             children: [
               IconButton(
+                key: const ValueKey('mcp_back_button'),
                 icon: Icon(Icons.arrow_back_ios_new, size: 14.0, color: textColor),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                 onPressed: () {
-                  setState(() => _showingAutomations = false);
+                  _showingAutomationsNotifier.value = false;
                 },
               ),
               const SizedBox(width: 6.0),
-              Text(
-                'Manage MCP & Webhooks',
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 13.0,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  'Manage MCP & Webhooks',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 13.0,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 10.0),
+
+          // ── Connection Status Overview ──
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+            decoration: BoxDecoration(
+              color: bannerBg,
+              borderRadius: BorderRadius.circular(8.0),
+              border: Border.all(color: borderColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.circle,
+                      size: 8.0,
+                      color: hasMcp ? const Color(0xFF34C759) : const Color(0xFF8E8E93),
+                    ),
+                    const SizedBox(width: 6.0),
+                    Expanded(
+                      child: Text(
+                        hasMcp ? 'MCP: ${settings.mcpEndpoint}' : 'MCP: Inactive (Set endpoint below)',
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 11.0,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4.0),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.circle,
+                      size: 8.0,
+                      color: hasWebhook ? const Color(0xFF34C759) : const Color(0xFF8E8E93),
+                    ),
+                    const SizedBox(width: 6.0),
+                    Expanded(
+                      child: Text(
+                        hasWebhook ? 'Webhook: Active' : 'Webhook: Inactive',
+                        style: TextStyle(
+                          color: textColor,
+                          fontSize: 11.0,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                if (activeSession != null && activeSession.isNotEmpty) ...[
+                  const SizedBox(height: 4.0),
+                  Text(
+                    'Session ID: $activeSession',
+                    style: TextStyle(color: subtextColor, fontSize: 10.0),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+
           const SizedBox(height: 12.0),
-          Text(
-            'MCP Server Endpoint',
-            style: TextStyle(color: subtextColor, fontSize: 11.0),
+
+          // ── MCP Server Endpoint ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'MCP Server Endpoint',
+                  style: TextStyle(color: subtextColor, fontSize: 11.0, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6.0),
+              InkWell(
+                onTap: () {
+                  _mcpController.text = 'http://localhost:4747';
+                },
+                child: const Text(
+                  'Local (4747)',
+                  style: TextStyle(color: Color(0xFF007AFF), fontSize: 10.0, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 4.0),
           TextField(
+            key: const ValueKey('mcp_endpoint_input'),
             controller: _mcpController,
             style: TextStyle(color: textColor, fontSize: 12.0),
             decoration: InputDecoration(
@@ -601,7 +748,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
               hintStyle: TextStyle(color: subtextColor, fontSize: 11.0),
               contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
               filled: true,
-              fillColor: isDark ? const Color(0xFF141416) : const Color(0xFFF2F2F7),
+              fillColor: bannerBg,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
                 borderSide: BorderSide(color: borderColor),
@@ -616,13 +763,35 @@ class _SettingsPanelState extends State<SettingsPanel> {
               ),
             ),
           ),
+
           const SizedBox(height: 10.0),
-          Text(
-            'Webhook Notification URL',
-            style: TextStyle(color: subtextColor, fontSize: 11.0),
+
+          // ── Webhook Notification URL ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'Webhook Notification URL',
+                  style: TextStyle(color: subtextColor, fontSize: 11.0, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 6.0),
+              InkWell(
+                onTap: () {
+                  _webhookController.text = 'http://localhost:3000/webhook';
+                },
+                child: const Text(
+                  'Local (3000)',
+                  style: TextStyle(color: Color(0xFF007AFF), fontSize: 10.0, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 4.0),
           TextField(
+            key: const ValueKey('webhook_url_input'),
             controller: _webhookController,
             style: TextStyle(color: textColor, fontSize: 12.0),
             decoration: InputDecoration(
@@ -630,7 +799,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
               hintStyle: TextStyle(color: subtextColor, fontSize: 11.0),
               contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
               filled: true,
-              fillColor: isDark ? const Color(0xFF141416) : const Color(0xFFF2F2F7),
+              fillColor: bannerBg,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
                 borderSide: BorderSide(color: borderColor),
@@ -645,35 +814,262 @@ class _SettingsPanelState extends State<SettingsPanel> {
               ),
             ),
           ),
-          const SizedBox(height: 12.0),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF007AFF),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+
+          const SizedBox(height: 10.0),
+
+          // ── Session ID Field ──
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  'Session ID (Optional)',
+                  style: TextStyle(color: subtextColor, fontSize: 11.0, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
               ),
-              onPressed: () {
-                final endpoint = _mcpController.text.trim();
-                final webhook = _webhookController.text.trim();
-                controller.updateSettings(
-                  controller.settings.copyWith(
-                    mcpEndpoint: endpoint.isEmpty ? null : endpoint,
-                    webhookUrl: webhook.isEmpty ? null : webhook,
-                  ),
-                );
-                setState(() => _showingAutomations = false);
-              },
-              child: const Text('Save & Apply', style: TextStyle(fontSize: 12.0)),
+              const SizedBox(width: 6.0),
+              InkWell(
+                onTap: () {
+                  _sessionController.text = 'sess_${DateTime.now().millisecondsSinceEpoch}';
+                },
+                child: const Text(
+                  'New ID',
+                  style: TextStyle(color: Color(0xFF007AFF), fontSize: 10.0, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4.0),
+          TextField(
+            key: const ValueKey('session_id_input'),
+            controller: _sessionController,
+            style: TextStyle(color: textColor, fontSize: 12.0),
+            decoration: InputDecoration(
+              hintText: 'sess_${DateTime.now().millisecondsSinceEpoch}',
+              hintStyle: TextStyle(color: subtextColor, fontSize: 11.0),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+              filled: true,
+              fillColor: bannerBg,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8.0),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8.0),
+                borderSide: BorderSide(color: borderColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8.0),
+                borderSide: const BorderSide(color: Color(0xFF007AFF)),
+              ),
             ),
           ),
+
+          // ── Feedback / Diagnostic Banner ──
+          if (testState.testMessage != null) ...[
+            const SizedBox(height: 10.0),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
+              decoration: BoxDecoration(
+                color: testState.testSuccess == true
+                    ? const Color(0x1F34C759)
+                    : const Color(0x1FFF3B30),
+                borderRadius: BorderRadius.circular(8.0),
+                border: Border.all(
+                  color: testState.testSuccess == true
+                      ? const Color(0xFF34C759)
+                      : const Color(0xFFFF3B30),
+                  width: 1.0,
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    testState.testSuccess == true ? Icons.check_circle : Icons.error_outline,
+                    size: 14.0,
+                    color: testState.testSuccess == true
+                        ? const Color(0xFF34C759)
+                        : const Color(0xFFFF3B30),
+                  ),
+                  const SizedBox(width: 6.0),
+                  Expanded(
+                    child: Text(
+                      testState.testMessage!,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 11.0,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 12.0),
+
+          // ── Action Buttons ──
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  key: const ValueKey('mcp_test_button'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: textColor,
+                    side: BorderSide(color: borderColor),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  ),
+                  onPressed: testState.isTesting ? null : () => _testConnection(controller),
+                  child: testState.isTesting
+                      ? const SizedBox(
+                          width: 14.0,
+                          height: 14.0,
+                          child: CircularProgressIndicator(strokeWidth: 2.0),
+                        )
+                      : const Text('Test Connection', style: TextStyle(fontSize: 12.0)),
+                ),
+              ),
+              const SizedBox(width: 8.0),
+              Expanded(
+                child: ElevatedButton(
+                  key: const ValueKey('mcp_save_button'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF007AFF),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  ),
+                  onPressed: () {
+                    final endpoint = _mcpController.text.trim();
+                    final webhook = _webhookController.text.trim();
+                    final session = _sessionController.text.trim();
+
+                    controller.updateSettings(
+                      controller.settings.copyWith(
+                        mcpEndpoint: endpoint.isEmpty ? null : endpoint,
+                        webhookUrl: webhook.isEmpty ? null : webhook,
+                        sessionId: session.isEmpty ? null : session,
+                      ),
+                    );
+
+                    _testStateNotifier.value = const _TestConnectionState(
+                      testMessage: '✓ Settings saved and active!',
+                      testSuccess: true,
+                    );
+                  },
+                  child: const Text('Save & Apply', style: TextStyle(fontSize: 12.0)),
+                ),
+              ),
+            ],
+          ),
+
+          if (hasMcp || hasWebhook) ...[
+            const SizedBox(height: 6.0),
+            Center(
+              child: TextButton(
+                key: const ValueKey('mcp_disconnect_button'),
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onPressed: () {
+                  _mcpController.clear();
+                  _webhookController.clear();
+                  _sessionController.clear();
+                  controller.updateSettings(
+                    controller.settings.copyWith(
+                      mcpEndpoint: null,
+                      webhookUrl: null,
+                      sessionId: null,
+                    ),
+                  );
+                  _testStateNotifier.value = const _TestConnectionState(
+                    testMessage: 'Disconnected and settings reset.',
+                    testSuccess: true,
+                  );
+                },
+                child: const Text(
+                  'Disconnect / Clear Configuration',
+                  style: TextStyle(color: Color(0xFFFF3B30), fontSize: 11.0),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _testConnection(AgentationController controller) async {
+    final endpoint = _mcpController.text.trim();
+    final webhook = _webhookController.text.trim();
+
+    if (endpoint.isEmpty && webhook.isEmpty) {
+      _testStateNotifier.value = const _TestConnectionState(
+        testMessage: 'Please enter an MCP endpoint or Webhook URL to test.',
+        testSuccess: false,
+      );
+      return;
+    }
+
+    _testStateNotifier.value = const _TestConnectionState(
+      isTesting: true,
+      testMessage: null,
+      testSuccess: null,
+    );
+
+    final results = <String>[];
+    bool overallSuccess = true;
+
+    if (endpoint.isNotEmpty) {
+      final testClient = (controller.syncClient != null && controller.syncClient!.endpoint == endpoint)
+          ? controller.syncClient!
+          : AgentSyncClient(endpoint: endpoint);
+      final mcpOk = await testClient.ping();
+      if (mcpOk) {
+        results.add('MCP: Connected (200 OK)');
+      } else {
+        results.add('MCP: Server unreachable at $endpoint');
+        overallSuccess = false;
+      }
+    }
+
+    if (webhook.isNotEmpty) {
+      final testClient = (controller.syncClient != null)
+          ? controller.syncClient!
+          : AgentSyncClient(endpoint: endpoint, webhookUrl: webhook);
+      final webhookOk = await testClient.dispatchWebhook(
+        webhook,
+        event: 'test.ping',
+        payload: {
+          'timestamp': DateTime.now().toIso8601String(),
+          'message': 'Test webhook from FlutterAgentation',
+        },
+      );
+      if (webhookOk) {
+        results.add('Webhook: Delivered (200 OK)');
+      } else {
+        results.add('Webhook: Delivery failed to $webhook');
+        overallSuccess = false;
+      }
+    }
+
+    if (mounted) {
+      _testStateNotifier.value = _TestConnectionState(
+        isTesting: false,
+        testMessage: results.join('\n'),
+        testSuccess: overallSuccess,
+      );
+    }
   }
 
   String _getDetailLabel(OutputDetailLevel level) {

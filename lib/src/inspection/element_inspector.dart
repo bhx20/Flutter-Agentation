@@ -5,6 +5,8 @@ import '../core/agentation_logger.dart';
 /// Helper responsible for mapping Flutter [RenderObject]s to their owning [Element]s
 /// and identifying meaningful developer widgets.
 class ElementInspector {
+  static final Expando<Element> _roToElementCache = Expando<Element>();
+
   /// Locates the owning [Element] for [renderObject].
   Element? findElementForRenderObject(
     RenderObject renderObject, {
@@ -16,14 +18,24 @@ class ElementInspector {
       return creator.element;
     }
 
-    // 2. Fallback: tree walk from rootElement
+    // 2. Fast Expando cache lookup
+    final cached = _roToElementCache[renderObject];
+    if (cached != null && cached.mounted) {
+      return cached;
+    }
+
+    // 3. Fallback: tree walk from rootElement with batch cache population
     final root = rootElement ?? WidgetsBinding.instance.rootElement;
     if (root == null) return null;
 
     Element? foundElement;
     void visitor(Element element) {
+      final ro = element.renderObject;
+      if (ro != null) {
+        _roToElementCache[ro] = element;
+      }
       if (foundElement != null) return;
-      if (element.renderObject == renderObject) {
+      if (ro == renderObject) {
         foundElement = element;
         return;
       }

@@ -24,11 +24,12 @@ class FreezeOverlay extends StatelessWidget {
 
     return ListenableBuilder(
       listenable: effectiveController,
-      builder: (context, _) {
+      child: child,
+      builder: (context, cachedChild) {
         final isFrozen = effectiveController.isFrozen;
         return TickerMode(
           enabled: !isFrozen,
-          child: child,
+          child: cachedChild!,
         );
       },
     );

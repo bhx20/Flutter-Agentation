@@ -103,6 +103,9 @@ class AgentationController extends ChangeNotifier {
   /// Whether inspection is completely inactive.
   bool get isInactive => _state.isInactive;
 
+  /// Whether comments and annotation pins are displayed on the page.
+  bool get areCommentsVisible => _state.areCommentsVisible;
+
   /// Currently selected inspection result.
   WidgetInspectionResult? get selectedResult => _state.selectedResult;
 
@@ -151,8 +154,87 @@ class AgentationController extends ChangeNotifier {
   /// Updates overlay and toolbar preferences.
   void updateSettings(ToolbarSettings settings) {
     if (_state.settings == settings) return;
+    final oldMcp = _state.settings.mcpEndpoint;
+    final oldWebhook = _state.settings.webhookUrl;
     _state = _state.copyWith(settings: settings);
+
+    if (settings.mcpEndpoint != oldMcp || settings.webhookUrl != oldWebhook) {
+      final endpoint = settings.mcpEndpoint?.trim();
+      final webhook = settings.webhookUrl?.trim();
+      final hasEndpoint = endpoint != null && endpoint.isNotEmpty;
+      final hasWebhook = webhook != null && webhook.isNotEmpty;
+
+      if (hasEndpoint || hasWebhook) {
+        if (_syncClient != null) {
+          _syncClient = _syncClient!.copyWith(
+            endpoint: endpoint ?? _syncClient!.endpoint,
+            webhookUrl: webhook,
+          );
+        } else {
+          _syncClient = AgentSyncClient(
+            endpoint: endpoint ?? '',
+            webhookUrl: webhook,
+          );
+        }
+        if (hasEndpoint) {
+          ensureActiveSession();
+        }
+      } else {
+        _syncClient = null;
+      }
+    }
     notifyListeners();
+  }
+
+  /// Ensures an active MCP session exists, generating or requesting one if needed.
+  Future<String?> ensureActiveSession({String? customSessionId}) async {
+    if (customSessionId != null && customSessionId.isNotEmpty) {
+      _state = _state.copyWith(
+        settings: _state.settings.copyWith(sessionId: customSessionId),
+      );
+      notifyListeners();
+      return customSessionId;
+    }
+
+    if (_state.settings.sessionId != null && _state.settings.sessionId!.isNotEmpty) {
+      return _state.settings.sessionId;
+    }
+
+    if (_syncClient != null && _syncClient!.endpoint.isNotEmpty) {
+      try {
+        final session = await _syncClient!.createSession();
+        final id = (session['id'] ?? session['sessionId']) as String?;
+        final effectiveId = (id != null && id.isNotEmpty)
+            ? id
+            : 'sess_${DateTime.now().millisecondsSinceEpoch}';
+        _state = _state.copyWith(
+          settings: _state.settings.copyWith(sessionId: effectiveId),
+        );
+        notifyListeners();
+        return effectiveId;
+      } catch (_) {
+        final fallbackId = 'sess_${DateTime.now().millisecondsSinceEpoch}';
+        _state = _state.copyWith(
+          settings: _state.settings.copyWith(sessionId: fallbackId),
+        );
+        notifyListeners();
+        return fallbackId;
+      }
+    }
+    return null;
+  }
+
+  /// Dispatches an event to the configured webhook URL.
+  Future<bool> notifyWebhook(String event, Map<String, dynamic> payload) async {
+    final webhookUrl = _state.settings.webhookUrl ?? _syncClient?.webhookUrl;
+    if (webhookUrl == null || webhookUrl.isEmpty) return false;
+
+    if (_syncClient != null) {
+      return _syncClient!.dispatchWebhook(webhookUrl, event: event, payload: payload);
+    } else {
+      final tempClient = AgentSyncClient(endpoint: '', webhookUrl: webhookUrl);
+      return tempClient.dispatchWebhook(webhookUrl, event: event, payload: payload);
+    }
   }
 
   /// Sets the active output detail level.
@@ -199,6 +281,12 @@ class AgentationController extends ChangeNotifier {
       if (_activeAnnotation?.id == last.id) {
         _activeAnnotation = null;
       }
+      if (_syncClient != null) {
+        _syncClient!.deleteAnnotation(last.id);
+      }
+      notifyWebhook('annotation.deleted', {
+        'annotationId': last.id,
+      });
       AgentationLogger.debug('Undid annotation: ${last.id}');
       notifyListeners();
     }
@@ -239,23 +327,24 @@ class AgentationController extends ChangeNotifier {
     }
   }
 
-  /// Activates inspection mode.
-  void activate() {
-    if (_state.mode == InspectionMode.inspecting) return;
-    AgentationLogger.debug('Inspection mode activated');
+  /// Activates inspection mode, optionally freezing animations atomically.
+  void activate({bool freeze = false}) {
+    if (_state.mode == InspectionMode.inspecting && (!freeze || _state.isFrozen)) return;
+    AgentationLogger.debug('Inspection mode activated (freeze: $freeze)');
     _state = _state.copyWith(
       mode: InspectionMode.inspecting,
+      isFrozen: freeze ? true : _state.isFrozen,
     );
     notifyListeners();
   }
 
-  /// Deactivates inspection mode and clears highlights.
-  void deactivate() {
-    if (_state.mode == InspectionMode.inactive) return;
-    AgentationLogger.debug('Inspection mode deactivated');
+  /// Deactivates inspection mode and clears highlights, unfreezing animations by default.
+  void deactivate({bool unfreeze = true}) {
+    if (_state.mode == InspectionMode.inactive && (!unfreeze || !_state.isFrozen)) return;
+    AgentationLogger.debug('Inspection mode deactivated (unfreeze: $unfreeze)');
     _state = _state.copyWith(
       mode: InspectionMode.inactive,
-      isFrozen: false,
+      isFrozen: unfreeze ? false : _state.isFrozen,
       selectedResult: () => null,
       hoveredResult: () => null,
       activeHierarchy: () => null,
@@ -432,6 +521,10 @@ class AgentationController extends ChangeNotifier {
     if (_syncClient != null && activeSessionId != null && activeSessionId.isNotEmpty) {
       _syncClient!.syncAnnotation(activeSessionId, annotation);
     }
+    notifyWebhook('annotation.created', {
+      if (activeSessionId != null) 'sessionId': activeSessionId,
+      'annotation': annotation.toJson(),
+    });
 
     notifyListeners();
     return annotation;
@@ -597,6 +690,11 @@ class AgentationController extends ChangeNotifier {
     if (_syncClient != null && activeSessionId != null && activeSessionId.isNotEmpty) {
       _syncClient!.syncAnnotation(activeSessionId, updated);
     }
+    notifyWebhook('thread.message_added', {
+      if (activeSessionId != null) 'sessionId': activeSessionId,
+      'annotationId': annotationId,
+      'message': newMessage.toJson(),
+    });
 
     notifyListeners();
     return updated;
@@ -608,14 +706,23 @@ class AgentationController extends ChangeNotifier {
     if (_syncClient == null || sessionId == null || sessionId.isEmpty) return null;
     final markdown = await exportAnnotations(format: ExportFormat.markdown);
     if (markdown == null) return null;
-    return _syncClient!.requestAction(sessionId, markdown);
+    final result = await _syncClient!.requestAction(sessionId, markdown);
+    notifyWebhook('agent.action_requested', {
+      'sessionId': sessionId,
+      'result': result,
+    });
+    return result;
   }
 
   /// Clears all annotations from memory.
   Future<void> clearAnnotations() async {
+    final count = _annotations.length;
     await _storage.clear();
     _annotations = [];
     _activeAnnotation = null;
+    notifyWebhook('annotations.cleared', {
+      'count': count,
+    });
     notifyListeners();
   }
 
@@ -651,8 +758,40 @@ class AgentationController extends ChangeNotifier {
 
   /// Toggles toolbar minimized state.
   void toggleToolbarMinimized() {
+    final willBeMinimized = !_state.isToolbarMinimized;
+    if (willBeMinimized) {
+      _state = _state.copyWith(
+        isToolbarMinimized: true,
+        mode: InspectionMode.inactive,
+        isFrozen: false,
+        selectedResult: () => null,
+        hoveredResult: () => null,
+        activeHierarchy: () => null,
+      );
+      _multiSelection = [];
+      _activeAnnotation = null;
+    } else {
+      _state = _state.copyWith(
+        isToolbarMinimized: false,
+        mode: InspectionMode.inspecting,
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Toggles visibility of comments and annotation pins on the page.
+  void toggleCommentsVisibility() {
     _state = _state.copyWith(
-      isToolbarMinimized: !_state.isToolbarMinimized,
+      areCommentsVisible: !_state.areCommentsVisible,
+    );
+    notifyListeners();
+  }
+
+  /// Sets visibility of comments and annotation pins on the page.
+  void setCommentsVisibility(bool visible) {
+    if (_state.areCommentsVisible == visible) return;
+    _state = _state.copyWith(
+      areCommentsVisible: visible,
     );
     notifyListeners();
   }

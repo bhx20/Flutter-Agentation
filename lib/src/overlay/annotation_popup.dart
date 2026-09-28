@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../core/agentation_keymap.dart';
 import '../core/agentation_scope.dart';
 import '../models/annotation_intent.dart';
 import '../models/annotation_severity.dart';
@@ -35,17 +37,23 @@ class AnnotationPopup extends StatefulWidget {
 class _AnnotationPopupState extends State<AnnotationPopup> {
   late final TextEditingController _commentController;
   late final FocusNode _focusNode;
-  late AnnotationIntent _selectedIntent;
-  bool _isSaving = false;
-  bool _showHierarchy = true;
+  late final ValueNotifier<AnnotationIntent> _selectedIntentNotifier;
+  final ValueNotifier<bool> _isSavingNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _showHierarchyNotifier = ValueNotifier<bool>(true);
+  final ValueNotifier<bool> _hasTextNotifier = ValueNotifier<bool>(false);
 
   @override
   void initState() {
     super.initState();
     _commentController = TextEditingController();
     _focusNode = FocusNode();
-    _selectedIntent = widget.initialIntent;
-    _commentController.addListener(() => setState(() {}));
+    _selectedIntentNotifier = ValueNotifier<AnnotationIntent>(widget.initialIntent);
+    _commentController.addListener(() {
+      final hasText = _commentController.text.trim().isNotEmpty;
+      if (_hasTextNotifier.value != hasText) {
+        _hasTextNotifier.value = hasText;
+      }
+    });
     // Auto-focus the input field
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _focusNode.requestFocus();
@@ -56,27 +64,32 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
   void dispose() {
     _focusNode.dispose();
     _commentController.dispose();
+    _selectedIntentNotifier.dispose();
+    _isSavingNotifier.dispose();
+    _showHierarchyNotifier.dispose();
+    _hasTextNotifier.dispose();
     super.dispose();
   }
 
   Future<void> _handleSave() async {
+    if (_isSavingNotifier.value) return;
     final comment = _commentController.text.trim();
     if (comment.isEmpty) return;
 
-    setState(() => _isSaving = true);
+    _isSavingNotifier.value = true;
     final controller = AgentationScope.of(context);
 
     try {
       await controller.createAnnotation(
         comment: comment,
-        intent: _selectedIntent,
+        intent: _selectedIntentNotifier.value,
         severity: widget.initialSeverity,
         targetResult: widget.result,
       );
       widget.onClose();
     } finally {
       if (mounted) {
-        setState(() => _isSaving = false);
+        _isSavingNotifier.value = false;
       }
     }
   }
@@ -119,11 +132,16 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
         ? ' "$textPreview"'
         : '';
 
-    final hasText = _commentController.text.trim().isNotEmpty;
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
+    return AgentationShortcuts(
+      onClose: widget.onClose,
+      onSubmit: () {
+        if (_hasTextNotifier.value && !_isSavingNotifier.value) {
+          _handleSave();
+        }
+      },
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
         // ── Pinned '+' badge on target widget (Screenshot 5) ──
         Positioned(
           left: (bounds.x + bounds.width / 2 - 11.0).clamp(4.0, screenSize.width - 26.0),
@@ -180,115 +198,126 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // ── Header line: > link "FAQ" ──
-                  InkWell(
-                    onTap: () {
-                      setState(() => _showHierarchy = !_showHierarchy);
-                    },
-                    borderRadius: BorderRadius.circular(4.0),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2.0),
-                      child: Row(
+                  ValueListenableBuilder<bool>(
+                    valueListenable: _showHierarchyNotifier,
+                    builder: (context, showHierarchy, _) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            _showHierarchy ? Icons.keyboard_arrow_down : Icons.chevron_right,
-                            size: 14.0,
-                            color: subtextColor,
-                          ),
-                          const SizedBox(width: 4.0),
-                          Flexible(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
+                          InkWell(
+                            onTap: () {
+                              _showHierarchyNotifier.value = !showHierarchy;
+                            },
+                            borderRadius: BorderRadius.circular(4.0),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2.0),
                               child: Row(
-                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    elementLabel,
-                                    style: TextStyle(
-                                      color: subtextColor,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w500,
+                                  Icon(
+                                    showHierarchy ? Icons.keyboard_arrow_down : Icons.chevron_right,
+                                    size: 14.0,
+                                    color: subtextColor,
+                                  ),
+                                  const SizedBox(width: 4.0),
+                                  Flexible(
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            elementLabel,
+                                            style: TextStyle(
+                                              color: subtextColor,
+                                              fontSize: 12.5,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                          if (excerpt.isNotEmpty)
+                                            Text(
+                                              excerpt,
+                                              style: TextStyle(
+                                                color: subtextColor,
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          if (widget.result.identity.keyString != null) ...[
+                                            const SizedBox(width: 6.0),
+                                            Text(
+                                              widget.result.identity.keyString!,
+                                              style: TextStyle(
+                                                color: subtextColor.withValues(alpha: 0.8),
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.normal,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                  if (excerpt.isNotEmpty)
-                                    Text(
-                                      excerpt,
-                                      style: TextStyle(
-                                        color: subtextColor,
-                                        fontSize: 12.5,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  if (widget.result.identity.keyString != null) ...[
-                                    const SizedBox(width: 6.0),
-                                    Text(
-                                      widget.result.identity.keyString!,
-                                      style: TextStyle(
-                                        color: subtextColor.withValues(alpha: 0.8),
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.normal,
-                                      ),
-                                    ),
-                                  ],
                                 ],
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
 
-                  // Hierarchy breadcrumb trail & ActionChips for live retargeting (horizontally scrollable row)
-                  if (_showHierarchy && (controller?.activeHierarchy != null || widget.result.ancestors.where((a) => a != widget.result.identity.widgetType).isNotEmpty))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4.0, bottom: 6.0),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            if (controller?.activeHierarchy != null) ...[
-                              for (final ancestor in controller!.activeHierarchy!.ancestors) ...[
-                                ActionChip(
-                                  label: Text(ancestor.identity.widgetType, style: const TextStyle(fontSize: 10.0)),
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  onPressed: () {
-                                    controller.selectResult(ancestor);
-                                  },
+                          // Hierarchy breadcrumb trail & ActionChips for live retargeting (horizontally scrollable row)
+                          if (showHierarchy && (controller?.activeHierarchy != null || widget.result.ancestors.where((a) => a != widget.result.identity.widgetType).isNotEmpty))
+                            Padding(
+                              padding: const EdgeInsets.only(top: 4.0, bottom: 6.0),
+                              child: SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: [
+                                    if (controller?.activeHierarchy != null) ...[
+                                      for (final ancestor in controller!.activeHierarchy!.ancestors) ...[
+                                        ActionChip(
+                                          label: Text(ancestor.identity.widgetType, style: const TextStyle(fontSize: 10.0)),
+                                          visualDensity: VisualDensity.compact,
+                                          padding: EdgeInsets.zero,
+                                          onPressed: () {
+                                            controller.selectResult(ancestor);
+                                          },
+                                        ),
+                                        const SizedBox(width: 4.0),
+                                      ],
+                                      for (final child in controller.activeHierarchy!.children) ...[
+                                        ActionChip(
+                                          label: Text(
+                                            child.text != null && child.text!.isNotEmpty
+                                                ? '${child.identity.widgetType} "${child.text!.length > 12 ? "${child.text!.substring(0, 12)}…" : child.text}"'
+                                                : child.identity.widgetType,
+                                            style: const TextStyle(fontSize: 10.0),
+                                          ),
+                                          visualDensity: VisualDensity.compact,
+                                          padding: EdgeInsets.zero,
+                                          onPressed: () {
+                                            controller.selectResult(child);
+                                          },
+                                        ),
+                                        const SizedBox(width: 4.0),
+                                      ],
+                                    ] else ...[
+                                      for (final ancestorName in widget.result.ancestors.where((a) => a != widget.result.identity.widgetType)) ...[
+                                        ActionChip(
+                                          label: Text(ancestorName, style: const TextStyle(fontSize: 10.0)),
+                                          visualDensity: VisualDensity.compact,
+                                          padding: EdgeInsets.zero,
+                                          onPressed: () {},
+                                        ),
+                                        const SizedBox(width: 4.0),
+                                      ],
+                                    ],
+                                  ],
                                 ),
-                                const SizedBox(width: 4.0),
-                              ],
-                              for (final child in controller.activeHierarchy!.children) ...[
-                                ActionChip(
-                                  label: Text(
-                                    child.text != null && child.text!.isNotEmpty
-                                        ? '${child.identity.widgetType} "${child.text!.length > 12 ? "${child.text!.substring(0, 12)}…" : child.text}"'
-                                        : child.identity.widgetType,
-                                    style: const TextStyle(fontSize: 10.0),
-                                  ),
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  onPressed: () {
-                                    controller.selectResult(child);
-                                  },
-                                ),
-                                const SizedBox(width: 4.0),
-                              ],
-                            ] else ...[
-                              for (final ancestorName in widget.result.ancestors.where((a) => a != widget.result.identity.widgetType)) ...[
-                                ActionChip(
-                                  label: Text(ancestorName, style: const TextStyle(fontSize: 10.0)),
-                                  visualDensity: VisualDensity.compact,
-                                  padding: EdgeInsets.zero,
-                                  onPressed: () {},
-                                ),
-                                const SizedBox(width: 4.0),
-                              ],
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
 
                   const SizedBox(height: 6.0),
 
@@ -303,42 +332,72 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                       ),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-                    child: TextField(
-                      controller: _commentController,
-                      focusNode: _focusNode,
-                      maxLines: 3,
-                      minLines: 2,
-                      style: TextStyle(color: textColor, fontSize: 13.0),
-                      cursorColor: activeColor,
-                      decoration: InputDecoration(
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                        hintText: 'What should change?',
-                        hintStyle: TextStyle(
-                          color: subtextColor,
-                          fontSize: 13.0,
-                          fontWeight: FontWeight.normal,
+                    child: Focus(
+                      onKeyEvent: (node, event) {
+                        if (event is KeyDownEvent) {
+                          if (event.logicalKey == LogicalKeyboardKey.escape) {
+                            widget.onClose();
+                            return KeyEventResult.handled;
+                          }
+                          if (event.logicalKey == LogicalKeyboardKey.enter &&
+                              (HardwareKeyboard.instance.isControlPressed ||
+                               HardwareKeyboard.instance.isMetaPressed)) {
+                            if (_hasTextNotifier.value && !_isSavingNotifier.value) {
+                              _handleSave();
+                              return KeyEventResult.handled;
+                            }
+                          }
+                          if ((event.logicalKey == LogicalKeyboardKey.delete ||
+                               event.logicalKey == LogicalKeyboardKey.backspace) &&
+                              _commentController.text.isEmpty) {
+                            widget.onClose();
+                            return KeyEventResult.handled;
+                          }
+                        }
+                        return KeyEventResult.ignored;
+                      },
+                      child: TextField(
+                        controller: _commentController,
+                        focusNode: _focusNode,
+                        maxLines: 3,
+                        minLines: 2,
+                        style: TextStyle(color: textColor, fontSize: 13.0),
+                        cursorColor: activeColor,
+                        decoration: InputDecoration(
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
+                          hintText: 'What should change?',
+                          hintStyle: TextStyle(
+                            color: subtextColor,
+                            fontSize: 13.0,
+                            fontWeight: FontWeight.normal,
+                          ),
+                          border: InputBorder.none,
                         ),
-                        border: InputBorder.none,
+                        onSubmitted: (_) => _handleSave(),
                       ),
-                      onSubmitted: (_) => _handleSave(),
                     ),
                   ),
 
                   // ── Intent Selector Pills (Change, Bug, Suggestion) ──
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildIntentChip('Change', AnnotationIntent.change, isDark),
-                          const SizedBox(width: 6.0),
-                          _buildIntentChip('Bug', AnnotationIntent.bug, isDark),
-                          const SizedBox(width: 6.0),
-                          _buildIntentChip('Suggestion', AnnotationIntent.suggestion, isDark),
-                        ],
-                      ),
+                    child: ValueListenableBuilder<AnnotationIntent>(
+                      valueListenable: _selectedIntentNotifier,
+                      builder: (context, selectedIntent, _) {
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildIntentChip('Change', AnnotationIntent.change, selectedIntent, isDark),
+                              const SizedBox(width: 6.0),
+                              _buildIntentChip('Bug', AnnotationIntent.bug, selectedIntent, isDark),
+                              const SizedBox(width: 6.0),
+                              _buildIntentChip('Suggestion', AnnotationIntent.suggestion, selectedIntent, isDark),
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ),
 
@@ -365,50 +424,58 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                         ),
                       ),
                       const SizedBox(width: 8.0),
-                      ElevatedButton(
-                        onPressed: hasText && !_isSaving ? _handleSave : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: activeColor,
-                          disabledBackgroundColor: activeColor.withValues(alpha: 0.35),
-                          foregroundColor: Colors.white,
-                          disabledForegroundColor: Colors.white70,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16.0),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 6.0),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: _isSaving
-                            ? const SizedBox(
-                                width: 12,
-                                height: 12,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text(
-                                    'Add',
-                                    style: TextStyle(
-                                      fontSize: 13.0,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Opacity(
-                                    opacity: 0.0,
-                                    child: SizedBox(
-                                      width: 0,
-                                      height: 0,
-                                      child: Text('Save Note', style: TextStyle(fontSize: 1)),
-                                    ),
-                                  ),
-                                ],
+                      ListenableBuilder(
+                        listenable: Listenable.merge([_hasTextNotifier, _isSavingNotifier]),
+                        builder: (context, _) {
+                          final hasText = _hasTextNotifier.value;
+                          final isSaving = _isSavingNotifier.value;
+
+                          return ElevatedButton(
+                            onPressed: hasText && !isSaving ? _handleSave : null,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: activeColor,
+                              disabledBackgroundColor: activeColor.withValues(alpha: 0.35),
+                              foregroundColor: Colors.white,
+                              disabledForegroundColor: Colors.white70,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16.0),
                               ),
+                              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 6.0),
+                              minimumSize: Size.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            child: isSaving
+                                ? const SizedBox(
+                                    width: 12,
+                                    height: 12,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text(
+                                        'Add',
+                                        style: TextStyle(
+                                          fontSize: 13.0,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      Opacity(
+                                        opacity: 0.0,
+                                        child: SizedBox(
+                                          width: 0,
+                                          height: 0,
+                                          child: Text('Save Note', style: TextStyle(fontSize: 1)),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          );
+                        },
                       ),
                     ],
                   ),
@@ -418,13 +485,14 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
           ),
         ),
       ],
-    );
+    ),
+  );
   }
 
-  Widget _buildIntentChip(String label, AnnotationIntent intent, bool isDark) {
-    final isSelected = _selectedIntent == intent;
+  Widget _buildIntentChip(String label, AnnotationIntent intent, AnnotationIntent selectedIntent, bool isDark) {
+    final isSelected = selectedIntent == intent;
     return InkWell(
-      onTap: () => setState(() => _selectedIntent = intent),
+      onTap: () => _selectedIntentNotifier.value = intent,
       borderRadius: BorderRadius.circular(6.0),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),

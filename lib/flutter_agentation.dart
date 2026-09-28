@@ -4,8 +4,9 @@ library;
 // Core diagnostic logger
 export 'src/core/agentation_logger.dart';
 
-// Core Controller, Scope, and Wrapper Widget
+// Core Controller, Scope, Keymap and Wrapper Widget
 export 'src/core/agentation_controller.dart';
+export 'src/core/agentation_keymap.dart';
 export 'src/core/agentation_scope.dart';
 export 'src/core/agentation_state.dart';
 export 'src/core/flutter_agentation.dart';

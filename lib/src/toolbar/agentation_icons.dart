@@ -37,6 +37,14 @@ class AgentationIcons {
     );
   }
 
+  /// Eye-off icon (eye with diagonal slash) for hidden comments.
+  static Widget eyeOff({double size = 20.0, Color color = Colors.white}) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _EyeOffIconPainter(color: color),
+    );
+  }
+
   /// Copy icon (two overlapping rounded rectangles).
   static Widget copy({double size = 20.0, Color color = Colors.white}) {
     return CustomPaint(
@@ -217,6 +225,43 @@ class _EyeIconPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_EyeIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _EyeOffIconPainter extends CustomPainter {
+  const _EyeOffIconPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final strokePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final scale = size.width / 24.0;
+    canvas.save();
+    canvas.scale(scale);
+
+    // Eye outline path
+    final path = Path()
+      ..moveTo(4.0, 12.0)
+      ..cubicTo(6.0, 7.0, 18.0, 7.0, 20.0, 12.0)
+      ..cubicTo(18.0, 17.0, 6.0, 17.0, 4.0, 12.0);
+    canvas.drawPath(path, strokePaint);
+
+    // Center pupil
+    canvas.drawCircle(const Offset(12.0, 12.0), 2.5, strokePaint);
+
+    // Diagonal slash
+    canvas.drawLine(const Offset(4.0, 4.0), const Offset(20.0, 20.0), strokePaint);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_EyeOffIconPainter oldDelegate) => oldDelegate.color != color;
 }
 
 class _CopyIconPainter extends CustomPainter {

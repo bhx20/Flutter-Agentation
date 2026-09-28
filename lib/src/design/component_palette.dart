@@ -28,8 +28,15 @@ class ComponentPalette extends StatefulWidget {
 }
 
 class _ComponentPaletteState extends State<ComponentPalette> {
-  String? _hoveredType;
-  bool _isWireframeActive = false;
+  final ValueNotifier<String?> _hoveredTypeNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<bool> _isWireframeActiveNotifier = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _hoveredTypeNotifier.dispose();
+    _isWireframeActiveNotifier.dispose();
+    super.dispose();
+  }
 
   AgentationController get _ctrl =>
       widget.controller ?? AgentationScope.of(context);
@@ -141,51 +148,54 @@ class _ComponentPaletteState extends State<ComponentPalette> {
                 const SizedBox(height: 12.0),
 
                 // ── Wireframe New Page Button (Dashed) ──
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _isWireframeActive = !_isWireframeActive;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(8.0),
-                  child: CustomPaint(
-                    painter: _DashedBorderPainter(
-                      color: _isWireframeActive
-                          ? const Color(0xFFFF9500)
-                          : (isDark ? const Color(0x33FFFFFF) : const Color(0x33000000)),
-                      radius: 8.0,
-                    ),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0),
-                      child: Center(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              AgentationIcons.wireframe(
-                                size: 15.0,
-                                color: _isWireframeActive ? const Color(0xFFFF9500) : subtextColor,
+                ValueListenableBuilder<bool>(
+                  valueListenable: _isWireframeActiveNotifier,
+                  builder: (context, isWireframeActive, _) {
+                    return InkWell(
+                      onTap: () {
+                        _isWireframeActiveNotifier.value = !_isWireframeActiveNotifier.value;
+                      },
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: CustomPaint(
+                        painter: _DashedBorderPainter(
+                          color: isWireframeActive
+                              ? const Color(0xFFFF9500)
+                              : (isDark ? const Color(0x33FFFFFF) : const Color(0x33000000)),
+                          radius: 8.0,
+                        ),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0),
+                          child: Center(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  AgentationIcons.wireframe(
+                                    size: 15.0,
+                                    color: isWireframeActive ? const Color(0xFFFF9500) : subtextColor,
+                                  ),
+                                  const SizedBox(width: 8.0),
+                                  Text(
+                                    'Wireframe New Page',
+                                    style: TextStyle(
+                                      color: isWireframeActive
+                                          ? const Color(0xFFFF9500)
+                                          : (isDark ? Colors.white70 : Colors.black87),
+                                      fontSize: 12.0,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8.0),
-                              Text(
-                                'Wireframe New Page',
-                                style: TextStyle(
-                                  color: _isWireframeActive
-                                      ? const Color(0xFFFF9500)
-                                      : (isDark ? Colors.white70 : Colors.black87),
-                                  fontSize: 12.0,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 10.0),
@@ -238,12 +248,15 @@ class _ComponentPaletteState extends State<ComponentPalette> {
     Color subtextColor,
     Color activeColor,
   ) {
-    final isHovered = _hoveredType == item.componentType;
+    return ValueListenableBuilder<String?>(
+      valueListenable: _hoveredTypeNotifier,
+      builder: (context, hoveredType, _) {
+        final isHovered = hoveredType == item.componentType;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hoveredType = item.componentType),
-      onExit: (_) => setState(() => _hoveredType = null),
-      child: Draggable<SkeletonTemplate>(
+        return MouseRegion(
+          onEnter: (_) => _hoveredTypeNotifier.value = item.componentType,
+          onExit: (_) => _hoveredTypeNotifier.value = null,
+          child: Draggable<SkeletonTemplate>(
         data: item,
         feedback: Material(
           color: Colors.transparent,
@@ -280,6 +293,8 @@ class _ComponentPaletteState extends State<ComponentPalette> {
           child: _buildItemRow(item, textColor, subtextColor, isHovered),
         ),
       ),
+    );
+      },
     );
   }
 

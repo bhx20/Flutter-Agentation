@@ -35,6 +35,9 @@ class WidgetBounds {
   /// Rect representation.
   Rect get rect => Rect.fromLTWH(x, y, width, height);
 
+  /// Helper converting bounds to Flutter Rect.
+  Rect toRect() => rect;
+
   /// Size representation.
   Size get size => Size(width, height);
 

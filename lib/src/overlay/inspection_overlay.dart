@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import '../core/agentation_controller.dart';
+import '../core/agentation_keymap.dart';
 import '../core/agentation_logger.dart';
 import '../core/agentation_state.dart';
 import '../models/drawing_stroke.dart';
@@ -52,23 +54,58 @@ class InspectionOverlay extends StatefulWidget {
   State<InspectionOverlay> createState() => _InspectionOverlayState();
 }
 
+class _DrawingCanvasState {
+  final List<DrawingStroke> completedStrokes;
+  final List<Offset> activeStrokePoints;
+
+  const _DrawingCanvasState({
+    required this.completedStrokes,
+    required this.activeStrokePoints,
+  });
+
+  bool get isNotEmpty => completedStrokes.isNotEmpty || activeStrokePoints.isNotEmpty;
+}
+
 class _InspectionOverlayState extends State<InspectionOverlay> {
   final GlobalKey _hostAppKey = GlobalKey();
   final AreaSelectionHandler _areaHandler = AreaSelectionHandler();
-  final List<DrawingStroke> _completedStrokes = [];
-  List<Offset> _activeStrokePoints = [];
-  WidgetBounds? _activeMarqueeBounds;
-  bool _showComponentPalette = true;
-  SkeletonTemplate? _selectedTemplate;
+  final ValueNotifier<_DrawingCanvasState> _drawingNotifier =
+      ValueNotifier<_DrawingCanvasState>(
+    const _DrawingCanvasState(completedStrokes: [], activeStrokePoints: []),
+  );
+  final ValueNotifier<WidgetBounds?> _activeMarqueeBoundsNotifier =
+      ValueNotifier<WidgetBounds?>(null);
+  final ValueNotifier<bool> _showComponentPaletteNotifier =
+      ValueNotifier<bool>(true);
+  final ValueNotifier<SkeletonTemplate?> _selectedTemplateNotifier =
+      ValueNotifier<SkeletonTemplate?>(null);
   final RearrangeController _rearrangeController = RearrangeController();
-  WidgetInspectionResult? _activeRearrangeTarget;
+  final ValueNotifier<WidgetInspectionResult?> _activeRearrangeTargetNotifier =
+      ValueNotifier<WidgetInspectionResult?>(null);
+  final ValueNotifier<WidgetBounds?> _activeRearrangeBoundsNotifier =
+      ValueNotifier<WidgetBounds?>(null);
+  Offset? _lastHoverPosition;
+  DateTime? _lastHoverTime;
+  Timer? _hoverThrottleTimer;
+
+  @override
+  void dispose() {
+    _hoverThrottleTimer?.cancel();
+    _drawingNotifier.dispose();
+    _activeMarqueeBoundsNotifier.dispose();
+    _showComponentPaletteNotifier.dispose();
+    _selectedTemplateNotifier.dispose();
+    _activeRearrangeTargetNotifier.dispose();
+    _activeRearrangeBoundsNotifier.dispose();
+    super.dispose();
+  }
 
   @override
   void didUpdateWidget(InspectionOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.controller.toolMode == AnnotationToolMode.design &&
         oldWidget.controller.toolMode != AnnotationToolMode.design) {
-      _showComponentPalette = true;
+      _showComponentPaletteNotifier.value = true;
     }
   }
 
@@ -76,20 +113,19 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       _hostAppKey.currentContext?.findRenderObject();
 
   void _handlePointerDown(PointerDownEvent event) {
-    if (!widget.controller.isInspecting) return;
+    if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) return;
 
     final toolMode = widget.controller.toolMode;
 
     if (toolMode == AnnotationToolMode.design) {
-      if (_selectedTemplate != null) {
+      final selectedTemplate = _selectedTemplateNotifier.value;
+      if (selectedTemplate != null) {
         widget.controller.createPlacementAnnotation(
-          placement: _selectedTemplate!.toPlacementData(),
+          placement: selectedTemplate.toPlacementData(),
           position: event.position,
-          comment: 'Add ${_selectedTemplate!.label} here',
+          comment: 'Add ${selectedTemplate.label} here',
         );
-        setState(() {
-          _selectedTemplate = null;
-        });
+        _selectedTemplateNotifier.value = null;
         return;
       }
 
@@ -101,9 +137,8 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
         );
         if (result.isAvailable) {
           _rearrangeController.startDrag(event.position, bounds: result.bounds);
-          setState(() {
-            _activeRearrangeTarget = result;
-          });
+          _activeRearrangeTargetNotifier.value = result;
+          _activeRearrangeBoundsNotifier.value = result.bounds;
           return;
         }
       } catch (_) {}
@@ -112,16 +147,15 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
     if (toolMode == AnnotationToolMode.area) {
       _areaHandler.onPanStart(event.position);
-      setState(() {
-        _activeMarqueeBounds = _areaHandler.currentBounds;
-      });
+      _activeMarqueeBoundsNotifier.value = _areaHandler.currentBounds;
       return;
     }
 
     if (toolMode == AnnotationToolMode.draw) {
-      setState(() {
-        _activeStrokePoints = [event.position];
-      });
+      _drawingNotifier.value = _DrawingCanvasState(
+        completedStrokes: _drawingNotifier.value.completedStrokes,
+        activeStrokePoints: [event.position],
+      );
       return;
     }
 
@@ -159,22 +193,21 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
     if (toolMode == AnnotationToolMode.area && _areaHandler.isDragging) {
       _areaHandler.onPanUpdate(event.position);
-      setState(() {
-        _activeMarqueeBounds = _areaHandler.currentBounds;
-      });
+      _activeMarqueeBoundsNotifier.value = _areaHandler.currentBounds;
       return;
     }
 
     if (toolMode == AnnotationToolMode.design && _rearrangeController.isDragging) {
       _rearrangeController.updateDrag(event.position);
-      setState(() {});
+      _activeRearrangeBoundsNotifier.value = _rearrangeController.currentBounds;
       return;
     }
 
-    if (toolMode == AnnotationToolMode.draw && _activeStrokePoints.isNotEmpty) {
-      setState(() {
-        _activeStrokePoints.add(event.position);
-      });
+    if (toolMode == AnnotationToolMode.draw && _drawingNotifier.value.activeStrokePoints.isNotEmpty) {
+      _drawingNotifier.value = _DrawingCanvasState(
+        completedStrokes: _drawingNotifier.value.completedStrokes,
+        activeStrokePoints: [..._drawingNotifier.value.activeStrokePoints, event.position],
+      );
       return;
     }
   }
@@ -186,10 +219,9 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
     if (toolMode == AnnotationToolMode.design && _rearrangeController.isDragging) {
       final rearrangeData = _rearrangeController.endDrag();
-      final target = _activeRearrangeTarget;
-      setState(() {
-        _activeRearrangeTarget = null;
-      });
+      final target = _activeRearrangeTargetNotifier.value;
+      _activeRearrangeTargetNotifier.value = null;
+      _activeRearrangeBoundsNotifier.value = null;
       if (target != null && rearrangeData.distanceMoved > 5.0) {
         widget.controller.createRearrangeAnnotation(
           rearrange: rearrangeData,
@@ -203,9 +235,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
     if (toolMode == AnnotationToolMode.area && _areaHandler.isDragging) {
       final completed = _areaHandler.onPanEnd();
-      setState(() {
-        _activeMarqueeBounds = null;
-      });
+      _activeMarqueeBoundsNotifier.value = null;
 
       if (completed != null) {
         final areaResult = WidgetInspectionResult(
@@ -223,17 +253,17 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       return;
     }
 
-    if (toolMode == AnnotationToolMode.draw && _activeStrokePoints.isNotEmpty) {
+    if (toolMode == AnnotationToolMode.draw && _drawingNotifier.value.activeStrokePoints.isNotEmpty) {
       final activeMarkerColor =
           MarkerColor.findById(widget.controller.settings.markerColorId).color;
       final stroke = DrawingStroke(
-        points: List.unmodifiable(_activeStrokePoints),
+        points: List.unmodifiable(_drawingNotifier.value.activeStrokePoints),
         color: activeMarkerColor,
       );
-      setState(() {
-        _completedStrokes.add(stroke);
-        _activeStrokePoints = [];
-      });
+      _drawingNotifier.value = _DrawingCanvasState(
+        completedStrokes: [..._drawingNotifier.value.completedStrokes, stroke],
+        activeStrokePoints: const [],
+      );
 
       final double minX = stroke.points.map((p) => p.dx).reduce(math.min);
       final double maxX = stroke.points.map((p) => p.dx).reduce(math.max);
@@ -260,28 +290,62 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   }
 
   void _handlePointerHover(PointerHoverEvent event) {
-    if (!widget.controller.isInspecting) return;
+    if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) return;
     if (widget.controller.toolMode == AnnotationToolMode.draw ||
         widget.controller.toolMode == AnnotationToolMode.area ||
         widget.controller.toolMode == AnnotationToolMode.design) {
       return;
     }
 
+    final currentHover = widget.controller.hoveredResult;
+    // Fast path: if the cursor is still inside the current hovered widget bounds
+    // and hasn't moved substantially (< 4px), skip costly tree re-inspection.
+    if (currentHover != null &&
+        _lastHoverPosition != null &&
+        (event.position - _lastHoverPosition!).distanceSquared < 16.0 &&
+        currentHover.bounds.toRect().inflate(4.0).contains(event.position)) {
+      return;
+    }
+
+    _lastHoverPosition = event.position;
+
+    // Rate-limit hover inspection to at most ~60 FPS (16ms)
+    final now = DateTime.now();
+    if (_lastHoverTime != null &&
+        now.difference(_lastHoverTime!).inMilliseconds < 16) {
+      _hoverThrottleTimer?.cancel();
+      _hoverThrottleTimer = Timer(const Duration(milliseconds: 16), () {
+        if (!mounted || !widget.controller.isInspecting) return;
+        _executeHoverInspection(event.position);
+      });
+      return;
+    }
+
+    _lastHoverTime = now;
+    _executeHoverInspection(event.position);
+  }
+
+  void _executeHoverInspection(Offset position) {
     try {
       final result = widget.controller.engine.inspectAt(
-        event.position,
+        position,
         rootRenderObject: _hostRenderObject,
         rootElement: _hostAppKey.currentContext as Element?,
         resolveSourceLocation: false,
       );
       if (result.isAvailable) {
-        widget.controller.setHoveredResult(result);
+        final current = widget.controller.hoveredResult;
+        if (current == null ||
+            current.identity.id != result.identity.id ||
+            current.bounds != result.bounds) {
+          widget.controller.setHoveredResult(result);
+        }
       } else {
-        widget.controller.setHoveredResult(null);
+        if (widget.controller.hoveredResult != null) {
+          widget.controller.setHoveredResult(null);
+        }
       }
-    } catch (e) {
-      // Suppress hover inspection errors silently
-    }
+    } catch (_) {}
   }
 
   @override
@@ -289,7 +353,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
-        final isInspecting = widget.controller.isInspecting;
+        final isInspecting = widget.controller.isInspecting && !widget.controller.isToolbarMinimized;
         final toolMode = widget.controller.toolMode;
         final settings = widget.controller.settings;
         final markerColor = MarkerColor.findById(settings.markerColorId).color;
@@ -307,15 +371,19 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                   )
                 : widget.highlightStyle;
 
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            // Underlying application with dynamic animation freezing
-            KeyedSubtree(
-              key: _hostAppKey,
-              child: FreezeOverlay(
-                controller: widget.controller,
-                child: widget.child,
+        return AgentationShortcuts(
+          controller: widget.controller,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+            // Underlying application with dynamic animation freezing and paint boundary isolation
+            RepaintBoundary(
+              child: KeyedSubtree(
+                key: _hostAppKey,
+                child: FreezeOverlay(
+                  controller: widget.controller,
+                  child: widget.child,
+                ),
               ),
             ),
 
@@ -324,7 +392,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
               child: IgnorePointer(
                 ignoring: !isInspecting || !settings.blockInteractions,
                 child: MouseRegion(
-                  onExit: (_) => widget.controller.setHoveredResult(null),
+                  onExit: (_) {
+                    _hoverThrottleTimer?.cancel();
+                    _lastHoverPosition = null;
+                    widget.controller.setHoveredResult(null);
+                  },
                   child: Listener(
                     behavior: HitTestBehavior.opaque,
                     onPointerDown: _handlePointerDown,
@@ -338,38 +410,49 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
             ),
 
             // Active freehand drawing canvas
-            if (isInspecting &&
-                (_completedStrokes.isNotEmpty || _activeStrokePoints.isNotEmpty))
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: CustomPaint(
-                    painter: DrawCanvasPainter(
-                      strokes: _completedStrokes,
-                      currentStrokePoints: _activeStrokePoints,
+            if (isInspecting)
+              ValueListenableBuilder<_DrawingCanvasState>(
+                valueListenable: _drawingNotifier,
+                builder: (context, drawingState, _) {
+                  if (!drawingState.isNotEmpty) return const SizedBox.shrink();
+                  return Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: DrawCanvasPainter(
+                          strokes: drawingState.completedStrokes,
+                          currentStrokePoints: drawingState.activeStrokePoints,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
 
             // In-flight Area marquee drag highlight
-            if (isInspecting && _activeMarqueeBounds != null)
-              Positioned(
-                left: _activeMarqueeBounds!.x,
-                top: _activeMarqueeBounds!.y,
-                width: _activeMarqueeBounds!.width,
-                height: _activeMarqueeBounds!.height,
-                child: IgnorePointer(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: markerColor.withValues(alpha: 0.15),
-                      border: Border.all(
-                        color: markerColor,
-                        width: 1.5,
+            if (isInspecting)
+              ValueListenableBuilder<WidgetBounds?>(
+                valueListenable: _activeMarqueeBoundsNotifier,
+                builder: (context, activeMarqueeBounds, _) {
+                  if (activeMarqueeBounds == null) return const SizedBox.shrink();
+                  return Positioned(
+                    left: activeMarqueeBounds.x,
+                    top: activeMarqueeBounds.y,
+                    width: activeMarqueeBounds.width,
+                    height: activeMarqueeBounds.height,
+                    child: IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: markerColor.withValues(alpha: 0.15),
+                          border: Border.all(
+                            color: markerColor,
+                            width: 1.5,
+                          ),
+                          borderRadius: BorderRadius.circular(4.0),
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(4.0),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
 
             // Hover candidate highlight
@@ -412,19 +495,20 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
               ),
 
             // Numbered spatial annotation markers
-            for (int i = 0; i < widget.controller.annotations.length; i++)
-              AnnotationMarker(
-                index: i + 1,
-                annotation: widget.controller.annotations[i],
-                accentColor: markerColor,
-                isSelected: widget.controller.activeAnnotation?.id ==
-                    widget.controller.annotations[i].id,
-                onTap: () => widget.controller
-                    .viewAnnotation(widget.controller.annotations[i]),
-              ),
+            if (widget.controller.areCommentsVisible)
+              for (int i = 0; i < widget.controller.annotations.length; i++)
+                AnnotationMarker(
+                  index: i + 1,
+                  annotation: widget.controller.annotations[i],
+                  accentColor: markerColor,
+                  isSelected: widget.controller.activeAnnotation?.id ==
+                      widget.controller.annotations[i].id,
+                  onTap: () => widget.controller
+                      .viewAnnotation(widget.controller.annotations[i]),
+                ),
 
             // Annotation detail card when a marker is clicked
-            if (widget.controller.activeAnnotation != null)
+            if (widget.controller.areCommentsVisible && widget.controller.activeAnnotation != null)
               AnnotationDetailCard(
                 index: widget.controller.annotations
                         .indexOf(widget.controller.activeAnnotation!) +
@@ -438,18 +522,22 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
               ),
 
             // Spatial guide crosshairs when dragging to rearrange in Design Mode
-            if (isInspecting &&
-                toolMode == AnnotationToolMode.design &&
-                _rearrangeController.isDragging)
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: CustomPaint(
-                    painter: SpatialGuidePainter(
-                      activeBounds: _rearrangeController.currentBounds,
-                      guideColor: markerColor,
+            if (isInspecting && toolMode == AnnotationToolMode.design)
+              ValueListenableBuilder<WidgetBounds?>(
+                valueListenable: _activeRearrangeBoundsNotifier,
+                builder: (context, rearrangeBounds, _) {
+                  if (rearrangeBounds == null) return const SizedBox.shrink();
+                  return Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: SpatialGuidePainter(
+                          activeBounds: rearrangeBounds,
+                          guideColor: markerColor,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
 
             // Drop target for dragging wireframe skeletons from the palette
@@ -483,32 +571,35 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                 ),
               ),
 
-            // Wireframe skeleton palette panel
-            if (isInspecting &&
-                toolMode == AnnotationToolMode.design &&
-                _showComponentPalette)
-              Positioned(
-                left: 16.0,
-                top: 72.0,
-                child: ComponentPalette(
-                  controller: widget.controller,
-                  onSelectTemplate: (template) {
-                    setState(() {
-                      _selectedTemplate = template;
-                    });
-                  },
-                  onClose: () {
-                    setState(() {
-                      _showComponentPalette = false;
-                    });
-                  },
-                ),
+            // Wireframe skeleton palette panel (only shown if no toolbar overlay child manages it)
+            if (widget.overlayChild == null &&
+                isInspecting &&
+                toolMode == AnnotationToolMode.design)
+              ValueListenableBuilder<bool>(
+                valueListenable: _showComponentPaletteNotifier,
+                builder: (context, showPalette, _) {
+                  if (!showPalette) return const SizedBox.shrink();
+                  return Positioned(
+                    left: 16.0,
+                    top: 72.0,
+                    child: ComponentPalette(
+                      controller: widget.controller,
+                      onSelectTemplate: (template) {
+                        _selectedTemplateNotifier.value = template;
+                      },
+                      onClose: () {
+                        _showComponentPaletteNotifier.value = false;
+                      },
+                    ),
+                  );
+                },
               ),
 
             // Additional overlay elements (e.g. toolbar)
             if (widget.overlayChild != null) widget.overlayChild!,
           ],
-        );
+        ),
+      );
       },
     );
   }

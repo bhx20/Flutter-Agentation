@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../core/agentation_keymap.dart';
 import '../core/agentation_scope.dart';
 import '../models/annotation.dart';
 
@@ -45,7 +47,10 @@ class AnnotationMarker extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          key: ValueKey('annotation_marker_$index'),
           onTap: onTap,
+          canRequestFocus: true,
+          autofocus: isSelected,
           borderRadius: BorderRadius.circular(14.0),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
@@ -156,11 +161,14 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
       left: left,
       top: top,
       width: cardWidth,
-      child: Material(
-        color: Colors.transparent,
-        elevation: 16.0,
-        borderRadius: BorderRadius.circular(14.0),
-        child: Container(
+      child: AgentationShortcuts(
+        onClose: widget.onClose,
+        onDeleteSelected: widget.onDelete,
+        child: Material(
+          color: Colors.transparent,
+          elevation: 16.0,
+          borderRadius: BorderRadius.circular(14.0),
+          child: Container(
           padding: const EdgeInsets.all(14.0),
           decoration: BoxDecoration(
             color: cardBg,
@@ -307,13 +315,35 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
                   Expanded(
                     child: SizedBox(
                       height: 32.0,
-                      child: TextField(
-                        controller: _replyController,
-                        style: TextStyle(color: textColor, fontSize: 12.0),
-                        onSubmitted: (_) => _sendReply(),
-                        decoration: InputDecoration(
-                          hintText: 'Reply to thread...',
-                          hintStyle: TextStyle(color: subtextColor, fontSize: 11.0),
+                      child: Focus(
+                        onKeyEvent: (node, event) {
+                          if (event is KeyDownEvent) {
+                            if (event.logicalKey == LogicalKeyboardKey.escape) {
+                              widget.onClose();
+                              return KeyEventResult.handled;
+                            }
+                            if ((event.logicalKey == LogicalKeyboardKey.delete ||
+                                 event.logicalKey == LogicalKeyboardKey.backspace) &&
+                                _replyController.text.isEmpty) {
+                              widget.onDelete();
+                              return KeyEventResult.handled;
+                            }
+                            if (event.logicalKey == LogicalKeyboardKey.enter &&
+                                (HardwareKeyboard.instance.isControlPressed ||
+                                 HardwareKeyboard.instance.isMetaPressed)) {
+                              _sendReply();
+                              return KeyEventResult.handled;
+                            }
+                          }
+                          return KeyEventResult.ignored;
+                        },
+                        child: TextField(
+                          controller: _replyController,
+                          style: TextStyle(color: textColor, fontSize: 12.0),
+                          onSubmitted: (_) => _sendReply(),
+                          decoration: InputDecoration(
+                            hintText: 'Reply to thread...',
+                            hintStyle: TextStyle(color: subtextColor, fontSize: 11.0),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
                           filled: true,
                           fillColor: bubbleBg,
@@ -325,6 +355,7 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
                       ),
                     ),
                   ),
+                ),
                   const SizedBox(width: 4.0),
                   IconButton(
                     icon: Icon(Icons.send_rounded, size: 16.0, color: active),
@@ -370,7 +401,8 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
 

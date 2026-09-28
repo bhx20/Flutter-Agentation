@@ -151,5 +151,66 @@ void main() {
 
       expect(controller.settings.blockInteractions, isFalse);
     });
+
+    testWidgets('navigating to Manage MCP & Webhooks allows setting endpoint, webhook, and testing', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AgentationScope(
+              controller: controller,
+              child: SettingsPanel(onClose: () {}),
+            ),
+          ),
+        ),
+      );
+
+      // 1. Tap Manage MCP & Webhooks tile
+      final manageTile = find.byKey(const ValueKey('manage_mcp_webhooks_tile'));
+      expect(manageTile, findsOneWidget);
+      await tester.tap(manageTile);
+      await tester.pumpAndSettle();
+
+      // 2. Verify subpage controls are visible
+      expect(find.byKey(const ValueKey('mcp_endpoint_input')), findsOneWidget);
+      expect(find.byKey(const ValueKey('webhook_url_input')), findsOneWidget);
+      expect(find.byKey(const ValueKey('session_id_input')), findsOneWidget);
+      expect(find.byKey(const ValueKey('mcp_test_button')), findsOneWidget);
+      expect(find.byKey(const ValueKey('mcp_save_button')), findsOneWidget);
+
+      // 3. Enter endpoint and webhook URL
+      await tester.enterText(
+        find.byKey(const ValueKey('mcp_endpoint_input')),
+        'http://localhost:4747',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('webhook_url_input')),
+        'https://agent.test/webhook',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('session_id_input')),
+        'sess_custom_99',
+      );
+      await tester.pump();
+
+      // 4. Tap Save & Apply
+      await tester.tap(find.byKey(const ValueKey('mcp_save_button')));
+      await tester.pumpAndSettle();
+
+      expect(controller.settings.mcpEndpoint, equals('http://localhost:4747'));
+      expect(controller.settings.webhookUrl, equals('https://agent.test/webhook'));
+      expect(controller.settings.sessionId, equals('sess_custom_99'));
+      expect(controller.syncClient, isNotNull);
+      expect(controller.syncClient!.endpoint, equals('http://localhost:4747'));
+      expect(controller.syncClient!.webhookUrl, equals('https://agent.test/webhook'));
+      expect(find.text('✓ Settings saved and active!'), findsOneWidget);
+
+      // 5. Back button returns to main page
+      await tester.tap(find.byKey(const ValueKey('mcp_back_button')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Manage MCP & Webhooks'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
+    });
   });
 }
+

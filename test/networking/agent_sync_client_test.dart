@@ -248,5 +248,55 @@ void main() {
       expect(stored.thread.last.content, equals('Yes please, 16px padding'));
       expect(stored.thread.last.role, equals('human'));
     });
+
+    test('AgentationController automatically dispatches webhooks for all annotation lifecycle events', () async {
+      final storage = MemoryAnnotationStorage();
+      final webhooksDispatched = <Map<String, dynamic>>[];
+
+      final mockClient = AgentSyncClient(
+        endpoint: 'http://localhost:4747',
+        webhookUrl: 'https://webhook.agent/events',
+        httpTransport: (method, uri, {headers, body}) async {
+          if (uri.toString() == 'https://webhook.agent/events') {
+            webhooksDispatched.add({
+              'method': method,
+              'body': body != null ? jsonDecode(body) : null,
+            });
+            return const HttpResponseData(200, '{"ok":true}');
+          }
+          return const HttpResponseData(200, '{}');
+        },
+      );
+
+      final controller = AgentationController(
+        storage: storage,
+        syncClient: mockClient,
+      );
+      controller.updateSettings(controller.settings.copyWith(
+        webhookUrl: 'https://webhook.agent/events',
+        sessionId: 'sess_webhook_test',
+      ));
+
+      // 1. Create annotation -> triggers annotation.created webhook
+      final ann = await controller.createAnnotation(
+        comment: 'Fix contrast',
+        targetResult: const WidgetInspectionResult(
+          identity: WidgetIdentity(id: 'txt', widgetType: 'Text'),
+          bounds: WidgetBounds(x: 0, y: 0, width: 50, height: 20),
+          context: WidgetContext.empty(),
+          ancestors: [],
+        ),
+      );
+      expect(webhooksDispatched.any((w) => w['body']['event'] == 'annotation.created'), isTrue);
+
+      // 2. Add message -> triggers thread.message_added webhook
+      await controller.addThreadMessage(ann.id, 'Can you make it bold?');
+      expect(webhooksDispatched.any((w) => w['body']['event'] == 'thread.message_added'), isTrue);
+
+      // 3. Clear annotations -> triggers annotations.cleared webhook
+      await controller.clearAnnotations();
+      expect(webhooksDispatched.any((w) => w['body']['event'] == 'annotations.cleared'), isTrue);
+    });
   });
 }
+

@@ -1,36 +1,90 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_agentation/flutter_agentation.dart';
+import 'models/widget_category.dart';
+import 'sections/buttons_section.dart';
+import 'sections/dialogs_feedback_section.dart';
+import 'sections/indicators_animations_section.dart';
+import 'sections/inputs_section.dart';
+import 'sections/layouts_transforms_section.dart';
+import 'sections/lists_tables_section.dart';
+import 'sections/surfaces_section.dart';
+import 'sections/typography_section.dart';
 
 void main() {
   runApp(const InspectionDemoApp());
 }
 
-class InspectionDemoApp extends StatelessWidget {
+/// The root application widget showcasing all standard Flutter widgets
+/// with the FlutterAgentation visual inspection engine attached.
+class InspectionDemoApp extends StatefulWidget {
   const InspectionDemoApp({super.key});
+
+  @override
+  State<InspectionDemoApp> createState() => _InspectionDemoAppState();
+}
+
+class _InspectionDemoAppState extends State<InspectionDemoApp> {
+  ThemeMode _themeMode = ThemeMode.light;
+
+  void _toggleTheme() {
+    setState(() {
+      _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'FlutterAgentation Demo',
       debugShowCheckedModeBanner: false,
+      themeMode: _themeMode,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF6366F1), // Indigo
           brightness: Brightness.light,
         ),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        cardTheme: const CardThemeData(
+          elevation: 0.5,
+          color: Colors.white,
+        ),
+      ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF6366F1),
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFF0F172A),
+        cardTheme: const CardThemeData(
+          elevation: 0.5,
+          color: Color(0xFF1E293B),
+        ),
       ),
       home: FlutterAgentation(
         endpoint: 'http://localhost:4747',
         appName: 'FlutterAgentation Showcase',
-        child: const InspectionDemoScreen(),
+        child: InspectionDemoScreen(
+          onToggleTheme: _toggleTheme,
+          isDarkMode: _themeMode == ThemeMode.dark,
+        ),
       ),
     );
   }
 }
 
+/// The main showcase screen organizing all Flutter widgets into structured,
+/// interactive categories with category navigation chips.
 class InspectionDemoScreen extends StatefulWidget {
-  const InspectionDemoScreen({super.key});
+  const InspectionDemoScreen({
+    super.key,
+    this.onToggleTheme,
+    this.isDarkMode = false,
+  });
+
+  final VoidCallback? onToggleTheme;
+  final bool isDarkMode;
 
   @override
   State<InspectionDemoScreen> createState() => _InspectionDemoScreenState();
@@ -39,6 +93,7 @@ class InspectionDemoScreen extends StatefulWidget {
 class _InspectionDemoScreenState extends State<InspectionDemoScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _animController;
+  WidgetCategory _activeCategory = WidgetCategory.all;
 
   @override
   void initState() {
@@ -57,18 +112,30 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('FlutterAgentation Visual Overlay Demo'),
-        backgroundColor: const Color(0xFF1E1E2E),
+        backgroundColor: isDark ? const Color(0xFF1E1E2E) : const Color(0xFF1E1E2E),
         foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            tooltip: widget.isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+            icon: Icon(widget.isDarkMode ? Icons.light_mode : Icons.dark_mode),
+            onPressed: widget.onToggleTheme,
+          ),
+          const SizedBox(width: 8.0),
+        ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Instructions banner
+            // ── Hero Instructions Banner ──
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
@@ -109,279 +176,81 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
                 ],
               ),
             ),
-            const SizedBox(height: 16.0),
+            const SizedBox(height: 14.0),
 
-            // Live Animation Showcase (for testing Animation Freeze)
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0FDF4),
-                borderRadius: BorderRadius.circular(16.0),
-                border: Border.all(color: const Color(0xFFBBF7D0)),
-              ),
+            // ── Category Filter Chip Bar ──
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
               child: Row(
-                children: [
-                  RotationTransition(
-                    turns: _animController,
-                    child: Container(
-                      width: 44.0,
-                      height: 44.0,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF10B981),
-                        shape: BoxShape.circle,
+                children: WidgetCategory.values.map((cat) {
+                  final isSelected = _activeCategory == cat;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: FilterChip(
+                      avatar: Icon(
+                        cat.icon,
+                        size: 16.0,
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
                       ),
-                      child: const Icon(Icons.refresh, color: Colors.white, size: 24.0),
+                      label: Text(cat.label),
+                      selected: isSelected,
+                      selectedColor: const Color(0xFF6366F1),
+                      labelStyle: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                        color: isSelected
+                            ? Colors.white
+                            : (isDark ? Colors.white70 : const Color(0xFF374151)),
+                      ),
+                      checkmarkColor: Colors.white,
+                      backgroundColor: isDark ? const Color(0xFF262638) : const Color(0xFFF1F5F9),
+                      onSelected: (_) {
+                        setState(() {
+                          _activeCategory = cat;
+                        });
+                      },
                     ),
-                  ),
-                  const SizedBox(width: 14.0),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Live Continuous Animation (Freeze Test)',
-                          style: TextStyle(
-                            color: Color(0xFF065F46),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14.0,
-                          ),
-                        ),
-                        SizedBox(height: 4.0),
-                        Text(
-                          'Tap the snowflake (❄) button on the toolbar to freeze this animation mid-flight and inspect it.',
-                          style: TextStyle(color: Color(0xFF047857), fontSize: 12.0),
-                        ),
-                      ],
-                    ),
-                  ),
+                  );
+                }).toList(),
+              ),
+            ),
+
+                  // ── Categorized Widget Sections ──
+                  if (_shouldShow(WidgetCategory.buttons))
+                    const ButtonsSection(),
+
+                  if (_shouldShow(WidgetCategory.inputs))
+                    const InputsSection(),
+
+                  if (_shouldShow(WidgetCategory.surfaces))
+                    const SurfacesSection(),
+
+                  if (_shouldShow(WidgetCategory.typography))
+                    const TypographySection(),
+
+                  if (_shouldShow(WidgetCategory.lists))
+                    const ListsTablesSection(),
+
+                  if (_shouldShow(WidgetCategory.layouts))
+                    const LayoutsTransformsSection(),
+
+                  if (_shouldShow(WidgetCategory.indicators))
+                    IndicatorsAnimationsSection(animController: _animController),
+
+                  if (_shouldShow(WidgetCategory.feedback))
+                    const DialogsFeedbackSection(),
+
+                  // Bottom padding clearance for the floating toolbar
+                  const SizedBox(height: 120.0),
                 ],
               ),
             ),
-            const SizedBox(height: 24.0),
-
-            // Standard buttons section
-            const Text(
-              'Interactive Buttons',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12.0),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    key: const ValueKey('submit_button'),
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6366F1),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                    ),
-                    child: const Text('Primary Action'),
-                  ),
-                ),
-                const SizedBox(width: 12.0),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('secondary_button'),
-                    onPressed: () {},
-                    icon: const Icon(Icons.star_outline),
-                    label: const Text('Starred Action'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.0),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24.0),
-
-            // Card container
-            const Text(
-              'Container & Card Layouts',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12.0),
-            Card(
-              key: const ValueKey('info_card_layout'),
-              elevation: 2.0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: const [
-                        Icon(Icons.dashboard_outlined, color: Color(0xFF6366F1)),
-                        SizedBox(width: 8.0),
-                        Text(
-                          'Hierarchical Component',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8.0),
-                    const Text(
-                      'The inspection engine accurately maps ancestry breadcrumbs and bounding dimensions across complex layouts.',
-                      style: TextStyle(color: Colors.black54, fontSize: 13.0, height: 1.4),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24.0),
-
-            // Transformed / Rotated Element
-            const Text(
-              'Transformed & Rotated Element',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16.0),
-            Center(
-              child: Transform.rotate(
-                angle: 0.15, // ~8.5 degrees
-                child: Container(
-                  key: const ValueKey('rotated_demo_box'),
-                  width: 220,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF06B6D4), Color(0xFF3B82F6)],
-                    ),
-                    borderRadius: BorderRadius.circular(14.0),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x26000000),
-                        blurRadius: 8.0,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Rotated Card (8.5°)',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14.0,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 32.0),
-
-            // Explicit target with AgentationTarget
-            const Text(
-              'Explicit AgentationTarget Identifier',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12.0),
-            AgentationTarget(
-              id: 'custom_annotated_target',
-              child: Container(
-                padding: const EdgeInsets.all(16.0),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEEF2FF),
-                  borderRadius: BorderRadius.circular(12.0),
-                  border: Border.all(color: const Color(0xFFC7D2FE)),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.label_important_outline, color: Color(0xFF4F46E5)),
-                    SizedBox(width: 8.0),
-                    Text(
-                      'Tagged: custom_annotated_target',
-                      style: TextStyle(
-                        color: Color(0xFF4F46E5),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24.0),
-
-            // Navigation Links row (matching Screenshot 5)
-            const Text(
-              'Navigation & Links',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12.0),
-            Row(
-              children: [
-                TextButton(
-                  key: const ValueKey('link_blog'),
-                  onPressed: () {},
-                  child: const Text('Blog', style: TextStyle(color: Color(0xFF6366F1))),
-                ),
-                const SizedBox(width: 8.0),
-                TextButton(
-                  key: const ValueKey('link_faq'),
-                  onPressed: () {},
-                  child: const Text('FAQ', style: TextStyle(color: Color(0xFF6366F1))),
-                ),
-                const SizedBox(width: 8.0),
-                TextButton(
-                  key: const ValueKey('link_docs'),
-                  onPressed: () {},
-                  child: const Text('Docs', style: TextStyle(color: Color(0xFF6366F1))),
-                ),
-                const SizedBox(width: 8.0),
-                TextButton(
-                  key: const ValueKey('link_changelog'),
-                  onPressed: () {},
-                  child: const Text('Changelog', style: TextStyle(color: Color(0xFF6366F1))),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24.0),
-
-            // Nested ListTiles & Children Showcase
-            const Text(
-              'Nested ListTiles & Child Widgets Inspection',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12.0),
-            Card(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.0),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.help_outline, color: Color(0xFF6366F1)),
-                    title: const Text('Frequently Asked Questions'),
-                    subtitle: const Text('Inspect this tile or its individual text/icon children'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {},
-                  ),
-                  const Divider(height: 1.0),
-                  ListTile(
-                    leading: const Icon(Icons.palette_outlined, color: Color(0xFF10B981)),
-                    title: const Text('Theme & Palette Configuration'),
-                    subtitle: const Text('Each text span, leading icon, and trailing widget is inspectable'),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 14.0),
-                    onTap: () {},
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 120.0), // Bottom clearance for floating toolbar
-          ],
-        ),
-      ),
     );
+  }
+
+  bool _shouldShow(WidgetCategory category) {
+    return _activeCategory == WidgetCategory.all || _activeCategory == category;
   }
 }

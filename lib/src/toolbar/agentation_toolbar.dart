@@ -7,7 +7,6 @@ import '../core/agentation_state.dart';
 import '../design/component_palette.dart';
 import '../models/marker_color.dart';
 import 'agentation_icons.dart';
-import 'agentation_tooltip.dart';
 import 'settings_panel.dart';
 
 /// Pixel-perfect floating pill toolbar matching Screenshot 1, 2, 3, 4 of Agentation.
@@ -32,16 +31,57 @@ class AgentationToolbar extends StatefulWidget {
   State<AgentationToolbar> createState() => _AgentationToolbarState();
 }
 
+enum ToolbarAnchor { left, right, center }
+
+class _ToolbarPositionState {
+  final ToolbarAnchor anchor;
+  final double? leftInset;
+  final double? rightInset;
+  final double? bottomInset;
+  final bool isDragging;
+
+  const _ToolbarPositionState({
+    this.anchor = ToolbarAnchor.center,
+    this.leftInset,
+    this.rightInset,
+    this.bottomInset,
+    this.isDragging = false,
+  });
+
+  _ToolbarPositionState copyWith({
+    ToolbarAnchor? anchor,
+    double? leftInset,
+    double? rightInset,
+    double? bottomInset,
+    bool? isDragging,
+    bool clearLeft = false,
+    bool clearRight = false,
+  }) {
+    return _ToolbarPositionState(
+      anchor: anchor ?? this.anchor,
+      leftInset: clearLeft ? null : (leftInset ?? this.leftInset),
+      rightInset: clearRight ? null : (rightInset ?? this.rightInset),
+      bottomInset: bottomInset ?? this.bottomInset,
+      isDragging: isDragging ?? this.isDragging,
+    );
+  }
+}
+
 class _AgentationToolbarState extends State<AgentationToolbar> {
-  Offset? _currentOffset;
-  bool _isCopied = false;
+  final ValueNotifier<_ToolbarPositionState> _positionNotifier =
+      ValueNotifier<_ToolbarPositionState>(const _ToolbarPositionState());
+  final ValueNotifier<bool> _isCopiedNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isSettingsOpenNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isLayoutModeOpenNotifier = ValueNotifier<bool>(false);
   Timer? _copyTimer;
-  bool _isSettingsOpen = false;
-  bool _isLayoutModeOpen = false;
 
   @override
   void dispose() {
     _copyTimer?.cancel();
+    _positionNotifier.dispose();
+    _isCopiedNotifier.dispose();
+    _isSettingsOpenNotifier.dispose();
+    _isLayoutModeOpenNotifier.dispose();
     super.dispose();
   }
 
@@ -65,7 +105,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     await controller.copyToClipboard(
       format: controller.settings.copyFormat,
     );
-    setState(() => _isCopied = true);
+    _isCopiedNotifier.value = true;
     if (mounted) {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
@@ -76,41 +116,151 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     }
     _copyTimer?.cancel();
     _copyTimer = Timer(const Duration(milliseconds: 1800), () {
-      if (mounted) setState(() => _isCopied = false);
+      if (mounted) _isCopiedNotifier.value = false;
     });
+  }
+
+  void _initInsetsIfNeeded(
+    Size screenSize,
+    EdgeInsets safePadding,
+    double effectiveWidth,
+    double toolbarHeight,
+  ) {
+    final current = _positionNotifier.value;
+    if (current.leftInset != null || current.rightInset != null) return;
+
+    final defaultBottom = safePadding.bottom + 20.0;
+
+    if (_controller.toolbarOffset != Offset.zero) {
+      final ox = _controller.toolbarOffset.dx;
+      final oy = _controller.toolbarOffset.dy;
+      final bottomInset = screenSize.height - oy - toolbarHeight;
+      final centerX = ox + effectiveWidth / 2.0;
+      if (centerX >= screenSize.width / 2.0) {
+        _positionNotifier.value = _ToolbarPositionState(
+          anchor: ToolbarAnchor.right,
+          rightInset: screenSize.width - (ox + effectiveWidth),
+          bottomInset: bottomInset,
+        );
+      } else {
+        _positionNotifier.value = _ToolbarPositionState(
+          anchor: ToolbarAnchor.left,
+          leftInset: ox,
+          bottomInset: bottomInset,
+        );
+      }
+      return;
+    }
+
+    if (widget.initialAlignment.x > 0.1) {
+      _positionNotifier.value = _ToolbarPositionState(
+        anchor: ToolbarAnchor.right,
+        rightInset: safePadding.right + 20.0,
+        bottomInset: widget.initialAlignment.y > 0.1
+            ? defaultBottom
+            : (widget.initialAlignment.y < -0.1
+                ? screenSize.height - safePadding.top - toolbarHeight - 20.0
+                : (screenSize.height - toolbarHeight) / 2.0),
+      );
+    } else if (widget.initialAlignment.x < -0.1) {
+      _positionNotifier.value = _ToolbarPositionState(
+        anchor: ToolbarAnchor.left,
+        leftInset: safePadding.left + 20.0,
+        bottomInset: widget.initialAlignment.y > 0.1
+            ? defaultBottom
+            : (widget.initialAlignment.y < -0.1
+                ? screenSize.height - safePadding.top - toolbarHeight - 20.0
+                : (screenSize.height - toolbarHeight) / 2.0),
+      );
+    } else {
+      _positionNotifier.value = _ToolbarPositionState(
+        anchor: ToolbarAnchor.center,
+        bottomInset: widget.initialAlignment.y > 0.1
+            ? defaultBottom
+            : (widget.initialAlignment.y < -0.1
+                ? screenSize.height - safePadding.top - toolbarHeight - 20.0
+                : (screenSize.height - toolbarHeight) / 2.0),
+      );
+    }
+  }
+
+  void _onPanStart(DragStartDetails details) {
+    _positionNotifier.value = _positionNotifier.value.copyWith(isDragging: true);
   }
 
   void _onPanUpdate(
     DragUpdateDetails details,
     Size screenSize,
     EdgeInsets safePadding,
-    double toolbarWidth,
+    double currentPillWidth,
     double toolbarHeight,
   ) {
-    final minX = safePadding.left + 8.0;
-    final maxX = math.max(minX, screenSize.width - safePadding.right - toolbarWidth - 8.0);
-    final minY = safePadding.top + 8.0;
-    final maxY = math.max(minY, screenSize.height - safePadding.bottom - toolbarHeight - 8.0);
+    final pos = _positionNotifier.value;
+    final currentBottom = pos.bottomInset ?? (safePadding.bottom + 20.0);
+    final newBottom = currentBottom - details.delta.dy;
 
-    final current = _currentOffset ?? _getDefaultOffset(screenSize, safePadding, toolbarWidth, toolbarHeight);
-    final updatedX = (current.dx + details.delta.dx).clamp(minX, maxX);
-    final updatedY = (current.dy + details.delta.dy).clamp(minY, maxY);
-
-    final newOffset = Offset(updatedX, updatedY);
-    setState(() {
-      _currentOffset = newOffset;
-    });
-    _controller.updateToolbarOffset(newOffset);
+    if (pos.anchor == ToolbarAnchor.right) {
+      final currentRight = pos.rightInset ?? (safePadding.right + 20.0);
+      final newRight = currentRight - details.delta.dx;
+      final centerX = (screenSize.width - newRight) - currentPillWidth / 2.0;
+      if (centerX < screenSize.width / 2.0) {
+        _positionNotifier.value = pos.copyWith(
+          anchor: ToolbarAnchor.left,
+          leftInset: screenSize.width - newRight - currentPillWidth,
+          clearRight: true,
+          bottomInset: newBottom,
+        );
+      } else {
+        _positionNotifier.value = pos.copyWith(
+          rightInset: newRight,
+          bottomInset: newBottom,
+        );
+      }
+    } else if (pos.anchor == ToolbarAnchor.left) {
+      final currentLeft = pos.leftInset ?? (safePadding.left + 20.0);
+      final newLeft = currentLeft + details.delta.dx;
+      final centerX = newLeft + currentPillWidth / 2.0;
+      if (centerX >= screenSize.width / 2.0) {
+        _positionNotifier.value = pos.copyWith(
+          anchor: ToolbarAnchor.right,
+          rightInset: screenSize.width - (newLeft + currentPillWidth),
+          clearLeft: true,
+          bottomInset: newBottom,
+        );
+      } else {
+        _positionNotifier.value = pos.copyWith(
+          leftInset: newLeft,
+          bottomInset: newBottom,
+        );
+      }
+    } else {
+      final currentLeft = (screenSize.width - currentPillWidth) / 2.0;
+      final newLeft = currentLeft + details.delta.dx;
+      final centerX = newLeft + currentPillWidth / 2.0;
+      if (centerX >= screenSize.width / 2.0) {
+        _positionNotifier.value = pos.copyWith(
+          anchor: ToolbarAnchor.right,
+          rightInset: screenSize.width - (newLeft + currentPillWidth),
+          clearLeft: true,
+          bottomInset: newBottom,
+        );
+      } else {
+        _positionNotifier.value = pos.copyWith(
+          anchor: ToolbarAnchor.left,
+          leftInset: newLeft,
+          clearRight: true,
+          bottomInset: newBottom,
+        );
+      }
+    }
   }
 
-  Offset _getDefaultOffset(Size screenSize, EdgeInsets safePadding, double width, double height) {
-    if (_controller.toolbarOffset != Offset.zero) {
-      return _controller.toolbarOffset;
-    }
+  void _onPanEnd(DragEndDetails details) {
+    _positionNotifier.value = _positionNotifier.value.copyWith(isDragging: false);
+  }
 
-    final double x = (screenSize.width - width) / 2.0;
-    final double y = screenSize.height - safePadding.bottom - height - 20.0;
-    return Offset(x, y);
+  void _onPanCancel() {
+    _positionNotifier.value = _positionNotifier.value.copyWith(isDragging: false);
   }
 
   @override
@@ -120,8 +270,19 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     final safePadding = MediaQuery.paddingOf(context);
 
     return ListenableBuilder(
-      listenable: controller,
+      listenable: Listenable.merge([
+        controller,
+        _positionNotifier,
+        _isSettingsOpenNotifier,
+        _isLayoutModeOpenNotifier,
+        _isCopiedNotifier,
+      ]),
       builder: (context, _) {
+        final pos = _positionNotifier.value;
+        final isSettingsOpen = _isSettingsOpenNotifier.value;
+        final isLayoutModeOpen = _isLayoutModeOpenNotifier.value;
+        final isDragging = pos.isDragging;
+
         final isMinimized = controller.isToolbarMinimized;
         final isDark = controller.settings.isDarkMode;
         final markerColor = MarkerColor.findById(controller.settings.markerColorId).color;
@@ -130,52 +291,114 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
         final toolbarWidth = isMinimized ? 44.0 : expandedWidth;
         const double toolbarHeight = 44.0;
 
-        final offset = _currentOffset ?? _getDefaultOffset(screenSize, safePadding, toolbarWidth, toolbarHeight);
-        final double bottomInset = screenSize.height - offset.dy - toolbarHeight;
+        final effectiveWidth = math.max(
+          toolbarWidth,
+          isSettingsOpen ? 300.0 : (isLayoutModeOpen ? 290.0 : 0.0),
+        );
 
-        return Positioned(
-          left: offset.dx,
-          bottom: bottomInset,
+        _initInsetsIfNeeded(screenSize, safePadding, effectiveWidth, toolbarHeight);
+
+        final minX = safePadding.left + 8.0;
+        final maxX = screenSize.width - safePadding.right - 8.0;
+        final maxY = screenSize.height - safePadding.bottom - 8.0;
+
+        final minRightInset = safePadding.right + 8.0;
+        final maxRightInset = math.max(minRightInset, screenSize.width - minX - effectiveWidth);
+        final clampedRightInset = (pos.rightInset ?? minRightInset).clamp(minRightInset, maxRightInset);
+
+        final minLeftInset = safePadding.left + 8.0;
+        final maxLeftInset = math.max(minLeftInset, maxX - effectiveWidth);
+        final clampedLeftInset = (pos.leftInset ?? minLeftInset).clamp(minLeftInset, maxLeftInset);
+
+        final minBottomInset = safePadding.bottom + 8.0;
+        final maxBottomInset = math.max(minBottomInset, maxY - toolbarHeight);
+        final clampedBottomInset = (pos.bottomInset ?? minBottomInset).clamp(minBottomInset, maxBottomInset);
+
+        final double? posLeft;
+        final double? posRight;
+        final CrossAxisAlignment colAlignment;
+        final Alignment pillAlignment;
+
+        if (pos.anchor == ToolbarAnchor.right) {
+          posLeft = null;
+          posRight = clampedRightInset;
+          colAlignment = CrossAxisAlignment.end;
+          pillAlignment = Alignment.centerRight;
+        } else if (pos.anchor == ToolbarAnchor.left) {
+          posLeft = clampedLeftInset;
+          posRight = null;
+          colAlignment = CrossAxisAlignment.start;
+          pillAlignment = Alignment.centerLeft;
+        } else {
+          posLeft = (screenSize.width - effectiveWidth) / 2.0;
+          posRight = null;
+          colAlignment = CrossAxisAlignment.center;
+          pillAlignment = Alignment.center;
+        }
+
+        final computedX = (posRight != null)
+            ? (screenSize.width - posRight - effectiveWidth)
+            : (posLeft ?? (screenSize.width - effectiveWidth) / 2.0);
+        final computedY = screenSize.height - clampedBottomInset - toolbarHeight;
+        final currentOffset = Offset(computedX, computedY);
+        if (_controller.toolbarOffset != currentOffset && isDragging) {
+          _controller.updateToolbarOffset(currentOffset);
+        }
+
+        return AnimatedPositioned(
+          duration: isDragging ? Duration.zero : const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          left: posLeft,
+          right: posRight,
+          bottom: clampedBottomInset,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+            crossAxisAlignment: colAlignment,
             mainAxisSize: MainAxisSize.min,
             children: [
               // ── Floating Panel: Settings or Layout Mode (Screenshots 3 & 4) ──
-              if (!isMinimized && _isSettingsOpen)
+              if (!isMinimized && isSettingsOpen)
                 Container(
                   margin: const EdgeInsets.only(bottom: 8.0),
                   child: SettingsPanel(
-                    onClose: () => setState(() => _isSettingsOpen = false),
+                    onClose: () => _isSettingsOpenNotifier.value = false,
                     controller: controller,
                   ),
                 )
-              else if (!isMinimized && _isLayoutModeOpen)
+              else if (!isMinimized && isLayoutModeOpen)
                 Container(
                   margin: const EdgeInsets.only(bottom: 8.0),
                   child: ComponentPalette(
                     controller: controller,
-                    onClose: () => setState(() => _isLayoutModeOpen = false),
+                    onClose: () {
+                      _isLayoutModeOpenNotifier.value = false;
+                      controller.setToolMode(AnnotationToolMode.pointer);
+                    },
                     onSelectTemplate: (template) {
                       controller.createPlacementAnnotation(
                         placement: template.toPlacementData(),
                         position: Offset(screenSize.width / 2, screenSize.height / 2),
                         comment: 'Add ${template.label} here',
                       );
-                      setState(() => _isLayoutModeOpen = false);
+                      _isLayoutModeOpenNotifier.value = false;
+                      controller.setToolMode(AnnotationToolMode.pointer);
                     },
                   ),
                 ),
 
               // ── Pill Toolbar Container (Screenshot 1) ──
               GestureDetector(
+                onPanStart: _onPanStart,
                 onPanUpdate: (details) => _onPanUpdate(details, screenSize, safePadding, toolbarWidth, toolbarHeight),
+                onPanEnd: _onPanEnd,
+                onPanCancel: _onPanCancel,
                 child: Material(
                   color: Colors.transparent,
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: const Duration(milliseconds: 250),
                     curve: Curves.easeInOut,
                     width: toolbarWidth,
                     height: toolbarHeight,
+                    alignment: pillAlignment,
                     padding: isMinimized
                         ? EdgeInsets.zero
                         : const EdgeInsets.symmetric(horizontal: 5.0, vertical: 5.0),
@@ -197,7 +420,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                     ),
                     child: isMinimized
                         ? _buildMinimizedPill(controller, markerColor, isDark)
-                        : _buildExpandedPill(controller, markerColor, isDark),
+                        : _buildExpandedPill(controller, markerColor, isDark, pillAlignment),
                   ),
                 ),
               ),
@@ -209,18 +432,14 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
   }
 
   Widget _buildMinimizedPill(AgentationController controller, Color markerColor, bool isDark) {
-    return Tooltip(
-      message: 'Expand Toolbar',
-      triggerMode: TooltipTriggerMode.manual,
-      child: InkWell(
-        key: const ValueKey('toolbar_expand'),
-        onTap: controller.toggleToolbarMinimized,
-        borderRadius: BorderRadius.circular(22.0),
-        child: Center(
-          child: AgentationIcons.eye(
-            size: 20.0,
-            color: isDark ? Colors.white : Colors.black87,
-          ),
+    return InkWell(
+      key: const ValueKey('toolbar_expand'),
+      onTap: controller.toggleToolbarMinimized,
+      borderRadius: BorderRadius.circular(22.0),
+      child: Center(
+        child: AgentationIcons.eye(
+          size: 20.0,
+          color: isDark ? Colors.white : Colors.black87,
         ),
       ),
     );
@@ -230,167 +449,147 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     AgentationController controller,
     Color markerColor,
     bool isDark,
+    Alignment pillAlignment,
   ) {
     final iconColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
     final dividerColor = isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000);
 
-    final isPaused = controller.isFrozen || controller.isPaused;
-    final isLayoutActive = _isLayoutModeOpen || controller.toolMode == AnnotationToolMode.design;
-    final isInspectActive = controller.isInspecting;
+    final isPaused = controller.isFrozen;
+    final isLayoutOpen = _isLayoutModeOpenNotifier.value;
+    final isSettingsOpen = _isSettingsOpenNotifier.value;
+    final isCopied = _isCopiedNotifier.value;
+    final isLayoutActive = isLayoutOpen || controller.toolMode == AnnotationToolMode.design;
 
     return ClipRect(
       child: OverflowBox(
         minWidth: 286.0,
         maxWidth: 286.0,
-        alignment: Alignment.center,
+        alignment: pillAlignment,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-        // 1. Pause animations (|| / ▶) - Screenshot 1 & 2
-        AgentationTooltip(
-          message: isPaused ? 'Resume animations' : 'Pause animations',
-          shortcut: 'P',
-          child: _buildToolbarButton(
-            key: const ValueKey('toolbar_pause'),
-            icon: isPaused
-                ? AgentationIcons.play(size: 18.0, color: const Color(0xFFFF9500))
-                : AgentationIcons.pause(size: 18.0, color: iconColor),
-            isActive: isPaused,
-            activeColor: const Color(0x33FF9500),
-            onPressed: () {
-              controller.toggleFreeze();
-            },
-          ),
-        ),
-
-        // 2. Layout Mode (split grid/window) - Screenshot 1 & 4
-        AgentationTooltip(
-          message: 'Layout mode',
-          shortcut: 'L',
-          child: _buildToolbarButton(
-            key: const ValueKey('toolbar_layout'),
-            icon: AgentationIcons.layout(
-              size: 19.0,
-              color: isLayoutActive ? Colors.white : iconColor,
+            // 1. Play / Pause & Inspect (|| / ▶) - Screenshot 1 & 2
+            _buildToolbarButton(
+              key: const ValueKey('toolbar_pause'),
+              icon: isPaused
+                  ? AgentationIcons.play(size: 18.0, color: const Color(0xFFFF9500))
+                  : AgentationIcons.pause(size: 18.0, color: iconColor),
+              isActive: isPaused,
+              activeColor: const Color(0x33FF9500),
+              onPressed: () {
+                if (controller.isFrozen) {
+                  controller.deactivate(unfreeze: true);
+                } else {
+                  controller.activate(freeze: true);
+                  _isLayoutModeOpenNotifier.value = false;
+                }
+              },
             ),
-            isActive: isLayoutActive,
-            activeColor: const Color(0xFF0070F3), // Original vibrant blue active circle
-            onPressed: () {
-              setState(() {
-                _isLayoutModeOpen = !_isLayoutModeOpen;
-                _isSettingsOpen = false;
-              });
-              if (_isLayoutModeOpen) {
-                controller.setToolMode(AnnotationToolMode.design);
-                if (!controller.isInspecting) controller.toggleInspect();
-              } else {
-                controller.setToolMode(AnnotationToolMode.pointer);
-              }
-            },
-          ),
-        ),
 
-        // 3. Inspect Mode (Eye icon) - Screenshot 1 & 5
-        AgentationTooltip(
-          message: 'Inspect',
-          shortcut: 'I',
-          child: _buildToolbarButton(
-            key: const ValueKey('toolbar_inspect'),
-            icon: AgentationIcons.eye(
-              size: 20.0,
-              color: isInspectActive && !isLayoutActive ? markerColor : iconColor,
+            // 2. Layout Mode (split grid/window) - Screenshot 1 & 4
+            _buildToolbarButton(
+              key: const ValueKey('toolbar_layout'),
+              icon: AgentationIcons.layout(
+                size: 19.0,
+                color: isLayoutActive ? Colors.white : iconColor,
+              ),
+              isActive: isLayoutActive,
+              activeColor: const Color(0xFF0070F3), // Original vibrant blue active circle
+              onPressed: () {
+                final nextVal = !_isLayoutModeOpenNotifier.value;
+                _isLayoutModeOpenNotifier.value = nextVal;
+                _isSettingsOpenNotifier.value = false;
+                if (nextVal) {
+                  controller.setToolMode(AnnotationToolMode.design);
+                  if (!controller.isInspecting) controller.activate();
+                } else {
+                  controller.setToolMode(AnnotationToolMode.pointer);
+                }
+              },
             ),
-            isActive: isInspectActive && !isLayoutActive,
-            activeColor: markerColor.withValues(alpha: 0.2),
-            onPressed: () {
-              controller.toggleInspect();
-              if (controller.isInspecting) {
-                controller.setToolMode(AnnotationToolMode.pointer);
-                setState(() {
-                  _isLayoutModeOpen = false;
-                });
-              }
-            },
-          ),
-        ),
 
-        // 4. Copy (Overlapping rectangles) - Screenshot 1
-        AgentationTooltip(
-          message: 'Copy annotations',
-          shortcut: 'C',
-          child: _buildToolbarButton(
-            key: const ValueKey('toolbar_copy'),
-            icon: _isCopied
-                ? AgentationIcons.check(size: 19.0, color: const Color(0xFF34C759))
-                : AgentationIcons.copy(size: 19.0, color: iconColor),
-            isActive: _isCopied,
-            activeColor: const Color(0x2634C759),
-            onPressed: () => _onCopy(controller),
-          ),
-        ),
-
-        // 5. Delete / Trash (Trash can) - Screenshot 1
-        AgentationTooltip(
-          message: 'Clear annotations',
-          shortcut: 'D',
-          child: _buildToolbarButton(
-            key: const ValueKey('toolbar_clear'),
-            icon: AgentationIcons.trash(size: 18.0, color: iconColor),
-            isActive: false,
-            activeColor: Colors.transparent,
-            onPressed: () {
-              controller.clearAnnotations();
-            },
-          ),
-        ),
-
-        // 6. Settings (Cog wheel) - Screenshot 1 & 3
-        AgentationTooltip(
-          message: 'Settings',
-          shortcut: 'S',
-          child: _buildToolbarButton(
-            key: const ValueKey('toolbar_settings'),
-            icon: AgentationIcons.gear(
-              size: 19.0,
-              color: _isSettingsOpen ? Colors.white : iconColor,
+            // 3. Comments Visibility Mode (Eye icon) - Toggle show/hide comments on the page
+            _buildToolbarButton(
+              key: const ValueKey('toolbar_inspect'),
+              icon: controller.areCommentsVisible
+                  ? AgentationIcons.eye(
+                      size: 20.0,
+                      color: markerColor,
+                    )
+                  : AgentationIcons.eyeOff(
+                      size: 20.0,
+                      color: isDark ? const Color(0xFF6E6E73) : const Color(0xFF8E8E93),
+                    ),
+              isActive: controller.areCommentsVisible,
+              activeColor: markerColor.withValues(alpha: 0.2),
+              onPressed: () {
+                controller.toggleCommentsVisibility();
+              },
             ),
-            isActive: _isSettingsOpen,
-            activeColor: const Color(0xFF333333),
-            onPressed: () {
-              setState(() {
-                _isSettingsOpen = !_isSettingsOpen;
-                _isLayoutModeOpen = false;
-              });
-            },
-          ),
-        ),
 
-        // Vertical divider line (Screenshot 1)
-        Container(
-          width: 1.0,
-          height: 16.0,
-          color: dividerColor,
-          margin: const EdgeInsets.symmetric(horizontal: 2.0),
-        ),
+            // 4. Copy (Overlapping rectangles) - Screenshot 1
+            _buildToolbarButton(
+              key: const ValueKey('toolbar_copy'),
+              icon: isCopied
+                  ? AgentationIcons.check(size: 19.0, color: const Color(0xFF34C759))
+                  : AgentationIcons.copy(size: 19.0, color: iconColor),
+              isActive: isCopied,
+              activeColor: const Color(0x2634C759),
+              onPressed: () => _onCopy(controller),
+            ),
 
-        // 7. Close / Minimize (X) - Screenshot 1
-        AgentationTooltip(
-          message: 'Close',
-          shortcut: 'Esc',
-          child: _buildToolbarButton(
-            key: const ValueKey('toolbar_close'),
-            icon: AgentationIcons.close(size: 16.0, color: iconColor),
-            isActive: false,
-            activeColor: Colors.transparent,
-            onPressed: controller.toggleToolbarMinimized,
-          ),
+            // 5. Delete / Trash (Trash can) - Screenshot 1
+            _buildToolbarButton(
+              key: const ValueKey('toolbar_clear'),
+              icon: AgentationIcons.trash(size: 18.0, color: iconColor),
+              isActive: false,
+              activeColor: Colors.transparent,
+              onPressed: () {
+                controller.clearAnnotations();
+              },
+            ),
+
+            // 6. Settings (Cog wheel) - Screenshot 1 & 3
+            _buildToolbarButton(
+              key: const ValueKey('toolbar_settings'),
+              icon: AgentationIcons.gear(
+                size: 19.0,
+                color: isSettingsOpen ? Colors.white : iconColor,
+              ),
+              isActive: isSettingsOpen,
+              activeColor: const Color(0xFF333333),
+              onPressed: () {
+                _isSettingsOpenNotifier.value = !_isSettingsOpenNotifier.value;
+                _isLayoutModeOpenNotifier.value = false;
+              },
+            ),
+
+            // Vertical divider line (Screenshot 1)
+            Container(
+              width: 1.0,
+              height: 16.0,
+              color: dividerColor,
+              margin: const EdgeInsets.symmetric(horizontal: 2.0),
+            ),
+
+            // 7. Close / Minimize (X) - Screenshot 1
+            _buildToolbarButton(
+              key: const ValueKey('toolbar_close'),
+              icon: AgentationIcons.close(size: 16.0, color: iconColor),
+              isActive: false,
+              activeColor: Colors.transparent,
+              onPressed: () {
+                _isLayoutModeOpenNotifier.value = false;
+                _isSettingsOpenNotifier.value = false;
+                controller.toggleToolbarMinimized();
+              },
+            ),
+          ],
         ),
-      ],
-    ),
-  ),
-);
-}
+      ),
+    );
+  }
 
   Widget _buildToolbarButton({
     Key? key,

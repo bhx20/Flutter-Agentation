@@ -77,7 +77,7 @@ class FlutterAgentation extends StatefulWidget {
 
 class _FlutterAgentationState extends State<FlutterAgentation> {
   AgentationController? _internalController;
-  bool _isSettingsOpen = false;
+  final ValueNotifier<bool> _isSettingsOpenNotifier = ValueNotifier<bool>(false);
 
   AgentationController get _effectiveController =>
       widget.controller ?? (_internalController ??= AgentationController());
@@ -120,6 +120,7 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
 
   @override
   void dispose() {
+    _isSettingsOpenNotifier.dispose();
     _internalController?.dispose();
     super.dispose();
   }
@@ -135,31 +136,32 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
         highlightStyle: widget.highlightStyle,
         onWidgetSelected: widget.onWidgetSelected,
         overlayChild: widget.showToolbar
-            ? Stack(
-                children: [
-                  AgentationToolbar(
-                    controller: controller,
-                    initialAlignment: widget.initialToolbarAlignment,
-                    onOpenSettings: () {
-                      setState(() {
-                        _isSettingsOpen = !_isSettingsOpen;
-                      });
-                    },
-                  ),
-                  if (_isSettingsOpen)
-                    Positioned(
-                      top: 60.0,
-                      right: 16.0,
-                      child: SettingsPanel(
+            ? ValueListenableBuilder<bool>(
+                valueListenable: _isSettingsOpenNotifier,
+                builder: (context, isSettingsOpen, _) {
+                  return Stack(
+                    children: [
+                      AgentationToolbar(
                         controller: controller,
-                        onClose: () {
-                          setState(() {
-                            _isSettingsOpen = false;
-                          });
+                        initialAlignment: widget.initialToolbarAlignment,
+                        onOpenSettings: () {
+                          _isSettingsOpenNotifier.value = !_isSettingsOpenNotifier.value;
                         },
                       ),
-                    ),
-                ],
+                      if (isSettingsOpen)
+                        Positioned(
+                          top: 60.0,
+                          right: 16.0,
+                          child: SettingsPanel(
+                            controller: controller,
+                            onClose: () {
+                              _isSettingsOpenNotifier.value = false;
+                            },
+                          ),
+                        ),
+                    ],
+                  );
+                },
               )
             : null,
         child: widget.child,

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
+import 'package:flutter_agentation/src/core/flutter_agentation.dart';
 import 'package:flutter_agentation/src/toolbar/agentation_toolbar.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('AgentationToolbar Exact UI & Parity Test Suite', () {
-    testWidgets('renders all 7 action buttons matching Screenshot 1 and toggles inspect',
+    testWidgets('renders all 7 action buttons and Eye icon toggles comments visibility',
         (tester) async {
       final controller = AgentationController();
 
@@ -34,20 +35,21 @@ void main() {
       expect(find.byKey(const ValueKey('toolbar_settings')), findsOneWidget);
       expect(find.byKey(const ValueKey('toolbar_close')), findsOneWidget);
 
-      // Tap Inspect toggle
+      // Tap Eye toggle to hide comments
+      expect(controller.areCommentsVisible, isTrue);
       await tester.tap(find.byKey(const ValueKey('toolbar_inspect')));
       await tester.pumpAndSettle();
 
-      expect(controller.isInspecting, isTrue);
+      expect(controller.areCommentsVisible, isFalse);
 
-      // Tapping again deactivates inspect
+      // Tapping again displays comments
       await tester.tap(find.byKey(const ValueKey('toolbar_inspect')));
       await tester.pumpAndSettle();
 
-      expect(controller.isInactive, isTrue);
+      expect(controller.areCommentsVisible, isTrue);
     });
 
-    testWidgets('pause animations button toggles freeze state', (tester) async {
+    testWidgets('play pause button toggles inspect and freeze state', (tester) async {
       final controller = AgentationController();
 
       await tester.pumpWidget(
@@ -66,16 +68,19 @@ void main() {
       );
 
       expect(controller.isFrozen, isFalse);
+      expect(controller.isInspecting, isFalse);
 
       await tester.tap(find.byKey(const ValueKey('toolbar_pause')));
       await tester.pumpAndSettle();
 
       expect(controller.isFrozen, isTrue);
+      expect(controller.isInspecting, isTrue);
 
       await tester.tap(find.byKey(const ValueKey('toolbar_pause')));
       await tester.pumpAndSettle();
 
       expect(controller.isFrozen, isFalse);
+      expect(controller.isInspecting, isFalse);
     });
 
     testWidgets('clear action clears annotations in controller',
@@ -225,6 +230,217 @@ void main() {
       expect(find.text('Agentation'), findsOneWidget);
       expect(find.text('v3.1.2'), findsOneWidget);
       expect(find.text('Marker Color'), findsOneWidget);
+    });
+
+    testWidgets('expanding minimized toolbar near right edge stays within screen bounds', (tester) async {
+      final controller = AgentationController();
+      const screenSize = Size(800, 600);
+
+      tester.view.physicalSize = screenSize;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Minimize the toolbar
+      await tester.tap(find.byKey(const ValueKey('toolbar_close')));
+      await tester.pumpAndSettle();
+      expect(controller.isToolbarMinimized, isTrue);
+
+      // Drag minimized pill far to the bottom right edge
+      await tester.drag(find.byKey(const ValueKey('toolbar_expand')), const Offset(500, 500));
+      await tester.pumpAndSettle();
+
+      // Now expand the toolbar
+      await tester.tap(find.byKey(const ValueKey('toolbar_expand')));
+      await tester.pumpAndSettle();
+      expect(controller.isToolbarMinimized, isFalse);
+
+      // Verify the expanded toolbar container is completely inside the screen bounds
+      final toolbarRect = tester.getRect(find.byKey(const ValueKey('toolbar_pause')));
+      expect(toolbarRect.left, greaterThanOrEqualTo(0.0));
+      expect(toolbarRect.right, lessThanOrEqualTo(screenSize.width));
+
+      final closeRect = tester.getRect(find.byKey(const ValueKey('toolbar_close')));
+      expect(closeRect.left, greaterThanOrEqualTo(0.0));
+      expect(closeRect.right, lessThanOrEqualTo(screenSize.width));
+    });
+
+    testWidgets('toolbar with initialAlignment Alignment.bottomRight renders inside screen', (tester) async {
+      final controller = AgentationController();
+      const screenSize = Size(800, 600);
+
+      tester.view.physicalSize = screenSize;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(
+                    initialAlignment: Alignment.bottomRight,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final pauseRect = tester.getRect(find.byKey(const ValueKey('toolbar_pause')));
+      expect(pauseRect.left, greaterThanOrEqualTo(0.0));
+      expect(pauseRect.right, lessThanOrEqualTo(screenSize.width));
+
+      final closeRect = tester.getRect(find.byKey(const ValueKey('toolbar_close')));
+      expect(closeRect.left, greaterThanOrEqualTo(0.0));
+      expect(closeRect.right, lessThanOrEqualTo(screenSize.width));
+    });
+
+    testWidgets('right-anchored toolbar keeps right edge fixed and expands to the left', (tester) async {
+      final controller = AgentationController();
+      const screenSize = Size(800, 600);
+
+      tester.view.physicalSize = screenSize;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(
+                    initialAlignment: Alignment.bottomRight,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Minimize the toolbar
+      await tester.tap(find.byKey(const ValueKey('toolbar_close')));
+      await tester.pumpAndSettle();
+      expect(controller.isToolbarMinimized, isTrue);
+
+      final minimizedRect = tester.getRect(find.byKey(const ValueKey('toolbar_expand')));
+      final minimizedRight = minimizedRect.right;
+
+      // Expand the toolbar
+      await tester.tap(find.byKey(const ValueKey('toolbar_expand')));
+      await tester.pumpAndSettle();
+      expect(controller.isToolbarMinimized, isFalse);
+
+      final expandedCloseRect = tester.getRect(find.byKey(const ValueKey('toolbar_close')));
+      expect(expandedCloseRect.right, lessThanOrEqualTo(screenSize.width));
+      expect((expandedCloseRect.right - minimizedRight).abs(), lessThan(30.0));
+
+      final expandedPauseRect = tester.getRect(find.byKey(const ValueKey('toolbar_pause')));
+      expect(expandedPauseRect.left, lessThan(minimizedRect.left));
+    });
+
+    testWidgets('when toolbar is minimized, inspection does not intercept and host button receives tap', (tester) async {
+      int hostTaps = 0;
+      final controller = AgentationController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              child: Center(
+                child: ElevatedButton(
+                  onPressed: () => hostTaps++,
+                  child: const Text('Target Button'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(controller.isToolbarMinimized, isFalse);
+
+      // Minimize the toolbar
+      await tester.tap(find.byKey(const ValueKey('toolbar_close')));
+      await tester.pumpAndSettle();
+      expect(controller.isToolbarMinimized, isTrue);
+      expect(controller.isInspecting, isFalse);
+
+      // Tap host button while minimized: gestures pass through directly to host app
+      await tester.tap(find.text('Target Button'));
+      await tester.pumpAndSettle();
+      expect(hostTaps, equals(1));
+
+      // Expand toolbar: inspection is re-enabled
+      await tester.tap(find.byKey(const ValueKey('toolbar_expand')));
+      await tester.pumpAndSettle();
+      expect(controller.isToolbarMinimized, isFalse);
+      expect(controller.isInspecting, isTrue);
+    });
+
+    testWidgets('toggling Eye icon hides and displays annotation comment markers on page', (tester) async {
+      final controller = AgentationController();
+      await controller.createAnnotation(comment: 'Important note on screen');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              child: const Center(
+                child: Text('Main Screen'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Comments are visible by default: marker with '1' is displayed
+      expect(find.text('1'), findsOneWidget);
+
+      // Tap Eye button to hide comments
+      await tester.tap(find.byKey(const ValueKey('toolbar_inspect')));
+      await tester.pumpAndSettle();
+
+      expect(controller.areCommentsVisible, isFalse);
+      expect(find.text('1'), findsNothing);
+
+      // Tap Eye button again to display comments
+      await tester.tap(find.byKey(const ValueKey('toolbar_inspect')));
+      await tester.pumpAndSettle();
+
+      expect(controller.areCommentsVisible, isTrue);
+      expect(find.text('1'), findsOneWidget);
     });
   });
 }

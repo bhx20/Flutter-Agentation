@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'package:http/http.dart' as http;
 import '../core/agentation_logger.dart';
 import '../models/annotation.dart';
 import '../output/agentation_format_adapter.dart';
@@ -22,26 +22,28 @@ typedef HttpTransport = Future<HttpResponseData> Function(
   String? body,
 });
 
-/// Default [HttpTransport] implementation using standard [dart:io] [HttpClient].
+/// Default cross-platform [HttpTransport] implementation working on Web, Mobile, and Desktop.
 Future<HttpResponseData> defaultHttpTransport(
   String method,
   Uri uri, {
   Map<String, String>? headers,
   String? body,
 }) async {
-  final client = HttpClient();
+  final client = http.Client();
   try {
-    final request = await client.openUrl(method, uri);
-    headers?.forEach((key, value) {
-      request.headers.set(key, value);
-    });
-    if (body != null) {
-      request.headers.contentType = ContentType.json;
-      request.write(body);
+    final request = http.Request(method, uri);
+    if (headers != null) {
+      request.headers.addAll(headers);
     }
-    final response = await request.close();
-    final responseBody = await response.transform(utf8.decoder).join();
-    return HttpResponseData(response.statusCode, responseBody);
+    if (body != null) {
+      if (!request.headers.containsKey('content-type')) {
+        request.headers['content-type'] = 'application/json';
+      }
+      request.body = body;
+    }
+    final streamed = await client.send(request);
+    final response = await http.Response.fromStream(streamed);
+    return HttpResponseData(response.statusCode, response.body);
   } finally {
     client.close();
   }
@@ -63,8 +65,47 @@ class AgentSyncClient {
 
   final HttpTransport _transport;
 
+  /// Underlying HTTP transport function.
+  HttpTransport get transport => _transport;
+
   String get _normalizedEndpoint =>
       endpoint.endsWith('/') ? endpoint.substring(0, endpoint.length - 1) : endpoint;
+
+  /// Creates a copy of this client with updated endpoint, webhookUrl, or transport.
+  AgentSyncClient copyWith({
+    String? endpoint,
+    String? webhookUrl,
+    HttpTransport? httpTransport,
+  }) {
+    return AgentSyncClient(
+      endpoint: endpoint ?? this.endpoint,
+      webhookUrl: webhookUrl ?? this.webhookUrl,
+      httpTransport: httpTransport ?? _transport,
+    );
+  }
+
+  /// Pings the MCP server endpoint to verify connectivity.
+  Future<bool> ping() async {
+    try {
+      if (endpoint.isEmpty) return false;
+      final uri = Uri.parse('$_normalizedEndpoint/sessions');
+      final res = await _transport('GET', uri);
+      return res.isOk;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Dispatches an event to the configured webhook URL or a specified override.
+  Future<bool> sendWebhook({
+    required String event,
+    required Map<String, dynamic> payload,
+    String? overrideUrl,
+  }) async {
+    final target = overrideUrl ?? webhookUrl;
+    if (target == null || target.isEmpty) return false;
+    return dispatchWebhook(target, event: event, payload: payload);
+  }
 
   /// Lists all active sessions registered on the server.
   Future<List<Map<String, dynamic>>> listSessions() async {

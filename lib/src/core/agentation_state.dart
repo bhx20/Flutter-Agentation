@@ -46,6 +46,7 @@ class AgentationState {
     this.toolbarOffset = Offset.zero,
     this.isToolbarMinimized = false,
     this.isFrozen = false,
+    this.areCommentsVisible = true,
   });
 
   /// The current inspection mode.
@@ -75,6 +76,9 @@ class AgentationState {
   /// Whether in-flight animations and tickers in the host tree are paused.
   final bool isFrozen;
 
+  /// Whether comments and annotation pins are displayed on the page.
+  final bool areCommentsVisible;
+
   /// Whether inspection is actively intercepting events.
   bool get isInspecting => mode == InspectionMode.inspecting;
 
@@ -95,6 +99,7 @@ class AgentationState {
     Offset? toolbarOffset,
     bool? isToolbarMinimized,
     bool? isFrozen,
+    bool? areCommentsVisible,
   }) {
     return AgentationState(
       mode: mode ?? this.mode,
@@ -109,6 +114,7 @@ class AgentationState {
       toolbarOffset: toolbarOffset ?? this.toolbarOffset,
       isToolbarMinimized: isToolbarMinimized ?? this.isToolbarMinimized,
       isFrozen: isFrozen ?? this.isFrozen,
+      areCommentsVisible: areCommentsVisible ?? this.areCommentsVisible,
     );
   }
 
@@ -124,7 +130,8 @@ class AgentationState {
         other.activeHierarchy == activeHierarchy &&
         other.toolbarOffset == toolbarOffset &&
         other.isToolbarMinimized == isToolbarMinimized &&
-        other.isFrozen == isFrozen;
+        other.isFrozen == isFrozen &&
+        other.areCommentsVisible == areCommentsVisible;
   }
 
   @override
@@ -138,5 +145,6 @@ class AgentationState {
         toolbarOffset,
         isToolbarMinimized,
         isFrozen,
+        areCommentsVisible,
       );
 }
