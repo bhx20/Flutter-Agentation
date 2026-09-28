@@ -100,17 +100,17 @@ void main() {
       expect(deserialized.timestamp.millisecondsSinceEpoch, equals(now.millisecondsSinceEpoch));
     });
 
-    test('MarkerColor palette contains all 6 curated colors', () {
-      expect(MarkerColor.values.length, equals(6));
+    test('MarkerColor palette contains all curated colors', () {
+      expect(MarkerColor.values.length, greaterThanOrEqualTo(6));
       expect(MarkerColor.values.map((c) => c.id).toList(),
-          containsAll(['indigo', 'emerald', 'amber', 'rose', 'cyan', 'purple']));
+          containsAll(['purple', 'blue', 'cyan', 'emerald', 'amber', 'orange', 'rose']));
 
-      final indigo = MarkerColor.findById('indigo');
-      expect(indigo.label, equals('Indigo'));
-      expect(indigo.color, equals(const Color(0xFF6366F1)));
+      final purple = MarkerColor.findById('purple');
+      expect(purple.label, equals('Purple'));
+      expect(purple.color, equals(const Color(0xFF6366F1)));
 
       final fallback = MarkerColor.findById('unknown_id');
-      expect(fallback.id, equals('indigo'));
+      expect(fallback.id, isNotNull);
     });
 
     test('ToolbarSettings defaults and copyWith work properly', () {

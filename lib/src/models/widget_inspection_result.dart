@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../source_location/feedback_target.dart';
+import '../source_location/widget_source_location.dart';
 import 'widget_bounds.dart';
 import 'widget_context.dart';
 import 'widget_identity.dart';
@@ -28,6 +30,9 @@ class WidgetInspectionResult {
   /// Ordered breadcrumb list of ancestor widget names leading to this widget.
   final List<String> ancestors;
 
+  /// Exact source code location resolved via Flutter Inspector runtime metadata.
+  final WidgetSourceLocation? sourceLocation;
+
   /// Additional arbitrary inspection metadata.
   final Map<String, dynamic> metadata;
 
@@ -44,6 +49,7 @@ class WidgetInspectionResult {
     this.route,
     this.text,
     required this.ancestors,
+    this.sourceLocation,
     this.metadata = const {},
     this.isAvailable = true,
   });
@@ -56,8 +62,17 @@ class WidgetInspectionResult {
         route = null,
         text = null,
         ancestors = const [],
+        sourceLocation = const WidgetSourceLocation.unavailable(),
         metadata = const {},
         isAvailable = false;
+
+  /// Converts this inspection target into a [FeedbackTarget] model for prompt output formatting.
+  FeedbackTarget toFeedbackTarget() {
+    return FeedbackTarget(
+      widgetName: identity.widgetType.isNotEmpty ? identity.widgetType : 'Unknown',
+      source: sourceLocation ?? const WidgetSourceLocation.unavailable(),
+    );
+  }
 
   /// Converts this inspection result into a serializable JSON map.
   Map<String, dynamic> toJson() => {
@@ -68,6 +83,7 @@ class WidgetInspectionResult {
         'text': text,
         'ancestors': ancestors,
         'pathString': pathString,
+        if (sourceLocation != null) 'sourceLocation': sourceLocation!.toJson(),
         'metadata': metadata,
         'isAvailable': isAvailable,
       };
@@ -90,6 +106,10 @@ class WidgetInspectionResult {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      sourceLocation: json['sourceLocation'] != null
+          ? WidgetSourceLocation.fromJson(
+              Map<String, dynamic>.from(json['sourceLocation'] as Map))
+          : null,
       metadata: json['metadata'] != null
           ? Map<String, dynamic>.from(json['metadata'] as Map)
           : const {},
@@ -108,6 +128,7 @@ class WidgetInspectionResult {
           route == other.route &&
           text == other.text &&
           listEquals(ancestors, other.ancestors) &&
+          sourceLocation == other.sourceLocation &&
           mapEquals(metadata, other.metadata) &&
           isAvailable == other.isAvailable;
 
@@ -119,10 +140,11 @@ class WidgetInspectionResult {
         route,
         text,
         Object.hashAll(ancestors),
+        sourceLocation,
         isAvailable,
       );
 
   @override
   String toString() =>
-      'WidgetInspectionResult(available: $isAvailable, type: ${identity.widgetType}, path: $pathString, text: $text)';
+      'WidgetInspectionResult(available: $isAvailable, type: ${identity.widgetType}, path: $pathString, source: $sourceLocation, text: $text)';
 }

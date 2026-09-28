@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/flutter_agentation.dart';
 import 'package:flutter_agentation/src/models/widget_inspection_result.dart';
+import 'package:flutter_agentation/src/overlay/annotation_popup.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -127,6 +128,53 @@ void main() {
       await tester.tap(find.text('Toggle Target'));
       await tester.pump();
       expect(hostTapCount, equals(1));
+    });
+
+    testWidgets(
+        'active inspection tap opens AnnotationPopup, accepts text input, and closes on cancel',
+        (tester) async {
+      final controller = AgentationController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: FlutterAgentation(
+            controller: controller,
+            showToolbar: false,
+            child: Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  key: const ValueKey('popup_target_btn'),
+                  onPressed: () {},
+                  child: const Text('Popup Target'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      controller.activate();
+      await tester.pump();
+
+      // Tap on widget
+      await tester.tap(find.text('Popup Target'), warnIfMissed: false);
+      await tester.pump();
+
+      // Verify AnnotationPopup is rendered with input field
+      expect(find.byType(AnnotationPopup), findsOneWidget);
+      expect(find.text('What should change?'), findsOneWidget);
+
+      // Enter comment and verify
+      await tester.enterText(find.byType(TextField), 'Make button 48px height');
+      await tester.pump();
+      expect(find.text('Make button 48px height'), findsOneWidget);
+
+      // Tap Cancel button
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+
+      expect(find.byType(AnnotationPopup), findsNothing);
+      expect(controller.selectedResult, isNull);
     });
   });
 }

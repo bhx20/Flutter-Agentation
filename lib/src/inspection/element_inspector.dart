@@ -52,15 +52,24 @@ class ElementInspector {
     while (steps < 60) {
       steps++;
       if (rootElement != null && current == rootElement) {
-        return current;
+        return publicCandidate ?? current;
       }
       final widget = current.widget;
       final typeName = widget.runtimeType.toString();
-      final isPublic = !typeName.startsWith('_') && !_isFrameworkBoilerplate(typeName);
+
+      final isPublic = !typeName.startsWith('_') &&
+          !_isFrameworkBoilerplate(typeName) &&
+          !_isStrictFrameworkPlumbing(typeName);
 
       if (isPublic) {
         if (widget.key != null && !_isInternalKey(widget.key!)) {
-          return current; // Best possible: public developer widget with an explicit key
+          // If this keyed widget is a compound layout container (e.g. ListTile, Card, Scaffold, ListView)
+          // and we already have a specific child candidate (e.g. Text, Icon, Button),
+          // preserve the child candidate instead of jumping out to the container.
+          if (publicCandidate != null && _isCompoundContainer(typeName)) {
+            return publicCandidate;
+          }
+          return current;
         }
         publicCandidate ??= current;
       }
@@ -80,8 +89,34 @@ class ElementInspector {
     return publicCandidate ?? element;
   }
 
+  static bool _isCompoundContainer(String typeName) {
+    const containers = {
+      'ListTile',
+      'RadioListTile',
+      'CheckboxListTile',
+      'SwitchListTile',
+      'ExpansionTile',
+      'Card',
+      'Scaffold',
+      'ListView',
+      'GridView',
+      'SingleChildScrollView',
+      'CustomScrollView',
+      'Column',
+      'Row',
+      'Stack',
+      'Wrap',
+      'AppBar',
+      'Drawer',
+      'NavigationRail',
+      'BottomAppBar',
+      'NavigationBar',
+    };
+    return containers.contains(typeName);
+  }
+
   /// Collects the chain of public, meaningful ancestor elements from root down to [element].
-  List<Element> findAncestorHierarchy(Element element, {int maxDepth = 30}) {
+  List<Element> findAncestorHierarchy(Element element, {int maxDepth = 40}) {
     final ancestors = <Element>[];
     int steps = 0;
 
@@ -102,8 +137,8 @@ class ElementInspector {
   /// Traverses down from [element] to find immediate and nested meaningful child elements.
   List<Element> findMeaningfulChildren(
     Element element, {
-    int maxDepth = 25,
-    int maxCount = 25,
+    int maxDepth = 50,
+    int maxCount = 30,
   }) {
     final results = <Element>[];
     final seen = <Element>{};
@@ -115,12 +150,16 @@ class ElementInspector {
         if (results.length >= maxCount || !seen.add(child)) return;
 
         final typeName = child.widget.runtimeType.toString();
+        final hasDevKey = child.widget.key != null && !_isInternalKey(child.widget.key!);
         final isPublic = !typeName.startsWith('_');
         final isBoilerplate = _isFrameworkBoilerplate(typeName) || _isStrictFrameworkPlumbing(typeName);
 
-        if (isPublic && !isBoilerplate) {
+        if (hasDevKey || (isPublic && !isBoilerplate)) {
           results.add(child);
-          visit(child, depth + 1);
+          // Do not recurse into terminal leaf widgets like Text, Icon, Image
+          if (typeName != 'Text' && typeName != 'Icon' && typeName != 'Image') {
+            visit(child, depth + 1);
+          }
         } else {
           visit(child, depth + 1);
         }
@@ -148,15 +187,26 @@ class ElementInspector {
       'Actions',
       'Shortcuts',
       'Focus',
+      'FocusScope',
       'DefaultTextStyle',
+      'AnimatedDefaultTextStyle',
       'DefaultSelectionStyle',
       'IconTheme',
+      'IconButtonTheme',
       'Theme',
       'AnimatedTheme',
       'CupertinoTheme',
       'Semantics',
+      'ExcludeSemantics',
       'Offstage',
       'TickerMode',
+      'SafeArea',
+      'MediaQuery',
+      'Ink',
+      'InkWell',
+      'InkResponse',
+      'MouseRegion',
+      'InheritedWidget',
     };
     return plumbing.contains(typeName);
   }
@@ -196,6 +246,7 @@ class ElementInspector {
       'IntrinsicHeight',
       'Offstage',
       'Semantics',
+      'ExcludeSemantics',
       'KeyedSubtree',
       'Builder',
       'StatefulBuilder',
@@ -208,21 +259,27 @@ class ElementInspector {
       'GestureDetector',
       'MouseRegion',
       'Focus',
+      'FocusScope',
       'Actions',
       'Shortcuts',
       'InkWell',
       'InkResponse',
+      'Ink',
       'Material',
       'IconTheme',
+      'IconButtonTheme',
       'CupertinoTheme',
       'Theme',
       'AnimatedTheme',
       'DefaultTextStyle',
+      'AnimatedDefaultTextStyle',
       'DefaultSelectionStyle',
       'RichText',
       'Overlay',
       'OverlayEntry',
       'Navigator',
+      'SafeArea',
+      'MediaQuery',
     };
     return ignored.contains(typeName);
   }

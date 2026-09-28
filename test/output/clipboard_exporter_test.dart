@@ -55,7 +55,12 @@ void main() {
       status: AnnotationStatus.pending,
     );
 
-    test('formatAnnotations formats markdown, json, and agentationJson', () {
+    test('formatAnnotations formats markdown, json, agentationJson, and feedback', () {
+      final feedback = exporter.formatAnnotations([testAnnotation], format: ExportFormat.feedback);
+      expect(feedback, contains('[Flutter UI Feedback]'));
+      expect(feedback, contains('Widget: ElevatedButton'));
+      expect(feedback, contains('Comment: Fix contrast'));
+
       final md = exporter.formatAnnotations([testAnnotation], format: ExportFormat.markdown);
       expect(md, contains('ElevatedButton'));
       expect(md, contains('Fix contrast'));
@@ -123,7 +128,7 @@ void main() {
       );
 
       // Verify Export button exists
-      final copyButtonFinder = find.byTooltip('Copy Annotations');
+      final copyButtonFinder = find.byKey(const ValueKey('toolbar_copy'));
       expect(copyButtonFinder, findsOneWidget);
 
       // Tap when empty -> should show "No annotations to export"
@@ -133,8 +138,9 @@ void main() {
 
       expect(find.text('No annotations to export'), findsOneWidget);
 
-      // Wait for first snackbar to dismiss
-      await tester.pump(const Duration(seconds: 3));
+      // Clear first snackbar so it does not block the second tap
+      ScaffoldMessenger.of(tester.element(find.byType(Scaffold))).clearSnackBars();
+      await tester.pumpAndSettle();
 
       // Add an annotation and tap again
       await controller.createAnnotation(comment: 'Make header bold');

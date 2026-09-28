@@ -74,3 +74,10 @@ export 'src/output/agentation_format_adapter.dart';
 export 'src/output/annotation_json_encoder.dart';
 export 'src/output/annotation_markdown_encoder.dart';
 export 'src/output/clipboard_exporter.dart';
+
+// Exact Source Location & AI Feedback Context (Master Prompt Sections 5, 8, 11-13)
+export 'src/source_location/feedback_context_builder.dart';
+export 'src/source_location/feedback_target.dart';
+export 'src/source_location/source_location_resolver.dart';
+export 'src/source_location/source_path_normalizer.dart';
+export 'src/source_location/widget_source_location.dart';

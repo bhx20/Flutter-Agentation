@@ -310,7 +310,75 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
                 ),
               ),
             ),
-            const SizedBox(height: 100.0), // Bottom clearance for floating toolbar
+            const SizedBox(height: 24.0),
+
+            // Navigation Links row (matching Screenshot 5)
+            const Text(
+              'Navigation & Links',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12.0),
+            Row(
+              children: [
+                TextButton(
+                  key: const ValueKey('link_blog'),
+                  onPressed: () {},
+                  child: const Text('Blog', style: TextStyle(color: Color(0xFF6366F1))),
+                ),
+                const SizedBox(width: 8.0),
+                TextButton(
+                  key: const ValueKey('link_faq'),
+                  onPressed: () {},
+                  child: const Text('FAQ', style: TextStyle(color: Color(0xFF6366F1))),
+                ),
+                const SizedBox(width: 8.0),
+                TextButton(
+                  key: const ValueKey('link_docs'),
+                  onPressed: () {},
+                  child: const Text('Docs', style: TextStyle(color: Color(0xFF6366F1))),
+                ),
+                const SizedBox(width: 8.0),
+                TextButton(
+                  key: const ValueKey('link_changelog'),
+                  onPressed: () {},
+                  child: const Text('Changelog', style: TextStyle(color: Color(0xFF6366F1))),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24.0),
+
+            // Nested ListTiles & Children Showcase
+            const Text(
+              'Nested ListTiles & Child Widgets Inspection',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12.0),
+            Card(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.0),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.help_outline, color: Color(0xFF6366F1)),
+                    title: const Text('Frequently Asked Questions'),
+                    subtitle: const Text('Inspect this tile or its individual text/icon children'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {},
+                  ),
+                  const Divider(height: 1.0),
+                  ListTile(
+                    leading: const Icon(Icons.palette_outlined, color: Color(0xFF10B981)),
+                    title: const Text('Theme & Palette Configuration'),
+                    subtitle: const Text('Each text span, leading icon, and trailing widget is inspectable'),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 14.0),
+                    onTap: () {},
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 120.0), // Bottom clearance for floating toolbar
           ],
         ),
       ),

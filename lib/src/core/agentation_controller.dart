@@ -18,6 +18,7 @@ import '../storage/annotation_storage.dart';
 import '../storage/memory_annotation_storage.dart';
 import '../output/clipboard_exporter.dart';
 import '../networking/agent_sync_client.dart';
+import '../source_location/widget_source_location.dart';
 import 'agentation_logger.dart';
 import 'agentation_state.dart';
 
@@ -162,6 +163,29 @@ class AgentationController extends ChangeNotifier {
   /// Sets the active clipboard export format.
   void setCopyFormat(CopyFormat format) {
     updateSettings(_state.settings.copyWith(copyFormat: format));
+  }
+
+  /// Toggles between dark and light themes.
+  void toggleTheme() {
+    updateSettings(_state.settings.copyWith(
+      isDarkMode: !_state.settings.isDarkMode,
+    ));
+  }
+
+  /// Cycles through output detail levels: compact -> standard -> detailed -> forensic.
+  void cycleDetailLevel() {
+    final nextIndex = (_state.settings.outputDetail.index + 1) %
+        OutputDetailLevel.values.length;
+    updateSettings(_state.settings.copyWith(
+      outputDetail: OutputDetailLevel.values[nextIndex],
+    ));
+  }
+
+  /// Updates the active marker color ID.
+  void setMarkerColorId(String id) {
+    updateSettings(_state.settings.copyWith(
+      markerColorId: id,
+    ));
   }
 
   /// Undoes the creation of the most recent annotation.
@@ -349,6 +373,7 @@ class AgentationController extends ChangeNotifier {
     PlacementData? placement,
     RearrangeData? rearrange,
     String? sourceFile,
+    WidgetSourceLocation? sourceLocation,
     String? sessionId,
     List<ThreadMessage>? thread,
     Map<String, dynamic> metadata = const {},
@@ -362,6 +387,14 @@ class AgentationController extends ChangeNotifier {
         (_multiSelection.isNotEmpty
             ? _multiSelection.map((m) => m.bounds).toList()
             : (result != null ? [result.bounds] : const <WidgetBounds>[]));
+
+    final resolvedSource = sourceLocation ?? result?.sourceLocation;
+    final resolvedSourceFile = sourceFile ??
+        (resolvedSource?.filePath != null
+            ? (resolvedSource!.line != null
+                ? '${resolvedSource.filePath}:${resolvedSource.line}'
+                : resolvedSource.filePath)
+            : null);
 
     final annotation = Annotation(
       id: 'ann_${DateTime.now().millisecondsSinceEpoch}',
@@ -380,7 +413,8 @@ class AgentationController extends ChangeNotifier {
       strokes: strokes ?? const [],
       placement: placement,
       rearrange: rearrange,
-      sourceFile: sourceFile,
+      sourceFile: resolvedSourceFile,
+      sourceLocation: resolvedSource,
       sessionId: sessionId ?? (_state.settings.sessionId?.isNotEmpty == true ? _state.settings.sessionId : null),
       thread: thread ?? const [],
       metadata: {
@@ -487,6 +521,8 @@ class AgentationController extends ChangeNotifier {
 
   static ExportFormat _mapCopyFormatToExportFormat(CopyFormat copyFormat) {
     switch (copyFormat) {
+      case CopyFormat.feedback:
+        return ExportFormat.feedback;
       case CopyFormat.markdown:
         return ExportFormat.markdown;
       case CopyFormat.json:
@@ -581,6 +617,27 @@ class AgentationController extends ChangeNotifier {
     _annotations = [];
     _activeAnnotation = null;
     notifyListeners();
+  }
+
+  /// Copies all collected annotations to the system clipboard.
+  Future<String?> copyToClipboard({
+    dynamic format,
+    OutputDetailLevel? detailLevel,
+    bool prettyJson = true,
+  }) {
+    final ExportFormat? exportFmt;
+    if (format is CopyFormat) {
+      exportFmt = _mapCopyFormatToExportFormat(format);
+    } else if (format is ExportFormat) {
+      exportFmt = format;
+    } else {
+      exportFmt = null;
+    }
+    return exportAnnotations(
+      format: exportFmt,
+      detailLevel: detailLevel,
+      prettyJson: prettyJson,
+    );
   }
 
   /// Updates toolbar offset position.

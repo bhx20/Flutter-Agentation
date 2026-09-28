@@ -10,6 +10,7 @@ class WidgetHighlight extends StatelessWidget {
     required this.result,
     this.style = const HighlightStyle(),
     this.isHover = false,
+    this.showBadge = true,
   });
 
   /// The inspection result providing coordinates and identity.
@@ -20,6 +21,9 @@ class WidgetHighlight extends StatelessWidget {
 
   /// Whether this highlight represents a transient pointer hover candidate.
   final bool isHover;
+
+  /// Whether to render the widget identity badge pill.
+  final bool showBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +63,7 @@ class WidgetHighlight extends StatelessWidget {
           ),
 
           // Identification badge (only for selected results or hovered when desired)
-          if (!isHover)
+          if (!isHover && showBadge)
             Positioned(
               left: badgeLeft,
               top: badgeTop,

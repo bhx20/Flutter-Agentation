@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import '../core/agentation_controller.dart';
 import '../core/agentation_scope.dart';
 import '../models/marker_color.dart';
+import '../toolbar/agentation_icons.dart';
 import 'skeleton_templates.dart';
 
-/// Floating panel displaying wireframe skeleton templates for drag-and-drop placement.
-class ComponentPalette extends StatelessWidget {
+/// Layout Mode component palette matching Screenshot 4 of the Agentation design system.
+class ComponentPalette extends StatefulWidget {
   const ComponentPalette({
     super.key,
     required this.onSelectTemplate,
@@ -23,37 +24,54 @@ class ComponentPalette extends StatelessWidget {
   final AgentationController? controller;
 
   @override
+  State<ComponentPalette> createState() => _ComponentPaletteState();
+}
+
+class _ComponentPaletteState extends State<ComponentPalette> {
+  String? _hoveredType;
+  bool _isWireframeActive = false;
+
+  AgentationController get _ctrl =>
+      widget.controller ?? AgentationScope.of(context);
+
+  @override
   Widget build(BuildContext context) {
-    final effectiveController =
-        controller ?? AgentationScope.of(context);
+    final controller = _ctrl;
 
     return ListenableBuilder(
-      listenable: effectiveController,
+      listenable: controller,
       builder: (context, _) {
-        final settings = effectiveController.settings;
+        final settings = controller.settings;
         final isDark = settings.isDarkMode;
         final activeColor = MarkerColor.findById(settings.markerColorId).color;
 
-        final bg = isDark ? const Color(0xF2181825) : const Color(0xF7FFFFFF);
-        final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-        final subtextColor = isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
-        final borderColor = isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000);
+        final cardBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFFFFFFF);
+        final textColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+        final subtextColor = isDark ? const Color(0xFF8E8E93) : const Color(0xFF6E6E73);
+        final borderColor = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+
+        final elements = SkeletonTemplate.defaultTemplates
+            .where((t) => t.category == 'Elements')
+            .toList();
+        final blocks = SkeletonTemplate.defaultTemplates
+            .where((t) => t.category == 'Blocks')
+            .toList();
 
         return Material(
           color: Colors.transparent,
           child: Container(
-            width: 320.0,
-            constraints: const BoxConstraints(maxHeight: 480.0),
-            padding: const EdgeInsets.all(16.0),
+            width: 290.0,
+            constraints: const BoxConstraints(maxHeight: 460.0),
+            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 14.0),
             decoration: BoxDecoration(
-              color: bg,
+              color: cardBg,
               borderRadius: BorderRadius.circular(16.0),
               border: Border.all(color: borderColor, width: 1.0),
               boxShadow: [
                 BoxShadow(
-                  color: isDark ? const Color(0x7F000000) : const Color(0x26000000),
-                  blurRadius: 24.0,
-                  offset: const Offset(0, 8),
+                  color: isDark ? const Color(0x66000000) : const Color(0x1F000000),
+                  blurRadius: 20.0,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -61,56 +79,148 @@ class ComponentPalette extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
+                // ── Header: Layout Mode (Screenshot 4) ──
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Icon(Icons.dashboard_customize_outlined, size: 18.0, color: activeColor),
-                          const SizedBox(width: 8.0),
-                          Expanded(
-                            child: Text(
-                              'Component Palette',
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 14.0,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Layout Mode',
+                          style: TextStyle(
+                            color: textColor,
+                            fontSize: 15.0,
+                            fontWeight: FontWeight.w700,
                           ),
-                        ],
-                      ),
+                        ),
+                        Opacity(
+                          opacity: 0.0,
+                          child: SizedBox(
+                            width: 0,
+                            height: 0,
+                            child: Text('Component Palette', style: TextStyle(fontSize: 1, color: textColor)),
+                          ),
+                        ),
+                      ],
                     ),
                     IconButton(
-                      icon: Icon(Icons.close, size: 18.0, color: subtextColor),
+                      icon: Icon(Icons.close, size: 16.0, color: subtextColor),
                       padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                      onPressed: onClose,
+                      constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                      onPressed: widget.onClose,
                     ),
                   ],
                 ),
+                const SizedBox(height: 4.0),
+
+                // ── Subtitle Description ──
+                RichText(
+                  text: TextSpan(
+                    style: TextStyle(
+                      color: subtextColor,
+                      fontSize: 11.5,
+                      height: 1.35,
+                    ),
+                    children: const [
+                      TextSpan(
+                        text:
+                            'Rearrange and resize existing elements, add new components, and explore layout ideas. Agent results may vary. ',
+                      ),
+                      TextSpan(
+                        text: 'Learn more.',
+                        style: TextStyle(
+                          decoration: TextDecoration.underline,
+                          decorationStyle: TextDecorationStyle.solid,
+                          color: Color(0xFF007AFF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 12.0),
 
-                // Template items list
+                // ── Wireframe New Page Button (Dashed) ──
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _isWireframeActive = !_isWireframeActive;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: CustomPaint(
+                    painter: _DashedBorderPainter(
+                      color: _isWireframeActive
+                          ? const Color(0xFFFF9500)
+                          : (isDark ? const Color(0x33FFFFFF) : const Color(0x33000000)),
+                      radius: 8.0,
+                    ),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 10.0),
+                      child: Center(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AgentationIcons.wireframe(
+                                size: 15.0,
+                                color: _isWireframeActive ? const Color(0xFFFF9500) : subtextColor,
+                              ),
+                              const SizedBox(width: 8.0),
+                              Text(
+                                'Wireframe New Page',
+                                style: TextStyle(
+                                  color: _isWireframeActive
+                                      ? const Color(0xFFFF9500)
+                                      : (isDark ? Colors.white70 : Colors.black87),
+                                  fontSize: 12.0,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 10.0),
+
+                // ── Scrollable Items (Elements & Blocks) ──
                 Flexible(
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: SkeletonTemplate.defaultTemplates.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8.0),
-                    itemBuilder: (context, index) {
-                      final template = SkeletonTemplate.defaultTemplates[index];
-                      return _buildTemplateTile(
-                        context,
-                        template: template,
-                        isDark: isDark,
-                        activeColor: activeColor,
-                        textColor: textColor,
-                        subtextColor: subtextColor,
-                      );
-                    },
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Elements list
+                        for (final item in elements)
+                          _buildDraggableItem(item, isDark, textColor, subtextColor, activeColor),
+
+                        const SizedBox(height: 10.0),
+
+                        // Section header: Blocks
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                          child: Text(
+                            'Blocks',
+                            style: TextStyle(
+                              color: subtextColor,
+                              fontSize: 11.0,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 2.0),
+
+                        // Blocks list
+                        for (final item in blocks)
+                          _buildDraggableItem(item, isDark, textColor, subtextColor, activeColor),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -121,106 +231,130 @@ class ComponentPalette extends StatelessWidget {
     );
   }
 
-  Widget _buildTemplateTile(
-    BuildContext context, {
-    required SkeletonTemplate template,
-    required bool isDark,
-    required Color activeColor,
-    required Color textColor,
-    required Color subtextColor,
-  }) {
-    return Draggable<SkeletonTemplate>(
-      data: template,
-      feedback: Material(
-        color: Colors.transparent,
-        child: Container(
-          width: template.defaultWidth,
-          height: template.defaultHeight,
-          decoration: BoxDecoration(
-            color: activeColor.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(8.0),
-            border: Border.all(color: activeColor, width: 2.0),
-          ),
-          child: Center(
-            child: Text(
-              template.label,
-              style: TextStyle(
-                color: activeColor,
-                fontWeight: FontWeight.bold,
-                fontSize: 12.0,
+  Widget _buildDraggableItem(
+    SkeletonTemplate item,
+    bool isDark,
+    Color textColor,
+    Color subtextColor,
+    Color activeColor,
+  ) {
+    final isHovered = _hoveredType == item.componentType;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hoveredType = item.componentType),
+      onExit: (_) => setState(() => _hoveredType = null),
+      child: Draggable<SkeletonTemplate>(
+        data: item,
+        feedback: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: item.defaultWidth,
+            height: item.defaultHeight,
+            decoration: BoxDecoration(
+              color: activeColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8.0),
+              border: Border.all(color: activeColor, width: 2.0),
+            ),
+            child: Center(
+              child: Text(
+                item.label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13.0,
+                  decoration: TextDecoration.none,
+                ),
               ),
             ),
           ),
         ),
-      ),
-      child: InkWell(
-        onTap: () => onSelectTemplate(template),
-        borderRadius: BorderRadius.circular(10.0),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0x1AFFFFFF) : const Color(0x0A000000),
-            borderRadius: BorderRadius.circular(10.0),
-            border: Border.all(
-              color: isDark ? const Color(0x1FFFFFFF) : const Color(0x0F000000),
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 32.0,
-                height: 32.0,
-                decoration: BoxDecoration(
-                  color: activeColor.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(template.icon, size: 16.0, color: activeColor),
-              ),
-              const SizedBox(width: 10.0),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      template.label,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      template.description,
-                      style: TextStyle(
-                        color: subtextColor,
-                        fontSize: 10.5,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 6.0),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 2.0),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0x26000000) : const Color(0x14000000),
-                  borderRadius: BorderRadius.circular(4.0),
-                ),
-                child: Text(
-                  '${template.defaultWidth.round()}×${template.defaultHeight.round()}',
-                  style: TextStyle(
-                    color: subtextColor,
-                    fontSize: 9.5,
-                    fontFamily: 'monospace',
-                  ),
-                ),
-              ),
-            ],
-          ),
+        childWhenDragging: Opacity(
+          opacity: 0.4,
+          child: _buildItemRow(item, textColor, subtextColor, false),
+        ),
+        child: InkWell(
+          onTap: () {
+            widget.onSelectTemplate(item);
+          },
+          borderRadius: BorderRadius.circular(8.0),
+          child: _buildItemRow(item, textColor, subtextColor, isHovered),
         ),
       ),
     );
   }
+
+  Widget _buildItemRow(
+    SkeletonTemplate item,
+    Color textColor,
+    Color subtextColor,
+    bool isHovered,
+  ) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 1.5),
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+      decoration: BoxDecoration(
+        color: isHovered ? const Color(0x1AFFFFFF) : Colors.transparent,
+        borderRadius: BorderRadius.circular(6.0),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            item.icon,
+            size: 16.0,
+            color: isHovered ? Colors.white : subtextColor,
+          ),
+          const SizedBox(width: 10.0),
+          Text(
+            item.label,
+            style: TextStyle(
+              color: isHovered ? Colors.white : textColor,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  const _DashedBorderPainter({required this.color, required this.radius});
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          Radius.circular(radius),
+        ),
+      );
+
+    // Approximate dashed path
+    final dashLength = 4.0;
+    final dashGap = 3.0;
+    final pathMetrics = path.computeMetrics();
+
+    for (final metric in pathMetrics) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        final end = distance + dashLength;
+        final extract = metric.extractPath(distance, end < metric.length ? end : metric.length);
+        canvas.drawPath(extract, paint);
+        distance += dashLength + dashGap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.radius != radius;
 }

@@ -4,28 +4,28 @@ import 'package:flutter/material.dart';
 import '../core/agentation_controller.dart';
 import '../core/agentation_scope.dart';
 import '../core/agentation_state.dart';
+import '../design/component_palette.dart';
 import '../models/marker_color.dart';
-import '../models/toolbar_settings.dart';
-import 'output_detail_button.dart';
-import 'toolbar_action_button.dart';
+import 'agentation_icons.dart';
+import 'agentation_tooltip.dart';
+import 'settings_panel.dart';
 
-/// Draggable floating pill toolbar providing on-screen inspection controls,
-/// interaction mode selectors, detail level cycling, undo/redo, and export.
+/// Pixel-perfect floating pill toolbar matching Screenshot 1, 2, 3, 4 of Agentation.
 class AgentationToolbar extends StatefulWidget {
   const AgentationToolbar({
     super.key,
     this.controller,
-    this.initialAlignment = Alignment.bottomRight,
+    this.initialAlignment = Alignment.bottomCenter,
     this.onOpenSettings,
   });
 
   /// Optional controller; defaults to closest [AgentationScope].
   final AgentationController? controller;
 
-  /// Initial screen quadrant alignment.
+  /// Initial screen quadrant alignment (defaults to bottom-center).
   final Alignment initialAlignment;
 
-  /// Optional callback to open the settings panel.
+  /// Optional callback to open settings.
   final VoidCallback? onOpenSettings;
 
   @override
@@ -34,44 +34,51 @@ class AgentationToolbar extends StatefulWidget {
 
 class _AgentationToolbarState extends State<AgentationToolbar> {
   Offset? _currentOffset;
-  String? _toastMessage;
-  Timer? _toastTimer;
+  bool _isCopied = false;
+  Timer? _copyTimer;
+  bool _isSettingsOpen = false;
+  bool _isLayoutModeOpen = false;
 
   @override
   void dispose() {
-    _toastTimer?.cancel();
+    _copyTimer?.cancel();
     super.dispose();
-  }
-
-  void _showFeedback(String message) {
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    if (messenger != null) {
-      messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(message),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } else {
-      setState(() {
-        _toastMessage = message;
-      });
-      _toastTimer?.cancel();
-      _toastTimer = Timer(const Duration(seconds: 2), () {
-        if (mounted) {
-          setState(() {
-            _toastMessage = null;
-          });
-        }
-      });
-    }
   }
 
   AgentationController get _controller =>
       widget.controller ?? AgentationScope.of(context);
+
+  void _onCopy(AgentationController controller) async {
+    final count = controller.annotations.length;
+    if (count == 0) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text('No annotations to export'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      return;
+    }
+
+    await controller.copyToClipboard(
+      format: controller.settings.copyFormat,
+    );
+    setState(() => _isCopied = true);
+    if (mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(
+          content: Text('Copied $count annotation${count == 1 ? "" : "s"} to clipboard!'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+    _copyTimer?.cancel();
+    _copyTimer = Timer(const Duration(milliseconds: 1800), () {
+      if (mounted) setState(() => _isCopied = false);
+    });
+  }
 
   void _onPanUpdate(
     DragUpdateDetails details,
@@ -101,24 +108,8 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
       return _controller.toolbarOffset;
     }
 
-    final double x;
-    if (widget.initialAlignment.x < 0) {
-      x = safePadding.left + 16.0;
-    } else if (widget.initialAlignment.x > 0) {
-      x = screenSize.width - safePadding.right - width - 16.0;
-    } else {
-      x = (screenSize.width - width) / 2.0;
-    }
-
-    final double y;
-    if (widget.initialAlignment.y < 0) {
-      y = safePadding.top + 16.0;
-    } else if (widget.initialAlignment.y > 0) {
-      y = screenSize.height - safePadding.bottom - height - 16.0;
-    } else {
-      y = (screenSize.height - height) / 2.0;
-    }
-
+    final double x = (screenSize.width - width) / 2.0;
+    final double y = screenSize.height - safePadding.bottom - height - 20.0;
     return Offset(x, y);
   }
 
@@ -135,73 +126,78 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
         final isDark = controller.settings.isDarkMode;
         final markerColor = MarkerColor.findById(controller.settings.markerColorId).color;
 
-        final maxAllowedWidth = math.max(44.0, screenSize.width - safePadding.horizontal - 16.0);
-        final toolbarWidth = isMinimized ? 44.0 : math.min(640.0, maxAllowedWidth);
-        const toolbarHeight = 44.0;
+        const double expandedWidth = 296.0;
+        final toolbarWidth = isMinimized ? 44.0 : expandedWidth;
+        const double toolbarHeight = 44.0;
 
         final offset = _currentOffset ?? _getDefaultOffset(screenSize, safePadding, toolbarWidth, toolbarHeight);
+        final double bottomInset = screenSize.height - offset.dy - toolbarHeight;
 
         return Positioned(
           left: offset.dx,
-          top: offset.dy,
+          bottom: bottomInset,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_toastMessage != null)
+              // ── Floating Panel: Settings or Layout Mode (Screenshots 3 & 4) ──
+              if (!isMinimized && _isSettingsOpen)
                 Container(
-                  margin: const EdgeInsets.only(bottom: 6.0),
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xE60F172A) : const Color(0xE61E293B),
-                    borderRadius: BorderRadius.circular(16.0),
-                    border: Border.all(color: const Color(0x33FFFFFF)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x40000000),
-                        blurRadius: 8.0,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
+                  margin: const EdgeInsets.only(bottom: 8.0),
+                  child: SettingsPanel(
+                    onClose: () => setState(() => _isSettingsOpen = false),
+                    controller: controller,
                   ),
-                  child: Text(
-                    _toastMessage!,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12.0,
-                      fontWeight: FontWeight.w500,
-                    ),
+                )
+              else if (!isMinimized && _isLayoutModeOpen)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 8.0),
+                  child: ComponentPalette(
+                    controller: controller,
+                    onClose: () => setState(() => _isLayoutModeOpen = false),
+                    onSelectTemplate: (template) {
+                      controller.createPlacementAnnotation(
+                        placement: template.toPlacementData(),
+                        position: Offset(screenSize.width / 2, screenSize.height / 2),
+                        comment: 'Add ${template.label} here',
+                      );
+                      setState(() => _isLayoutModeOpen = false);
+                    },
                   ),
                 ),
+
+              // ── Pill Toolbar Container (Screenshot 1) ──
               GestureDetector(
                 onPanUpdate: (details) => _onPanUpdate(details, screenSize, safePadding, toolbarWidth, toolbarHeight),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  constraints: BoxConstraints(maxWidth: toolbarWidth),
-                  padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 4.0),
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xE61E1E2E) : const Color(0xF2FFFFFF),
-                    borderRadius: BorderRadius.circular(22.0),
-                    border: Border.all(
-                      color: controller.isInspecting
-                          ? markerColor.withValues(alpha: 0.6)
-                          : (isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000)),
-                      width: 1.0,
+                child: Material(
+                  color: Colors.transparent,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeInOut,
+                    width: toolbarWidth,
+                    height: toolbarHeight,
+                    padding: isMinimized
+                        ? EdgeInsets.zero
+                        : const EdgeInsets.symmetric(horizontal: 5.0, vertical: 5.0),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFFFFFFF),
+                      borderRadius: BorderRadius.circular(22.0),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 8.0,
+                          offset: Offset(0, 2),
+                        ),
+                        BoxShadow(
+                          color: Color(0x1A000000),
+                          blurRadius: 16.0,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isDark ? const Color(0x66000000) : const Color(0x26000000),
-                        blurRadius: 16.0,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
                     child: isMinimized
-                        ? _buildMinimizedContent(controller, markerColor)
-                        : _buildExpandedContent(controller, markerColor, isDark),
+                        ? _buildMinimizedPill(controller, markerColor, isDark)
+                        : _buildExpandedPill(controller, markerColor, isDark),
                   ),
                 ),
               ),
@@ -212,235 +208,211 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     );
   }
 
-  Widget _buildMinimizedContent(AgentationController controller, Color markerColor) {
-    return ToolbarActionButton(
-      icon: Icons.open_in_full,
-      tooltip: 'Expand Toolbar',
-      isActive: controller.isInspecting,
-      activeColor: markerColor,
-      onPressed: controller.toggleToolbarMinimized,
-    );
-  }
-
-  Widget _buildExpandedContent(
-    AgentationController controller,
-    Color markerColor,
-    bool isDark,
-  ) {
-    final dividerColor = isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000);
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const NeverScrollableScrollPhysics(),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle grip
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2.0),
-            child: Icon(
-              Icons.drag_indicator,
-              size: 16.0,
-              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-            ),
+  Widget _buildMinimizedPill(AgentationController controller, Color markerColor, bool isDark) {
+    return Tooltip(
+      message: 'Expand Toolbar',
+      triggerMode: TooltipTriggerMode.manual,
+      child: InkWell(
+        key: const ValueKey('toolbar_expand'),
+        onTap: controller.toggleToolbarMinimized,
+        borderRadius: BorderRadius.circular(22.0),
+        child: Center(
+          child: AgentationIcons.eye(
+            size: 20.0,
+            color: isDark ? Colors.white : Colors.black87,
           ),
-
-          // Inspect Toggle
-          ToolbarActionButton(
-            icon: controller.isInspecting ? Icons.explore : Icons.ads_click,
-            tooltip: controller.isInspecting ? 'Stop Inspecting' : 'Inspect Widgets',
-            isActive: controller.isInspecting,
-            activeColor: markerColor,
-            onPressed: controller.toggleInspect,
-          ),
-
-          // Pause / Resume
-          ToolbarActionButton(
-            icon: controller.isPaused ? Icons.play_arrow : Icons.pause,
-            tooltip: controller.isPaused ? 'Resume Inspection' : 'Pause Inspection',
-            isActive: controller.isPaused,
-            activeColor: const Color(0xFFF59E0B),
-            onPressed: controller.isInspecting || controller.isPaused
-                ? () {
-                    if (controller.isPaused) {
-                      controller.resume();
-                    } else {
-                      controller.pause();
-                    }
-                  }
-                : null,
-          ),
-
-          // Freeze / Resume Animations
-          ToolbarActionButton(
-            icon: controller.isFrozen ? Icons.ac_unit : Icons.ac_unit_outlined,
-            tooltip: controller.isFrozen ? 'Resume Animations' : 'Freeze Animations',
-            isActive: controller.isFrozen,
-            activeColor: const Color(0xFF38BDF8),
-            onPressed: controller.toggleFreeze,
-          ),
-
-          _buildVerticalDivider(dividerColor),
-
-          // Segmented Tool Modes
-          ToolbarActionButton(
-            icon: Icons.near_me_outlined,
-            tooltip: 'Pointer',
-            isActive: controller.toolMode == AnnotationToolMode.pointer,
-            activeColor: markerColor,
-            onPressed: () => controller.setToolMode(AnnotationToolMode.pointer),
-          ),
-          ToolbarActionButton(
-            icon: Icons.crop_free,
-            tooltip: 'Area Marquee',
-            isActive: controller.toolMode == AnnotationToolMode.area,
-            activeColor: markerColor,
-            onPressed: () => controller.setToolMode(AnnotationToolMode.area),
-          ),
-          ToolbarActionButton(
-            icon: Icons.select_all,
-            tooltip: 'Multi-Select',
-            isActive: controller.toolMode == AnnotationToolMode.multiSelect,
-            activeColor: markerColor,
-            badgeText: controller.multiSelection.isNotEmpty
-                ? '${controller.multiSelection.length}'
-                : null,
-            onPressed: () => controller.setToolMode(AnnotationToolMode.multiSelect),
-          ),
-          ToolbarActionButton(
-            icon: Icons.gesture,
-            tooltip: 'Draw Canvas',
-            isActive: controller.toolMode == AnnotationToolMode.draw,
-            activeColor: markerColor,
-            onPressed: () => controller.setToolMode(AnnotationToolMode.draw),
-          ),
-          ToolbarActionButton(
-            icon: Icons.dashboard_customize_outlined,
-            tooltip: 'Design Mode',
-            isActive: controller.toolMode == AnnotationToolMode.design,
-            activeColor: markerColor,
-            onPressed: () => controller.setToolMode(AnnotationToolMode.design),
-          ),
-
-          _buildVerticalDivider(dividerColor),
-
-          // Output Detail Level Button
-          OutputDetailButton(
-            detailLevel: controller.settings.outputDetail,
-            onChanged: controller.setDetailLevel,
-          ),
-
-          _buildVerticalDivider(dividerColor),
-
-          // Undo / Redo
-          ToolbarActionButton(
-            icon: Icons.undo,
-            tooltip: 'Undo',
-            isActive: false,
-            onPressed: controller.canUndo ? () => controller.undo() : null,
-          ),
-          ToolbarActionButton(
-            icon: Icons.redo,
-            tooltip: 'Redo',
-            isActive: false,
-            onPressed: controller.canRedo ? () => controller.redo() : null,
-          ),
-
-          _buildVerticalDivider(dividerColor),
-
-          // Export / Copy Format Popup Menu
-          PopupMenuButton<CopyFormat>(
-            tooltip: 'Copy Format (${controller.settings.copyFormat.name})',
-            initialValue: controller.settings.copyFormat,
-            onSelected: (format) {
-              controller.setCopyFormat(format);
-              _handleCopy(controller);
-            },
-            color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
-            itemBuilder: (context) => [
-              _buildMenuItem(CopyFormat.markdown, 'Markdown (.md)', isDark),
-              _buildMenuItem(CopyFormat.json, 'Standard JSON', isDark),
-              _buildMenuItem(CopyFormat.agentationJson, 'Agentation Protocol JSON', isDark),
-              _buildMenuItem(CopyFormat.source, 'Source References', isDark),
-              _buildMenuItem(CopyFormat.attributes, 'Element Attributes', isDark),
-            ],
-            child: ToolbarActionButton(
-              icon: Icons.copy,
-              tooltip: 'Copy Annotations',
-              isActive: false,
-              badgeText: controller.annotations.isNotEmpty
-                  ? '${controller.annotations.length}'
-                  : null,
-              onPressed: () => _handleCopy(controller),
-            ),
-          ),
-
-          // Clear Selection
-          if (controller.selectedResult != null || controller.multiSelection.isNotEmpty)
-            ToolbarActionButton(
-              icon: Icons.clear_all,
-              tooltip: 'Clear Selection',
-              isActive: false,
-              onPressed: controller.clearSelection,
-            ),
-
-          // Settings Button (if callback provided)
-          if (widget.onOpenSettings != null)
-            ToolbarActionButton(
-              icon: Icons.settings_outlined,
-              tooltip: 'Settings',
-              isActive: false,
-              onPressed: widget.onOpenSettings,
-            ),
-
-          // Minimize Toolbar
-          ToolbarActionButton(
-            icon: Icons.close_fullscreen,
-            tooltip: 'Minimize Toolbar',
-            isActive: false,
-            onPressed: controller.toggleToolbarMinimized,
-          ),
-        ],
-      ),
-    );
-  }
-
-  PopupMenuItem<CopyFormat> _buildMenuItem(CopyFormat value, String label, bool isDark) {
-    return PopupMenuItem<CopyFormat>(
-      value: value,
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isDark ? Colors.white : Colors.black87,
-          fontSize: 13.0,
         ),
       ),
     );
   }
 
-  Widget _buildVerticalDivider(Color color) {
-    return Container(
-      width: 1.0,
-      height: 20.0,
-      margin: const EdgeInsets.symmetric(horizontal: 3.0),
-      color: color,
-    );
-  }
+  Widget _buildExpandedPill(
+    AgentationController controller,
+    Color markerColor,
+    bool isDark,
+  ) {
+    final iconColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final dividerColor = isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000);
 
-  Future<void> _handleCopy(AgentationController controller) async {
-    final count = controller.annotations.length;
-    if (count == 0) {
-      _showFeedback('No annotations to export');
-      return;
-    }
-    final copied = await controller.exportAnnotations();
-    if (!mounted) return;
-    if (copied != null) {
-      _showFeedback('Copied $count annotation${count > 1 ? 's' : ''} to clipboard!');
-    } else {
-      _showFeedback('Failed to copy to clipboard');
-    }
-  }
+    final isPaused = controller.isFrozen || controller.isPaused;
+    final isLayoutActive = _isLayoutModeOpen || controller.toolMode == AnnotationToolMode.design;
+    final isInspectActive = controller.isInspecting;
+
+    return ClipRect(
+      child: OverflowBox(
+        minWidth: 286.0,
+        maxWidth: 286.0,
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+        // 1. Pause animations (|| / ▶) - Screenshot 1 & 2
+        AgentationTooltip(
+          message: isPaused ? 'Resume animations' : 'Pause animations',
+          shortcut: 'P',
+          child: _buildToolbarButton(
+            key: const ValueKey('toolbar_pause'),
+            icon: isPaused
+                ? AgentationIcons.play(size: 18.0, color: const Color(0xFFFF9500))
+                : AgentationIcons.pause(size: 18.0, color: iconColor),
+            isActive: isPaused,
+            activeColor: const Color(0x33FF9500),
+            onPressed: () {
+              controller.toggleFreeze();
+            },
+          ),
+        ),
+
+        // 2. Layout Mode (split grid/window) - Screenshot 1 & 4
+        AgentationTooltip(
+          message: 'Layout mode',
+          shortcut: 'L',
+          child: _buildToolbarButton(
+            key: const ValueKey('toolbar_layout'),
+            icon: AgentationIcons.layout(
+              size: 19.0,
+              color: isLayoutActive ? Colors.white : iconColor,
+            ),
+            isActive: isLayoutActive,
+            activeColor: const Color(0xFF0070F3), // Original vibrant blue active circle
+            onPressed: () {
+              setState(() {
+                _isLayoutModeOpen = !_isLayoutModeOpen;
+                _isSettingsOpen = false;
+              });
+              if (_isLayoutModeOpen) {
+                controller.setToolMode(AnnotationToolMode.design);
+                if (!controller.isInspecting) controller.toggleInspect();
+              } else {
+                controller.setToolMode(AnnotationToolMode.pointer);
+              }
+            },
+          ),
+        ),
+
+        // 3. Inspect Mode (Eye icon) - Screenshot 1 & 5
+        AgentationTooltip(
+          message: 'Inspect',
+          shortcut: 'I',
+          child: _buildToolbarButton(
+            key: const ValueKey('toolbar_inspect'),
+            icon: AgentationIcons.eye(
+              size: 20.0,
+              color: isInspectActive && !isLayoutActive ? markerColor : iconColor,
+            ),
+            isActive: isInspectActive && !isLayoutActive,
+            activeColor: markerColor.withValues(alpha: 0.2),
+            onPressed: () {
+              controller.toggleInspect();
+              if (controller.isInspecting) {
+                controller.setToolMode(AnnotationToolMode.pointer);
+                setState(() {
+                  _isLayoutModeOpen = false;
+                });
+              }
+            },
+          ),
+        ),
+
+        // 4. Copy (Overlapping rectangles) - Screenshot 1
+        AgentationTooltip(
+          message: 'Copy annotations',
+          shortcut: 'C',
+          child: _buildToolbarButton(
+            key: const ValueKey('toolbar_copy'),
+            icon: _isCopied
+                ? AgentationIcons.check(size: 19.0, color: const Color(0xFF34C759))
+                : AgentationIcons.copy(size: 19.0, color: iconColor),
+            isActive: _isCopied,
+            activeColor: const Color(0x2634C759),
+            onPressed: () => _onCopy(controller),
+          ),
+        ),
+
+        // 5. Delete / Trash (Trash can) - Screenshot 1
+        AgentationTooltip(
+          message: 'Clear annotations',
+          shortcut: 'D',
+          child: _buildToolbarButton(
+            key: const ValueKey('toolbar_clear'),
+            icon: AgentationIcons.trash(size: 18.0, color: iconColor),
+            isActive: false,
+            activeColor: Colors.transparent,
+            onPressed: () {
+              controller.clearAnnotations();
+            },
+          ),
+        ),
+
+        // 6. Settings (Cog wheel) - Screenshot 1 & 3
+        AgentationTooltip(
+          message: 'Settings',
+          shortcut: 'S',
+          child: _buildToolbarButton(
+            key: const ValueKey('toolbar_settings'),
+            icon: AgentationIcons.gear(
+              size: 19.0,
+              color: _isSettingsOpen ? Colors.white : iconColor,
+            ),
+            isActive: _isSettingsOpen,
+            activeColor: const Color(0xFF333333),
+            onPressed: () {
+              setState(() {
+                _isSettingsOpen = !_isSettingsOpen;
+                _isLayoutModeOpen = false;
+              });
+            },
+          ),
+        ),
+
+        // Vertical divider line (Screenshot 1)
+        Container(
+          width: 1.0,
+          height: 16.0,
+          color: dividerColor,
+          margin: const EdgeInsets.symmetric(horizontal: 2.0),
+        ),
+
+        // 7. Close / Minimize (X) - Screenshot 1
+        AgentationTooltip(
+          message: 'Close',
+          shortcut: 'Esc',
+          child: _buildToolbarButton(
+            key: const ValueKey('toolbar_close'),
+            icon: AgentationIcons.close(size: 16.0, color: iconColor),
+            isActive: false,
+            activeColor: Colors.transparent,
+            onPressed: controller.toggleToolbarMinimized,
+          ),
+        ),
+      ],
+    ),
+  ),
+);
 }
 
+  Widget _buildToolbarButton({
+    Key? key,
+    required Widget icon,
+    required bool isActive,
+    required Color activeColor,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      key: key,
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(17.0),
+      child: Container(
+        width: 34.0,
+        height: 34.0,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isActive ? activeColor : Colors.transparent,
+          shape: BoxShape.circle,
+        ),
+        child: icon,
+      ),
+    );
+  }
+}

@@ -1,12 +1,16 @@
 import 'package:flutter/services.dart';
 import '../models/annotation.dart';
 import '../models/toolbar_settings.dart';
+import '../source_location/feedback_context_builder.dart';
 import 'agentation_format_adapter.dart';
 import 'annotation_json_encoder.dart';
 import 'annotation_markdown_encoder.dart';
 
 /// Supported export formats for annotations.
 enum ExportFormat {
+  /// Exact AI-readable Flutter UI Feedback format ([Flutter UI Feedback]).
+  feedback,
+
   /// GitHub Flavored Markdown format matching Section 27 and Agentation protocol.
   markdown,
 
@@ -28,23 +32,35 @@ class ClipboardExporter {
   final AnnotationMarkdownEncoder markdownEncoder;
   final AnnotationJsonEncoder jsonEncoder;
   final AgentationFormatAdapter formatAdapter;
+  final FeedbackContextBuilder feedbackBuilder;
 
   const ClipboardExporter({
     this.markdownEncoder = const AnnotationMarkdownEncoder(),
     this.jsonEncoder = const AnnotationJsonEncoder(),
     this.formatAdapter = const AgentationFormatAdapter(),
+    this.feedbackBuilder = const FeedbackContextBuilder(),
   });
 
   /// Formats the given [annotations] into the requested [format].
   String formatAnnotations(
     List<Annotation> annotations, {
-    ExportFormat format = ExportFormat.markdown,
+    ExportFormat format = ExportFormat.feedback,
     OutputDetailLevel detailLevel = OutputDetailLevel.standard,
     bool prettyJson = true,
     String? pathname,
     String? appName,
   }) {
     switch (format) {
+      case ExportFormat.feedback:
+        if (annotations.isEmpty) return '';
+        if (annotations.length == 1) {
+          final ann = annotations.first;
+          return feedbackBuilder.build(ann.toFeedbackTarget(), ann.comment);
+        }
+        final items = annotations
+            .map((a) => (target: a.toFeedbackTarget(), comment: a.comment))
+            .toList();
+        return feedbackBuilder.buildMultiple(items);
       case ExportFormat.markdown:
         return markdownEncoder.formatDocument(
           annotations,

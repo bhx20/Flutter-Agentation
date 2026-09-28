@@ -140,10 +140,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
         return;
       }
 
-      widget.controller.setActiveHierarchy(hierarchy);
-      widget.controller.selectResult(primary);
       if (primary.isAvailable) {
+        widget.controller.setActiveHierarchy(hierarchy);
+        widget.controller.selectResult(primary);
         widget.onWidgetSelected?.call(primary);
+      } else {
+        widget.controller.clearSelection();
       }
     } catch (e, stack) {
       AgentationLogger.error('Failed to inspect at ${event.position}', e, stack);
@@ -270,6 +272,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
         event.position,
         rootRenderObject: _hostRenderObject,
         rootElement: _hostAppKey.currentContext as Element?,
+        resolveSourceLocation: false,
       );
       if (result.isAvailable) {
         widget.controller.setHoveredResult(result);
@@ -386,6 +389,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                 result: widget.controller.selectedResult,
                 style: effectiveHighlightStyle,
                 isHover: false,
+                showBadge: false,
               ),
 
             // Multi-selected items highlights
@@ -399,9 +403,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
             // Annotation creation popup when an element is actively selected
             if (isInspecting && widget.controller.selectedResult != null)
-              AnnotationPopup(
-                result: widget.controller.selectedResult!,
-                onClose: widget.controller.clearSelection,
+              Positioned.fill(
+                child: AnnotationPopup(
+                  key: ValueKey(widget.controller.selectedResult!.identity.id),
+                  result: widget.controller.selectedResult!,
+                  onClose: widget.controller.clearSelection,
+                ),
               ),
 
             // Numbered spatial annotation markers

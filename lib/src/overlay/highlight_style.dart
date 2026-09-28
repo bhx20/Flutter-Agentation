@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 @immutable
 class HighlightStyle {
   const HighlightStyle({
-    this.strokeColor = const Color(0xFF6366F1), // Indigo 500
-    this.fillColor = const Color(0x266366F1), // 15% opacity Indigo
+    this.strokeColor = const Color(0xFF007AFF), // Blue
+    this.fillColor = const Color(0x1F007AFF), // ~12% opacity Blue
     this.strokeWidth = 2.0,
     this.borderRadius = 4.0,
-    this.badgeBackgroundColor = const Color(0xFF1E1B4B), // Deep Indigo 950
+    this.badgeBackgroundColor = const Color(0xFF1C1C1E),
     this.badgeTextColor = const Color(0xFFFFFFFF),
-    this.hoverStrokeColor = const Color(0x996366F1), // Translucent Indigo
-    this.hoverFillColor = const Color(0x146366F1), // 8% opacity Indigo
+    this.hoverStrokeColor = const Color(0x99007AFF), // Translucent Blue
+    this.hoverFillColor = const Color(0x10007AFF), // ~6% opacity Blue
   });
 
   /// Border stroke color for selected widgets.

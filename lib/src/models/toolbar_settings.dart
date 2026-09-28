@@ -17,6 +17,9 @@ enum OutputDetailLevel {
 
 /// Formats supported for copying annotations to system clipboard.
 enum CopyFormat {
+  /// Compact AI-friendly Flutter UI Feedback format ([Flutter UI Feedback]).
+  feedback,
+
   /// Structured Markdown documentation.
   markdown,
 
@@ -38,11 +41,13 @@ enum CopyFormat {
 class ToolbarSettings {
   const ToolbarSettings({
     this.outputDetail = OutputDetailLevel.standard,
-    this.copyFormat = CopyFormat.markdown,
+    this.copyFormat = CopyFormat.feedback,
     this.isDarkMode = true,
     this.markerColorId = 'indigo',
     this.autoClearAfterCopy = false,
     this.blockInteractions = true,
+    this.flutterComponentsEnabled = true,
+    this.hideUntilRestart = false,
     this.mcpEndpoint,
     this.sessionId,
     this.webhookUrl,
@@ -66,6 +71,12 @@ class ToolbarSettings {
   /// Whether host application gestures are blocked during inspection mode.
   final bool blockInteractions;
 
+  /// Whether to include Flutter widget component types in exported annotations.
+  final bool flutterComponentsEnabled;
+
+  /// Whether the toolbar is hidden until app restart.
+  final bool hideUntilRestart;
+
   /// Optional Agentation MCP server HTTP endpoint (e.g. 'http://localhost:4747').
   final String? mcpEndpoint;
 
@@ -82,6 +93,8 @@ class ToolbarSettings {
     String? markerColorId,
     bool? autoClearAfterCopy,
     bool? blockInteractions,
+    bool? flutterComponentsEnabled,
+    bool? hideUntilRestart,
     String? mcpEndpoint,
     String? sessionId,
     String? webhookUrl,
@@ -93,6 +106,9 @@ class ToolbarSettings {
       markerColorId: markerColorId ?? this.markerColorId,
       autoClearAfterCopy: autoClearAfterCopy ?? this.autoClearAfterCopy,
       blockInteractions: blockInteractions ?? this.blockInteractions,
+      flutterComponentsEnabled:
+          flutterComponentsEnabled ?? this.flutterComponentsEnabled,
+      hideUntilRestart: hideUntilRestart ?? this.hideUntilRestart,
       mcpEndpoint: mcpEndpoint ?? this.mcpEndpoint,
       sessionId: sessionId ?? this.sessionId,
       webhookUrl: webhookUrl ?? this.webhookUrl,
@@ -109,6 +125,8 @@ class ToolbarSettings {
         other.markerColorId == markerColorId &&
         other.autoClearAfterCopy == autoClearAfterCopy &&
         other.blockInteractions == blockInteractions &&
+        other.flutterComponentsEnabled == flutterComponentsEnabled &&
+        other.hideUntilRestart == hideUntilRestart &&
         other.mcpEndpoint == mcpEndpoint &&
         other.sessionId == sessionId &&
         other.webhookUrl == webhookUrl;

@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import '../source_location/feedback_target.dart';
+import '../source_location/widget_source_location.dart';
 import 'annotation_intent.dart';
 import 'annotation_severity.dart';
 import 'annotation_status.dart';
@@ -55,6 +57,7 @@ class Annotation {
     this.placement,
     this.rearrange,
     this.sourceFile,
+    this.sourceLocation,
     this.sessionId,
     this.thread = const [],
     this.resolvedBy,
@@ -122,6 +125,9 @@ class Annotation {
   /// Source file and line location if available (e.g. "lib/views/home.dart:42").
   final String? sourceFile;
 
+  /// Exact source code location resolved via Flutter Inspector runtime metadata.
+  final WidgetSourceLocation? sourceLocation;
+
   /// MCP session ID this annotation is associated with.
   final String? sessionId;
 
@@ -136,6 +142,25 @@ class Annotation {
 
   /// Author identifier.
   final String? authorId;
+
+  /// Converts this annotation into a [FeedbackTarget] model for prompt output formatting.
+  FeedbackTarget toFeedbackTarget() {
+    return FeedbackTarget(
+      widgetName: targetWidget.widgetType.isNotEmpty ? targetWidget.widgetType : 'Unknown',
+      source: sourceLocation ??
+          (sourceFile != null
+              ? WidgetSourceLocation(
+                  filePath: sourceFile!.contains(':')
+                      ? sourceFile!.substring(0, sourceFile!.lastIndexOf(':'))
+                      : sourceFile,
+                  fileName: sourceFile!.split('/').last.split(':').first,
+                  line: sourceFile!.contains(':')
+                      ? int.tryParse(sourceFile!.substring(sourceFile!.lastIndexOf(':') + 1))
+                      : null,
+                )
+              : const WidgetSourceLocation.unavailable()),
+    );
+  }
 
   /// Serializes this annotation to a JSON map.
   Map<String, dynamic> toJson() {
@@ -164,6 +189,7 @@ class Annotation {
       if (placement != null) 'placement': placement!.toJson(),
       if (rearrange != null) 'rearrange': rearrange!.toJson(),
       if (sourceFile != null) 'sourceFile': sourceFile,
+      if (sourceLocation != null) 'sourceLocation': sourceLocation!.toJson(),
       if (sessionId != null) 'sessionId': sessionId,
       if (thread.isNotEmpty) 'thread': thread.map((m) => m.toJson()).toList(),
       if (resolvedBy != null) 'resolvedBy': resolvedBy,
@@ -219,6 +245,10 @@ class Annotation {
               Map<String, dynamic>.from(json['rearrange'] as Map))
           : null,
       sourceFile: json['sourceFile'] as String?,
+      sourceLocation: json['sourceLocation'] != null
+          ? WidgetSourceLocation.fromJson(
+              Map<String, dynamic>.from(json['sourceLocation'] as Map))
+          : null,
       sessionId: json['sessionId'] as String?,
       thread: (json['thread'] as List<dynamic>?)
               ?.map<ThreadMessage>((item) =>
@@ -255,6 +285,7 @@ class Annotation {
     PlacementData? placement,
     RearrangeData? rearrange,
     String? sourceFile,
+    WidgetSourceLocation? sourceLocation,
     String? sessionId,
     List<ThreadMessage>? thread,
     String? resolvedBy,
@@ -282,6 +313,7 @@ class Annotation {
       placement: placement ?? this.placement,
       rearrange: rearrange ?? this.rearrange,
       sourceFile: sourceFile ?? this.sourceFile,
+      sourceLocation: sourceLocation ?? this.sourceLocation,
       sessionId: sessionId ?? this.sessionId,
       thread: thread ?? this.thread,
       resolvedBy: resolvedBy ?? this.resolvedBy,
@@ -308,6 +340,7 @@ class Annotation {
         other.kind == kind &&
         other.isMultiSelect == isMultiSelect &&
         other.sourceFile == sourceFile &&
+        other.sourceLocation == sourceLocation &&
         other.sessionId == sessionId &&
         listEquals(other.selectedWidgets, selectedWidgets) &&
         listEquals(other.elementBoundingBoxes, elementBoundingBoxes) &&
@@ -335,6 +368,7 @@ class Annotation {
         status,
         kind,
         isMultiSelect,
+        sourceLocation,
       );
 
   @override

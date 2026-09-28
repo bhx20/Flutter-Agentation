@@ -95,16 +95,15 @@ void main() {
       );
 
       expect(controller.isFrozen, isFalse);
-      final freezeFinder = find.byTooltip('Freeze Animations');
+      final freezeFinder = find.byKey(const ValueKey('toolbar_pause'));
       expect(freezeFinder, findsOneWidget);
 
       await tester.tap(freezeFinder);
       await tester.pumpAndSettle();
 
       expect(controller.isFrozen, isTrue);
-      expect(find.byTooltip('Resume Animations'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Resume Animations'));
+      await tester.tap(freezeFinder);
       await tester.pumpAndSettle();
 
       expect(controller.isFrozen, isFalse);

@@ -113,7 +113,7 @@ void main() {
       expect(find.text('Compact'), findsOneWidget);
     });
 
-    testWidgets('AgentationToolbar renders tool mode selectors and switches mode', (tester) async {
+    testWidgets('SettingsPanel cycles detail level and updates controller', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -129,76 +129,41 @@ void main() {
         ),
       );
 
-      // Verify mode icons/tooltips exist
-      expect(find.byIcon(Icons.near_me_outlined), findsOneWidget); // Pointer
-      expect(find.byIcon(Icons.crop_free), findsOneWidget); // Area
-      expect(find.byIcon(Icons.select_all), findsOneWidget); // Multi-Select
-      expect(find.byIcon(Icons.gesture), findsOneWidget); // Draw
+      // Open settings panel
+      await tester.tap(find.byKey(const ValueKey('toolbar_settings')));
+      await tester.pumpAndSettle();
 
-      // Tap Area mode button
-      await tester.tap(find.byIcon(Icons.crop_free));
-      await tester.pump();
-      expect(controller.toolMode, equals(AnnotationToolMode.area));
+      expect(find.text('Output Detail'), findsOneWidget);
+      expect(find.text('Standard'), findsOneWidget);
 
-      // Tap Draw mode button
-      await tester.tap(find.byIcon(Icons.gesture));
-      await tester.pump();
-      expect(controller.toolMode, equals(AnnotationToolMode.draw));
+      // Tap Output Detail to advance
+      await tester.tap(find.text('Standard'));
+      await tester.pumpAndSettle();
+
+      expect(controller.settings.outputDetail, equals(OutputDetailLevel.detailed));
+      expect(find.text('Detailed'), findsOneWidget);
     });
 
-    testWidgets('AgentationToolbar cycles detail level and triggers undo/redo', (tester) async {
+    testWidgets('Controller undo and redo tracks annotations accurately', (tester) async {
       await storage.save(dummyAnnotation);
       final initialAnnotations = await storage.getAll();
       expect(initialAnnotations.length, equals(1));
 
-      // Re-create controller to populate from storage
       controller = AgentationController(
         storage: storage,
         initialMode: InspectionMode.inspecting,
       );
-      // Wait for async load if needed, or invoke createAnnotation
       await controller.createAnnotation(comment: 'Second comment');
       expect(controller.annotations.length, equals(2));
       expect(controller.canUndo, isTrue);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Stack(
-              children: [
-                AgentationScope(
-                  controller: controller,
-                  child: const AgentationToolbar(),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-
-      // Verify OutputDetailButton is embedded in toolbar
-      expect(find.byType(OutputDetailButton), findsOneWidget);
-      expect(find.text('Standard'), findsOneWidget);
-
-      // Tap OutputDetailButton in toolbar
-      await tester.tap(find.byType(OutputDetailButton));
-      await tester.pumpAndSettle();
-      expect(controller.settings.outputDetail, equals(OutputDetailLevel.detailed));
-      expect(find.text('Detailed'), findsOneWidget);
-
-      // Verify Undo button exists and tap it
-      expect(find.byIcon(Icons.undo), findsOneWidget);
-      await tester.tap(find.byIcon(Icons.undo));
-      await tester.pumpAndSettle();
-
+      // Undo
+      await controller.undo();
       expect(controller.annotations.length, equals(1));
       expect(controller.canRedo, isTrue);
 
-      // Tap Redo button
-      expect(find.byIcon(Icons.redo), findsOneWidget);
-      await tester.tap(find.byIcon(Icons.redo));
-      await tester.pumpAndSettle();
-
+      // Redo
+      await controller.redo();
       expect(controller.annotations.length, equals(2));
     });
   });

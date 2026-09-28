@@ -6,6 +6,8 @@ import '../models/widget_bounds.dart';
 import '../models/widget_context.dart';
 import '../models/widget_identity.dart';
 import '../models/widget_inspection_result.dart';
+import '../source_location/source_location_resolver.dart';
+import '../source_location/widget_source_location.dart';
 import 'bounds_resolver.dart';
 import 'element_inspector.dart';
 import 'hit_test_engine.dart';
@@ -28,6 +30,7 @@ class FlutterInspectionEngine {
   final TextResolver textResolver;
   final SemanticsResolver semanticsResolver;
   final RouteResolver routeResolver;
+  final SourceLocationResolver sourceLocationResolver;
 
   /// Optional set of render objects to ignore during hit testing (e.g. inspector overlay canvas).
   Set<RenderObject>? ignoredRenderObjects;
@@ -41,6 +44,7 @@ class FlutterInspectionEngine {
     TextResolver? textResolver,
     SemanticsResolver? semanticsResolver,
     RouteResolver? routeResolver,
+    SourceLocationResolver? sourceLocationResolver,
     this.ignoredRenderObjects,
   })  : hitTestEngine = hitTestEngine ?? HitTestEngine(),
         elementInspector = elementInspector ?? ElementInspector(),
@@ -49,7 +53,8 @@ class FlutterInspectionEngine {
         boundsResolver = boundsResolver ?? BoundsResolver(),
         textResolver = textResolver ?? TextResolver(),
         semanticsResolver = semanticsResolver ?? SemanticsResolver(),
-        routeResolver = routeResolver ?? RouteResolver();
+        routeResolver = routeResolver ?? RouteResolver(),
+        sourceLocationResolver = sourceLocationResolver ?? FlutterSourceLocationResolver();
 
   /// Inspects the visual Flutter widget under [globalPosition].
   ///
@@ -59,6 +64,7 @@ class FlutterInspectionEngine {
     Offset globalPosition, {
     RenderObject? rootRenderObject,
     Element? rootElement,
+    bool resolveSourceLocation = true,
   }) {
     try {
       final targetBox = hitTestEngine.findTargetRenderBox(
@@ -72,7 +78,11 @@ class FlutterInspectionEngine {
         return const WidgetInspectionResult.unavailable();
       }
 
-      return inspectRenderObject(targetBox, rootElement: rootElement);
+      return inspectRenderObject(
+        targetBox,
+        rootElement: rootElement,
+        resolveSourceLocation: resolveSourceLocation,
+      );
     } catch (e, st) {
       AgentationLogger.error('Inspection failed at $globalPosition', e, st);
       return const WidgetInspectionResult.unavailable();
@@ -84,6 +94,7 @@ class FlutterInspectionEngine {
     Offset globalPosition, {
     RenderObject? rootRenderObject,
     Element? rootElement,
+    bool resolveSourceLocation = false,
   }) {
     try {
       final candidates = hitTestEngine.hitTest(
@@ -98,7 +109,12 @@ class FlutterInspectionEngine {
       for (final box in candidates) {
         final element = elementInspector.findElementForRenderObject(box, rootElement: rootElement);
         if (element != null && seenElements.add(element)) {
-          final res = inspectElement(element, renderObject: box);
+          final res = inspectElement(
+            element,
+            renderObject: box,
+            rootElement: rootElement,
+            resolveSourceLocation: resolveSourceLocation,
+          );
           if (res.isAvailable) {
             results.add(res);
           }
@@ -124,12 +140,14 @@ class FlutterInspectionEngine {
         globalPosition,
         rootRenderObject: rootRenderObject,
         rootElement: rootElement,
+        resolveSourceLocation: true,
       );
 
       final hitCandidates = inspectAllAt(
         globalPosition,
         rootRenderObject: rootRenderObject,
         rootElement: rootElement,
+        resolveSourceLocation: false,
       );
 
       // Find the element for the primary target or top candidate
@@ -142,7 +160,7 @@ class FlutterInspectionEngine {
       if (targetBox != null) {
         final el = elementInspector.findElementForRenderObject(targetBox, rootElement: rootElement);
         if (el != null) {
-          targetElement = elementInspector.findMeaningfulElement(el);
+          targetElement = elementInspector.findMeaningfulElement(el, rootElement: rootElement);
         }
       } else if (rootElement != null || rootRenderObject != null) {
         final fallbackElement = rootElement ??
@@ -151,12 +169,17 @@ class FlutterInspectionEngine {
                 : null);
         if (fallbackElement != null) {
           final meaningfulFallback = elementInspector.findMeaningfulElement(fallbackElement, rootElement: rootElement);
-          final res = inspectElement(meaningfulFallback, renderObject: rootRenderObject, rootElement: rootElement);
+          final res = inspectElement(
+            meaningfulFallback,
+            renderObject: rootRenderObject,
+            rootElement: rootElement,
+            resolveSourceLocation: true,
+          );
           if (res.isAvailable) {
             return HierarchicalInspectionResult(
               primaryTarget: res,
               ancestors: const [],
-              children: inspectChildrenOf(meaningfulFallback),
+              children: inspectChildrenOf(meaningfulFallback, resolveSourceLocation: false),
               hitCandidates: [res],
               isAvailable: true,
             );
@@ -171,14 +194,31 @@ class FlutterInspectionEngine {
         // 1. Ancestors
         final ancestorElements = elementInspector.findAncestorHierarchy(targetElement);
         for (final ae in ancestorElements) {
-          final res = inspectElement(ae);
+          final res = inspectElement(ae, resolveSourceLocation: false);
           if (res.isAvailable && res.identity.widgetType != primary.identity.widgetType) {
             ancestors.add(res);
           }
         }
 
         // 2. Children
-        children.addAll(inspectChildrenOf(targetElement));
+        final directChildren = inspectChildrenOf(targetElement, resolveSourceLocation: false);
+        if (directChildren.isNotEmpty) {
+          children.addAll(directChildren);
+        } else if (ancestorElements.isNotEmpty) {
+          // If the leaf widget itself has no children (e.g. Text or Icon), find the nearest
+          // parent container's children so sibling widgets within a tile/card are readily selectable
+          for (final ancestor in ancestorElements.reversed) {
+            final containerChildren = inspectChildrenOf(ancestor, resolveSourceLocation: false);
+            if (containerChildren.isNotEmpty) {
+              for (final child in containerChildren) {
+                if (child.identity.id != primary.identity.id) {
+                  children.add(child);
+                }
+              }
+              if (children.isNotEmpty) break;
+            }
+          }
+        }
       }
 
       if (!primary.isAvailable && hitCandidates.isEmpty && ancestors.isEmpty) {
@@ -209,8 +249,9 @@ class FlutterInspectionEngine {
   /// Discovers meaningful child widgets directly contained within [element].
   List<WidgetInspectionResult> inspectChildrenOf(
     Element element, {
-    int maxDepth = 4,
-    int maxChildren = 25,
+    int maxDepth = 50,
+    int maxChildren = 30,
+    bool resolveSourceLocation = false,
   }) {
     try {
       final childElements = elementInspector.findMeaningfulChildren(
@@ -220,7 +261,7 @@ class FlutterInspectionEngine {
       );
       final results = <WidgetInspectionResult>[];
       for (final ce in childElements) {
-        final res = inspectElement(ce);
+        final res = inspectElement(ce, resolveSourceLocation: resolveSourceLocation);
         if (res.isAvailable) {
           results.add(res);
         }
@@ -236,6 +277,7 @@ class FlutterInspectionEngine {
   WidgetInspectionResult inspectRenderObject(
     RenderObject renderObject, {
     Element? rootElement,
+    bool resolveSourceLocation = true,
   }) {
     try {
       final element = elementInspector.findElementForRenderObject(
@@ -256,10 +298,16 @@ class FlutterInspectionEngine {
           bounds: bounds,
           context: const WidgetContext.empty(),
           ancestors: [renderObject.runtimeType.toString()],
+          sourceLocation: const WidgetSourceLocation.unavailable(),
         );
       }
 
-      return inspectElement(element, renderObject: renderObject);
+      return inspectElement(
+        element,
+        renderObject: renderObject,
+        rootElement: rootElement,
+        resolveSourceLocation: resolveSourceLocation,
+      );
     } catch (e, st) {
       AgentationLogger.error('RenderObject inspection failed', e, st);
       return const WidgetInspectionResult.unavailable();
@@ -271,6 +319,7 @@ class FlutterInspectionEngine {
     Element element, {
     RenderObject? renderObject,
     Element? rootElement,
+    bool resolveSourceLocation = true,
   }) {
     try {
       final meaningfulElement = elementInspector.findMeaningfulElement(element, rootElement: rootElement);
@@ -294,6 +343,13 @@ class FlutterInspectionEngine {
       // Resolve semantics
       final semantics = semanticsResolver.extractSemantics(ro, meaningfulElement);
 
+      // Resolve source location via Flutter Inspector runtime metadata
+      final sourceLocation = resolveSourceLocation
+          ? (sourceLocationResolver.resolve(meaningfulElement) ??
+              sourceLocationResolver.resolve(element) ??
+              const WidgetSourceLocation.unavailable())
+          : const WidgetSourceLocation.unavailable();
+
       return WidgetInspectionResult(
         identity: identity,
         bounds: bounds,
@@ -306,6 +362,7 @@ class FlutterInspectionEngine {
         route: route,
         text: text,
         ancestors: ancestors,
+        sourceLocation: sourceLocation,
       );
     } catch (e, st) {
       AgentationLogger.error('Element inspection failed', e, st);
