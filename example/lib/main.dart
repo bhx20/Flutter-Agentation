@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_agentation/flutter_agentation.dart';
 import 'models/widget_category.dart';
+import 'sections/animations_effects_interaction_section.dart';
+import 'sections/basic_section.dart';
 import 'sections/buttons_section.dart';
-import 'sections/dialogs_feedback_section.dart';
-import 'sections/indicators_animations_section.dart';
+import 'sections/cupertino_section.dart';
 import 'sections/inputs_section.dart';
-import 'sections/layouts_transforms_section.dart';
-import 'sections/lists_tables_section.dart';
-import 'sections/surfaces_section.dart';
-import 'sections/typography_section.dart';
+import 'sections/layout_section.dart';
+import 'sections/lists_slivers_section.dart';
+import 'sections/progress_feedback_dialogs_section.dart';
+import 'sections/surfaces_navigation_tables_section.dart';
+import 'sections/text_media_icons_section.dart';
 
 void main() {
   runApp(const InspectionDemoApp());
 }
 
-/// The root application widget showcasing all standard Flutter widgets
+/// The root application widget showcasing all 217+ standard Flutter widgets
 /// with the FlutterAgentation visual inspection engine attached.
 class InspectionDemoApp extends StatefulWidget {
   const InspectionDemoApp({super.key});
@@ -24,52 +26,64 @@ class InspectionDemoApp extends StatefulWidget {
 }
 
 class _InspectionDemoAppState extends State<InspectionDemoApp> {
-  ThemeMode _themeMode = ThemeMode.light;
+  final ValueNotifier<ThemeMode> _themeModeNotifier =
+      ValueNotifier<ThemeMode>(ThemeMode.light);
+
+  @override
+  void dispose() {
+    _themeModeNotifier.dispose();
+    super.dispose();
+  }
 
   void _toggleTheme() {
-    setState(() {
-      _themeMode = _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
-    });
+    _themeModeNotifier.value = _themeModeNotifier.value == ThemeMode.light
+        ? ThemeMode.dark
+        : ThemeMode.light;
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'FlutterAgentation Demo',
-      debugShowCheckedModeBanner: false,
-      themeMode: _themeMode,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6366F1), // Indigo
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-        cardTheme: const CardThemeData(
-          elevation: 0.5,
-          color: Colors.white,
-        ),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6366F1),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFF0F172A),
-        cardTheme: const CardThemeData(
-          elevation: 0.5,
-          color: Color(0xFF1E293B),
-        ),
-      ),
-      home: FlutterAgentation(
-        endpoint: 'http://localhost:4747',
-        appName: 'FlutterAgentation Showcase',
-        child: InspectionDemoScreen(
-          onToggleTheme: _toggleTheme,
-          isDarkMode: _themeMode == ThemeMode.dark,
-        ),
-      ),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: _themeModeNotifier,
+      builder: (context, themeMode, _) {
+        return MaterialApp(
+          title: 'FlutterAgentation Demo',
+          debugShowCheckedModeBanner: false,
+          themeMode: themeMode,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF6366F1), // Indigo
+              brightness: Brightness.light,
+            ),
+            useMaterial3: true,
+            scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+            cardTheme: const CardThemeData(
+              elevation: 0.5,
+              color: Colors.white,
+            ),
+          ),
+          darkTheme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF6366F1),
+              brightness: Brightness.dark,
+            ),
+            useMaterial3: true,
+            scaffoldBackgroundColor: const Color(0xFF0F172A),
+            cardTheme: const CardThemeData(
+              elevation: 0.5,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          home: FlutterAgentation(
+            endpoint: 'http://localhost:4747',
+            appName: 'FlutterAgentation Showcase',
+            child: InspectionDemoScreen(
+              onToggleTheme: _toggleTheme,
+              isDarkMode: themeMode == ThemeMode.dark,
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -93,7 +107,8 @@ class InspectionDemoScreen extends StatefulWidget {
 class _InspectionDemoScreenState extends State<InspectionDemoScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _animController;
-  WidgetCategory _activeCategory = WidgetCategory.all;
+  final ValueNotifier<WidgetCategory> _activeCategoryNotifier =
+      ValueNotifier<WidgetCategory>(WidgetCategory.all);
 
   @override
   void initState() {
@@ -107,6 +122,7 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
   @override
   void dispose() {
     _animController.dispose();
+    _activeCategoryNotifier.dispose();
     super.dispose();
   }
 
@@ -118,7 +134,7 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('FlutterAgentation Visual Overlay Demo'),
-        backgroundColor: isDark ? const Color(0xFF1E1E2E) : const Color(0xFF1E1E2E),
+        backgroundColor: const Color(0xFF1E1E2E),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -166,11 +182,10 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
                   ),
                   SizedBox(height: 8.0),
                   Text(
-                    '1. Tap "Inspect" on the toolbar to start inspecting.\n'
-                    '2. Switch modes: Pointer, Area marquee, Multi-select, Draw canvas, or Design Mode.\n'
-                    '3. Tap the snowflake (❄) to freeze in-flight animations.\n'
-                    '4. Tap detail level button to cycle Compact → Standard → Detailed → Forensic.\n'
-                    '5. Open Settings (⚙) to pick marker colors or configure MCP sync.',
+                    'Comprehensive catalog covering 217+ Flutter visual widgets across 37 categories.\n'
+                    '• Tap || on the toolbar to freeze & inspect any component.\n'
+                    '• Supports Pointer, Area marquee, Multi-select, Drawing canvas, and Design skeleton modes.\n'
+                    '• All localized states run entirely via ValueNotifier.',
                     style: TextStyle(color: Colors.white70, fontSize: 13.0, height: 1.4),
                   ),
                 ],
@@ -179,78 +194,98 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
             const SizedBox(height: 14.0),
 
             // ── Category Filter Chip Bar ──
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: WidgetCategory.values.map((cat) {
-                  final isSelected = _activeCategory == cat;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: FilterChip(
-                      avatar: Icon(
-                        cat.icon,
-                        size: 16.0,
-                        color: isSelected
-                            ? Colors.white
-                            : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
-                      ),
-                      label: Text(cat.label),
-                      selected: isSelected,
-                      selectedColor: const Color(0xFF6366F1),
-                      labelStyle: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        color: isSelected
-                            ? Colors.white
-                            : (isDark ? Colors.white70 : const Color(0xFF374151)),
-                      ),
-                      checkmarkColor: Colors.white,
-                      backgroundColor: isDark ? const Color(0xFF262638) : const Color(0xFFF1F5F9),
-                      onSelected: (_) {
-                        setState(() {
-                          _activeCategory = cat;
-                        });
-                      },
-                    ),
-                  );
-                }).toList(),
-              ),
+            ValueListenableBuilder<WidgetCategory>(
+              valueListenable: _activeCategoryNotifier,
+              builder: (context, activeCategory, _) {
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: WidgetCategory.values.map((cat) {
+                      final isSelected = activeCategory == cat;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: FilterChip(
+                          avatar: Icon(
+                            cat.icon,
+                            size: 16.0,
+                            color: isSelected
+                                ? Colors.white
+                                : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
+                          ),
+                          label: Text(cat.label),
+                          selected: isSelected,
+                          selectedColor: const Color(0xFF6366F1),
+                          labelStyle: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            color: isSelected
+                                ? Colors.white
+                                : (isDark ? Colors.white70 : const Color(0xFF374151)),
+                          ),
+                          checkmarkColor: Colors.white,
+                          backgroundColor:
+                              isDark ? const Color(0xFF262638) : const Color(0xFFF1F5F9),
+                          onSelected: (_) {
+                            _activeCategoryNotifier.value = cat;
+                          },
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
             ),
 
-                  // ── Categorized Widget Sections ──
-                  if (_shouldShow(WidgetCategory.buttons))
-                    const ButtonsSection(),
+            // ── Categorized Widget Sections ──
+            ValueListenableBuilder<WidgetCategory>(
+              valueListenable: _activeCategoryNotifier,
+              builder: (context, activeCategory, _) {
+                bool shouldShow(WidgetCategory category) {
+                  return activeCategory == WidgetCategory.all || activeCategory == category;
+                }
 
-                  if (_shouldShow(WidgetCategory.inputs))
-                    const InputsSection(),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (shouldShow(WidgetCategory.buttons))
+                      const ButtonsSection(),
 
-                  if (_shouldShow(WidgetCategory.surfaces))
-                    const SurfacesSection(),
+                    if (shouldShow(WidgetCategory.basic))
+                      const BasicSection(),
 
-                  if (_shouldShow(WidgetCategory.typography))
-                    const TypographySection(),
+                    if (shouldShow(WidgetCategory.layout))
+                      const LayoutSection(),
 
-                  if (_shouldShow(WidgetCategory.lists))
-                    const ListsTablesSection(),
+                    if (shouldShow(WidgetCategory.textMedia))
+                      const TextMediaIconsSection(),
 
-                  if (_shouldShow(WidgetCategory.layouts))
-                    const LayoutsTransformsSection(),
+                    if (shouldShow(WidgetCategory.inputs))
+                      const InputsSection(),
 
-                  if (_shouldShow(WidgetCategory.indicators))
-                    IndicatorsAnimationsSection(animController: _animController),
+                    if (shouldShow(WidgetCategory.progressFeedback))
+                      const ProgressFeedbackDialogsSection(),
 
-                  if (_shouldShow(WidgetCategory.feedback))
-                    const DialogsFeedbackSection(),
+                    if (shouldShow(WidgetCategory.surfacesNav))
+                      const SurfacesNavigationTablesSection(),
 
-                  // Bottom padding clearance for the floating toolbar
-                  const SizedBox(height: 120.0),
-                ],
-              ),
+                    if (shouldShow(WidgetCategory.listsSlivers))
+                      const ListsSliversSection(),
+
+                    if (shouldShow(WidgetCategory.animations))
+                      AnimationsEffectsInteractionSection(animController: _animController),
+
+                    if (shouldShow(WidgetCategory.cupertino))
+                      const CupertinoSection(),
+
+                    // Bottom padding clearance for the floating toolbar
+                    const SizedBox(height: 120.0),
+                  ],
+                );
+              },
             ),
+          ],
+        ),
+      ),
     );
-  }
-
-  bool _shouldShow(WidgetCategory category) {
-    return _activeCategory == WidgetCategory.all || _activeCategory == category;
   }
 }

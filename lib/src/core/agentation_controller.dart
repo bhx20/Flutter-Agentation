@@ -522,7 +522,7 @@ class AgentationController extends ChangeNotifier {
       _syncClient!.syncAnnotation(activeSessionId, annotation);
     }
     notifyWebhook('annotation.created', {
-      if (activeSessionId != null) 'sessionId': activeSessionId,
+      'sessionId': ?activeSessionId,
       'annotation': annotation.toJson(),
     });
 
@@ -691,7 +691,7 @@ class AgentationController extends ChangeNotifier {
       _syncClient!.syncAnnotation(activeSessionId, updated);
     }
     notifyWebhook('thread.message_added', {
-      if (activeSessionId != null) 'sessionId': activeSessionId,
+      'sessionId': ?activeSessionId,
       'annotationId': annotationId,
       'message': newMessage.toJson(),
     });

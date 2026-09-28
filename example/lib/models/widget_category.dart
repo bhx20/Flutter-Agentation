@@ -3,49 +3,59 @@ import 'package:flutter/material.dart';
 /// Categories of Flutter widgets showcased in the inspection demo.
 enum WidgetCategory {
   all(
-    label: 'All Widgets',
+    label: 'All Widgets (217+)',
     icon: Icons.dashboard_customize_outlined,
-    description: 'Comprehensive catalog of standard Flutter widgets ready for inspection.',
+    description: 'Comprehensive catalog of all Flutter widgets ready for inspection.',
+  ),
+  basic(
+    label: 'Basic & Boxes',
+    icon: Icons.check_box_outline_blank_rounded,
+    description: 'Container, SizedBox, Clip, Transform, Opacity, and Box widgets.',
+  ),
+  layout(
+    label: 'Layout & Flex',
+    icon: Icons.view_quilt_outlined,
+    description: 'Row, Column, Flex, Stack, Positioned, Wrap, Expanded, and Spacer.',
+  ),
+  textMedia(
+    label: 'Text, Media & Icons',
+    icon: Icons.text_fields_rounded,
+    description: 'Text, RichText, Images, Icons, Hero, and CustomPaint.',
   ),
   buttons(
-    label: 'Buttons & Controls',
+    label: 'Buttons, Chips & Menus',
     icon: Icons.smart_button_outlined,
-    description: 'Interactive buttons, segmented switches, popups, and floating action buttons.',
+    description: 'Material 3 Buttons, ActionChips, SegmentedButtons, and Menus.',
   ),
   inputs(
-    label: 'Inputs & Forms',
+    label: 'Inputs & Stepper',
     icon: Icons.edit_note_rounded,
-    description: 'Text fields, search bars, switches, checkboxes, radios, and sliders.',
+    description: 'TextField, Switches, Radios, Sliders, Dropdowns, and Stepper.',
   ),
-  surfaces(
-    label: 'Cards & Surfaces',
-    icon: Icons.layers_outlined,
-    description: 'Material 3 cards (elevated, filled, outlined), styled containers, and surfaces.',
-  ),
-  typography(
-    label: 'Typography & Chips',
-    icon: Icons.text_fields_rounded,
-    description: 'Material 3 type scale, RichText spans, badges, and interactive chips.',
-  ),
-  lists(
-    label: 'Lists & Data Tables',
-    icon: Icons.table_rows_outlined,
-    description: 'ListTiles, SwitchListTiles, ExpansionTiles, DataTables, and responsive grids.',
-  ),
-  layouts(
-    label: 'Layouts & Transforms',
-    icon: Icons.view_quilt_outlined,
-    description: 'Wrap layouts, overlapping Stacks, Tables, transforms, and explicit Agentation targets.',
-  ),
-  indicators(
-    label: 'Indicators & Animations',
+  progressFeedback(
+    label: 'Progress & Dialogs',
     icon: Icons.donut_large_outlined,
-    description: 'Progress indicators, continuous freeze test animations, and animated containers.',
+    description: 'Progress indicators, SnackBars, Badges, and Dialogs.',
   ),
-  feedback(
-    label: 'Dialogs & Feedback',
-    icon: Icons.chat_bubble_outline_rounded,
-    description: 'SnackBars, Alert dialogs, Bottom sheets, and tooltips.',
+  surfacesNav(
+    label: 'Cards, Navigation & Tables',
+    icon: Icons.layers_outlined,
+    description: 'Cards, Navigation Bars/Rails, Drawers, Tabs, and Tables.',
+  ),
+  listsSlivers(
+    label: 'Lists, Grids & Slivers',
+    icon: Icons.table_rows_outlined,
+    description: 'ListView, GridView, PageView, Slivers, and CustomScrollView.',
+  ),
+  animations(
+    label: 'Animations & Effects',
+    icon: Icons.animation_rounded,
+    description: 'Implicit animations, transitions, effects, and interaction gestures.',
+  ),
+  cupertino(
+    label: 'Cupertino (iOS)',
+    icon: Icons.phone_iphone_rounded,
+    description: 'Cupertino Navigation, Buttons, Controls, Pickers, and Dialogs.',
   );
 
   const WidgetCategory({

@@ -60,7 +60,7 @@ class HitTestEngine {
       final searchRoot = root is RenderBox ? root : (root is RenderView ? root.child : null);
       if (searchRoot != null) {
         // Fast-path: if globalPosition is outside searchRoot bounds, skip entirely
-        if (searchRoot is RenderBox && searchRoot.hasSize && searchRoot.attached) {
+        if (searchRoot.hasSize && searchRoot.attached) {
           try {
             final rootLocal = searchRoot.globalToLocal(globalPosition);
             if (!searchRoot.paintBounds.contains(rootLocal)) {
