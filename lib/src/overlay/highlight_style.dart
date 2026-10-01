@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 class HighlightStyle {
   const HighlightStyle({
     this.strokeColor = const Color(0xFF007AFF), // Blue
-    this.fillColor = const Color(0x1F007AFF), // ~12% opacity Blue
-    this.strokeWidth = 2.0,
+    this.fillColor = Colors.transparent,
+    this.strokeWidth = 1.5,
     this.borderRadius = 4.0,
     this.badgeBackgroundColor = const Color(0xFF1C1C1E),
     this.badgeTextColor = const Color(0xFFFFFFFF),

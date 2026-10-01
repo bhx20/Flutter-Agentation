@@ -49,7 +49,7 @@ void main() {
       expect(controller.areCommentsVisible, isTrue);
     });
 
-    testWidgets('play pause button toggles inspect and freeze state', (tester) async {
+    testWidgets('play pause button toggles freeze state and expanded/collapsed state toggles inspection', (tester) async {
       final controller = AgentationController();
 
       await tester.pumpWidget(
@@ -66,21 +66,40 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
+      // Expanded by default: inspection is active, animations not frozen
+      expect(controller.isToolbarMinimized, isFalse);
+      expect(controller.isInspecting, isTrue);
       expect(controller.isFrozen, isFalse);
-      expect(controller.isInspecting, isFalse);
 
+      // Tap pause: animations freeze, inspection remains active
       await tester.tap(find.byKey(const ValueKey('toolbar_pause')));
       await tester.pumpAndSettle();
 
       expect(controller.isFrozen, isTrue);
       expect(controller.isInspecting, isTrue);
 
+      // Tap play: animations unfreeze, inspection remains active
       await tester.tap(find.byKey(const ValueKey('toolbar_pause')));
       await tester.pumpAndSettle();
 
       expect(controller.isFrozen, isFalse);
+      expect(controller.isInspecting, isTrue);
+
+      // Collapse toolbar: inspection is paused
+      await tester.tap(find.byKey(const ValueKey('toolbar_close')));
+      await tester.pumpAndSettle();
+
+      expect(controller.isToolbarMinimized, isTrue);
       expect(controller.isInspecting, isFalse);
+
+      // Expand toolbar: inspection is re-enabled
+      await tester.tap(find.byKey(const ValueKey('toolbar_expand')));
+      await tester.pumpAndSettle();
+
+      expect(controller.isToolbarMinimized, isFalse);
+      expect(controller.isInspecting, isTrue);
     });
 
     testWidgets('clear action clears annotations in controller',

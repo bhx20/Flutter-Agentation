@@ -214,14 +214,9 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
       return _handleClose();
     }
 
-    // 3. Alt+I -> Toggle inspect
+    // 3. Alt+I -> Toggle inspect / toolbar minimize
     if (key == LogicalKeyboardKey.keyI && HardwareKeyboard.instance.isAltPressed) {
-      _ctrl.toggleFreeze();
-      if (_ctrl.isFrozen) {
-        _ctrl.activate();
-      } else {
-        _ctrl.deactivate();
-      }
+      _ctrl.toggleToolbarMinimized();
       return true;
     }
 
@@ -314,13 +309,7 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
           ),
           ToggleInspectIntent: CallbackAction<ToggleInspectIntent>(
             onInvoke: (_) {
-              final ctrl = _ctrl;
-              ctrl.toggleFreeze();
-              if (ctrl.isFrozen) {
-                ctrl.activate();
-              } else {
-                ctrl.deactivate();
-              }
+              _ctrl.toggleToolbarMinimized();
               return null;
             },
           ),

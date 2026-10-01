@@ -86,6 +86,17 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
   void initState() {
     super.initState();
     _configureController();
+    if (widget.showToolbar &&
+        !_effectiveController.isToolbarMinimized &&
+        !_effectiveController.isInspecting) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            !_effectiveController.isToolbarMinimized &&
+            !_effectiveController.isInspecting) {
+          _effectiveController.activate();
+        }
+      });
+    }
   }
 
   void _configureController() {

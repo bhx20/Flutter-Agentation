@@ -6,6 +6,7 @@ import '../core/agentation_logger.dart';
 /// and identifying meaningful developer widgets.
 class ElementInspector {
   static final Expando<Element> _roToElementCache = Expando<Element>();
+  static final Expando<Element> _meaningfulCache = Expando<Element>();
 
   /// Locates the owning [Element] for [renderObject].
   Element? findElementForRenderObject(
@@ -15,7 +16,11 @@ class ElementInspector {
     // 1. Try debugCreator in debug/profile builds
     final creator = renderObject.debugCreator;
     if (creator is DebugCreator) {
-      return creator.element;
+      final el = creator.element;
+      if (el != null) {
+        _roToElementCache[renderObject] = el;
+      }
+      return el;
     }
 
     // 2. Fast Expando cache lookup
@@ -57,8 +62,14 @@ class ElementInspector {
   /// Filters out low-level rendering or internal framework composition nodes
   /// (e.g. private `_RawGestureDetector`, internal `Focus`, internal `Semantics`, internal ink keys).
   Element findMeaningfulElement(Element element, {Element? rootElement}) {
+    final cached = _meaningfulCache[element];
+    if (cached != null && cached.mounted) {
+      return cached;
+    }
+
     Element current = element;
     Element? publicCandidate;
+    bool isLeafPrimitive = false;
 
     int steps = 0;
     while (steps < 60) {
@@ -83,7 +94,23 @@ class ElementInspector {
           }
           return current;
         }
-        publicCandidate ??= current;
+
+        if (publicCandidate == null) {
+          publicCandidate = current;
+          isLeafPrimitive = _isFrameworkLeafPrimitive(typeName);
+        } else if (isLeafPrimitive) {
+          // If we started on a primitive leaf (like Text or Icon),
+          // and we encounter an enclosing custom developer widget (like AppHeadingText)
+          // before reaching a compound layout container, promote to the custom widget!
+          if (!_isFrameworkWidget(typeName) && !_isCompoundContainer(typeName)) {
+            publicCandidate = current;
+            isLeafPrimitive = false;
+          } else if (_isCompoundContainer(typeName)) {
+            return publicCandidate;
+          }
+        } else if (_isCompoundContainer(typeName)) {
+          return publicCandidate;
+        }
       }
 
       Element? parent;
@@ -98,11 +125,91 @@ class ElementInspector {
       current = parent!;
     }
 
-    return publicCandidate ?? element;
+    final resolved = publicCandidate ?? element;
+    _meaningfulCache[element] = resolved;
+    return resolved;
+  }
+
+  static bool _isFrameworkLeafPrimitive(String typeName) {
+    const primitives = {
+      'Text',
+      'RichText',
+      'Icon',
+      'Image',
+      'Placeholder',
+      'CircleAvatar',
+    };
+    return primitives.contains(typeName);
+  }
+
+  /// Checks if [typeName] is a standard Flutter framework widget.
+  static bool _isFrameworkWidget(String typeName) {
+    if (_isFrameworkBoilerplate(typeName) ||
+        _isStrictFrameworkPlumbing(typeName) ||
+        _isCompoundContainer(typeName)) {
+      return true;
+    }
+    const standardFramework = {
+      'Text',
+      'RichText',
+      'Icon',
+      'Image',
+      'Placeholder',
+      'CircleAvatar',
+      'MaterialApp',
+      'CupertinoApp',
+      'WidgetsApp',
+      'ElevatedButton',
+      'FilledButton',
+      'OutlinedButton',
+      'TextButton',
+      'IconButton',
+      'FloatingActionButton',
+      'SegmentedButton',
+      'PopupMenuButton',
+      'DropdownButton',
+      'BackButton',
+      'CloseButton',
+      'MenuAnchor',
+      'SubmenuButton',
+      'MenuItemButton',
+      'TextField',
+      'TextFormField',
+      'Checkbox',
+      'Radio',
+      'Switch',
+      'Slider',
+      'RangeSlider',
+      'CircularProgressIndicator',
+      'LinearProgressIndicator',
+      'Badge',
+      'Chip',
+      'ActionChip',
+      'FilterChip',
+      'ChoiceChip',
+      'InputChip',
+      'Tooltip',
+      'Divider',
+      'VerticalDivider',
+      'Container',
+      'Material',
+      'CupertinoButton',
+      'CupertinoTextField',
+      'CupertinoSwitch',
+      'CupertinoSlider',
+      'CupertinoActivityIndicator',
+      'CupertinoSegmentedControl',
+      'CupertinoSlidingSegmentedControl',
+      'CupertinoListTile',
+    };
+    return standardFramework.contains(typeName);
   }
 
   static bool _isCompoundContainer(String typeName) {
     const containers = {
+      'MaterialApp',
+      'CupertinoApp',
+      'WidgetsApp',
       'ListTile',
       'RadioListTile',
       'CheckboxListTile',
@@ -114,15 +221,24 @@ class ElementInspector {
       'GridView',
       'SingleChildScrollView',
       'CustomScrollView',
+      'NestedScrollView',
+      'PageView',
       'Column',
       'Row',
       'Stack',
       'Wrap',
+      'Flex',
+      'Flow',
+      'Table',
       'AppBar',
       'Drawer',
       'NavigationRail',
       'BottomAppBar',
       'NavigationBar',
+      'NavigationDrawer',
+      'BottomNavigationBar',
+      'TabBarView',
+      'Form',
     };
     return containers.contains(typeName);
   }

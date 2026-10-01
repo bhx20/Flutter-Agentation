@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../core/agentation_controller.dart';
 import '../core/agentation_scope.dart';
@@ -74,6 +75,19 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
   final ValueNotifier<bool> _isSettingsOpenNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isLayoutModeOpenNotifier = ValueNotifier<bool>(false);
   Timer? _copyTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final ctrl = _controller;
+        if (!ctrl.isToolbarMinimized && !ctrl.isInspecting) {
+          ctrl.activate();
+        }
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -399,28 +413,48 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                     width: toolbarWidth,
                     height: toolbarHeight,
                     alignment: pillAlignment,
-                    padding: isMinimized
-                        ? EdgeInsets.zero
-                        : const EdgeInsets.symmetric(horizontal: 5.0, vertical: 5.0),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFFFFFFF),
                       borderRadius: BorderRadius.circular(22.0),
-                      boxShadow: const [
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x33000000),
-                          blurRadius: 8.0,
-                          offset: Offset(0, 2),
+                          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                          blurRadius: 16.0,
+                          offset: const Offset(0, 6),
                         ),
                         BoxShadow(
-                          color: Color(0x1A000000),
-                          blurRadius: 16.0,
-                          offset: Offset(0, 4),
+                          color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.06),
+                          blurRadius: 6.0,
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: isMinimized
-                        ? _buildMinimizedPill(controller, markerColor, isDark)
-                        : _buildExpandedPill(controller, markerColor, isDark, pillAlignment),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(22.0),
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
+                        child: Container(
+                          alignment: pillAlignment,
+                          padding: isMinimized
+                              ? EdgeInsets.zero
+                              : const EdgeInsets.symmetric(horizontal: 5.0, vertical: 5.0),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? const Color(0xCC1A1A1A)
+                                : const Color(0xD9FFFFFF),
+                            borderRadius: BorderRadius.circular(22.0),
+                            border: Border.all(
+                              color: isDark
+                                  ? Colors.white.withValues(alpha: 0.15)
+                                  : Colors.black.withValues(alpha: 0.08),
+                              width: 1.0,
+                            ),
+                          ),
+                          child: isMinimized
+                              ? _buildMinimizedPill(controller, markerColor, isDark)
+                              : _buildExpandedPill(controller, markerColor, isDark, pillAlignment),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -434,7 +468,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
   Widget _buildMinimizedPill(AgentationController controller, Color markerColor, bool isDark) {
     return InkWell(
       key: const ValueKey('toolbar_expand'),
-      onTap: controller.toggleToolbarMinimized,
+      onTap: () => controller.setToolbarMinimized(false),
       borderRadius: BorderRadius.circular(22.0),
       child: Center(
         child: AgentationIcons.eye(
@@ -469,7 +503,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 1. Play / Pause & Inspect (|| / ▶) - Screenshot 1 & 2
+            // 1. Play / Pause Animations (|| / ▶) - Screenshot 1 & 2
             _buildToolbarButton(
               key: const ValueKey('toolbar_pause'),
               icon: isPaused
@@ -478,12 +512,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
               isActive: isPaused,
               activeColor: const Color(0x33FF9500),
               onPressed: () {
-                if (controller.isFrozen) {
-                  controller.deactivate(unfreeze: true);
-                } else {
-                  controller.activate(freeze: true);
-                  _isLayoutModeOpenNotifier.value = false;
-                }
+                controller.toggleFreeze();
               },
             ),
 
@@ -582,7 +611,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
               onPressed: () {
                 _isLayoutModeOpenNotifier.value = false;
                 _isSettingsOpenNotifier.value = false;
-                controller.toggleToolbarMinimized();
+                controller.setToolbarMinimized(true);
               },
             ),
           ],

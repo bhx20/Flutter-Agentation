@@ -107,5 +107,45 @@ void main() {
 
       expect(find.text('Text'), findsOneWidget);
     });
+
+    testWidgets('selection highlight uses transparent fill color and thin stroke width by default',
+        (tester) async {
+      const result = WidgetInspectionResult(
+        identity: WidgetIdentity(
+          id: 'card_id',
+          widgetType: 'Card',
+        ),
+        bounds: WidgetBounds(x: 10, y: 10, width: 100, height: 100),
+        context: WidgetContext(depth: 2),
+        ancestors: ['Card'],
+      );
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                WidgetHighlight(
+                  result: result,
+                  isHover: false,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final customPaintFinder = find.descendant(
+        of: find.byType(WidgetHighlight),
+        matching: find.byType(CustomPaint),
+      );
+      expect(customPaintFinder, findsOneWidget);
+
+      final customPaint = tester.widget<CustomPaint>(customPaintFinder);
+      final painter = customPaint.painter as HighlightPainter;
+      expect(painter.fillColor, equals(Colors.transparent));
+      expect(painter.strokeWidth, equals(1.5));
+    });
   });
 }

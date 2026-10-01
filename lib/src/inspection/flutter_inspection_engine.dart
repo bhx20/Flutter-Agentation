@@ -65,6 +65,7 @@ class FlutterInspectionEngine {
     RenderObject? rootRenderObject,
     Element? rootElement,
     bool resolveSourceLocation = true,
+    bool lightweight = false,
   }) {
     try {
       final targetBox = hitTestEngine.findTargetRenderBox(
@@ -82,6 +83,7 @@ class FlutterInspectionEngine {
         targetBox,
         rootElement: rootElement,
         resolveSourceLocation: resolveSourceLocation,
+        lightweight: lightweight,
       );
     } catch (e, st) {
       AgentationLogger.error('Inspection failed at $globalPosition', e, st);
@@ -136,27 +138,39 @@ class FlutterInspectionEngine {
     Element? rootElement,
   }) {
     try {
-      final primary = inspectAt(
-        globalPosition,
-        rootRenderObject: rootRenderObject,
-        rootElement: rootElement,
-        resolveSourceLocation: true,
-      );
-
-      final hitCandidates = inspectAllAt(
-        globalPosition,
-        rootRenderObject: rootRenderObject,
-        rootElement: rootElement,
-        resolveSourceLocation: false,
-      );
-
-      // Find the element for the primary target or top candidate
-      Element? targetElement;
-      final targetBox = hitTestEngine.findTargetRenderBox(
+      final candidates = hitTestEngine.hitTest(
         globalPosition,
         rootRenderObject: rootRenderObject,
         ignoredRenderObjects: ignoredRenderObjects,
       );
+
+      final targetBox = candidates.isNotEmpty ? candidates.first : null;
+
+      final primary = targetBox != null
+          ? inspectRenderObject(
+              targetBox,
+              rootElement: rootElement,
+              resolveSourceLocation: true,
+            )
+          : const WidgetInspectionResult.unavailable();
+
+      final hitCandidates = <WidgetInspectionResult>[];
+      final seenElements = <Element>{};
+
+      for (final box in candidates.take(5)) {
+        final element = elementInspector.findElementForRenderObject(box, rootElement: rootElement);
+        if (element != null && seenElements.add(element)) {
+          final meaningful = elementInspector.findMeaningfulElement(element, rootElement: rootElement);
+          if (primary.isAvailable && meaningful.widget.runtimeType.toString() == primary.identity.widgetType) {
+            hitCandidates.add(primary);
+          } else {
+            hitCandidates.add(_inspectLightweight(meaningful, renderObject: box));
+          }
+        }
+      }
+
+      // Find the element for the primary target or top candidate
+      Element? targetElement;
       if (targetBox != null) {
         final el = elementInspector.findElementForRenderObject(targetBox, rootElement: rootElement);
         if (el != null) {
@@ -191,24 +205,24 @@ class FlutterInspectionEngine {
       final children = <WidgetInspectionResult>[];
 
       if (targetElement != null) {
-        // 1. Ancestors
-        final ancestorElements = elementInspector.findAncestorHierarchy(targetElement);
+        // 1. Ancestors (use fast lightweight inspection)
+        final ancestorElements = elementInspector.findAncestorHierarchy(targetElement, maxDepth: 40);
         for (final ae in ancestorElements) {
-          final res = inspectElement(ae, resolveSourceLocation: false);
+          final res = _inspectLightweight(ae);
           if (res.isAvailable && res.identity.widgetType != primary.identity.widgetType) {
             ancestors.add(res);
           }
         }
 
         // 2. Children
-        final directChildren = inspectChildrenOf(targetElement, resolveSourceLocation: false);
+        final directChildren = inspectChildrenOf(targetElement, maxDepth: 50, maxChildren: 20, resolveSourceLocation: false);
         if (directChildren.isNotEmpty) {
           children.addAll(directChildren);
         } else if (ancestorElements.isNotEmpty) {
           // If the leaf widget itself has no children (e.g. Text or Icon), find the nearest
           // parent container's children so sibling widgets within a tile/card are readily selectable
-          for (final ancestor in ancestorElements.reversed) {
-            final containerChildren = inspectChildrenOf(ancestor, resolveSourceLocation: false);
+          for (final ancestor in ancestorElements.reversed.take(3)) {
+            final containerChildren = inspectChildrenOf(ancestor, maxDepth: 50, maxChildren: 20, resolveSourceLocation: false);
             if (containerChildren.isNotEmpty) {
               for (final child in containerChildren) {
                 if (child.identity.id != primary.identity.id) {
@@ -250,7 +264,7 @@ class FlutterInspectionEngine {
   List<WidgetInspectionResult> inspectChildrenOf(
     Element element, {
     int maxDepth = 50,
-    int maxChildren = 30,
+    int maxChildren = 20,
     bool resolveSourceLocation = false,
   }) {
     try {
@@ -261,7 +275,7 @@ class FlutterInspectionEngine {
       );
       final results = <WidgetInspectionResult>[];
       for (final ce in childElements) {
-        final res = inspectElement(ce, resolveSourceLocation: resolveSourceLocation);
+        final res = _inspectLightweight(ce);
         if (res.isAvailable) {
           results.add(res);
         }
@@ -273,11 +287,35 @@ class FlutterInspectionEngine {
     }
   }
 
+  /// Fast, lightweight inspection for non-primary hierarchy candidates and ancestors,
+  /// avoiding expensive tree walks, deep text scans, route resolutions, and source lookups.
+  WidgetInspectionResult _inspectLightweight(Element element, {RenderObject? renderObject}) {
+    try {
+      final ro = element.renderObject ?? renderObject;
+      final bounds = ro is RenderBox ? boundsResolver.resolveBounds(ro) : const WidgetBounds.zero();
+      final identity = identityResolver.resolveIdentity(element, renderObject: ro);
+      final text = textResolver.extractText(element);
+
+      return WidgetInspectionResult(
+        identity: identity,
+        bounds: bounds,
+        context: const WidgetContext.empty(),
+        route: null,
+        text: text,
+        ancestors: [identity.widgetType],
+        sourceLocation: const WidgetSourceLocation.unavailable(),
+      );
+    } catch (_) {
+      return const WidgetInspectionResult.unavailable();
+    }
+  }
+
   /// Resolves an explicit [RenderObject] into an inspection result.
   WidgetInspectionResult inspectRenderObject(
     RenderObject renderObject, {
     Element? rootElement,
     bool resolveSourceLocation = true,
+    bool lightweight = false,
   }) {
     try {
       final element = elementInspector.findElementForRenderObject(
@@ -307,6 +345,7 @@ class FlutterInspectionEngine {
         renderObject: renderObject,
         rootElement: rootElement,
         resolveSourceLocation: resolveSourceLocation,
+        lightweight: lightweight,
       );
     } catch (e, st) {
       AgentationLogger.error('RenderObject inspection failed', e, st);
@@ -320,6 +359,7 @@ class FlutterInspectionEngine {
     RenderObject? renderObject,
     Element? rootElement,
     bool resolveSourceLocation = true,
+    bool lightweight = false,
   }) {
     try {
       final meaningfulElement = elementInspector.findMeaningfulElement(element, rootElement: rootElement);
@@ -330,6 +370,18 @@ class FlutterInspectionEngine {
 
       // Resolve identity
       final identity = identityResolver.resolveIdentity(meaningfulElement, renderObject: ro);
+
+      if (lightweight) {
+        return WidgetInspectionResult(
+          identity: identity,
+          bounds: bounds,
+          context: const WidgetContext.empty(),
+          route: null,
+          text: null,
+          ancestors: [identity.widgetType],
+          sourceLocation: const WidgetSourceLocation.unavailable(),
+        );
+      }
 
       // Resolve ancestors
       final ancestors = pathResolver.resolveAncestors(meaningfulElement);
@@ -346,7 +398,7 @@ class FlutterInspectionEngine {
       // Resolve source location via Flutter Inspector runtime metadata
       final sourceLocation = resolveSourceLocation
           ? (sourceLocationResolver.resolve(meaningfulElement) ??
-              sourceLocationResolver.resolve(element) ??
+              (meaningfulElement != element ? sourceLocationResolver.resolve(element) : null) ??
               const WidgetSourceLocation.unavailable())
           : const WidgetSourceLocation.unavailable();
 

@@ -393,6 +393,17 @@ class AgentationController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Atomically selects a target and updates its active hierarchy in a single notification pass.
+  void selectTargetHierarchy(WidgetInspectionResult result, HierarchicalInspectionResult hierarchy) {
+    if (_state.selectedResult == result && _state.activeHierarchy == hierarchy) return;
+    _state = _state.copyWith(
+      selectedResult: () => result,
+      activeHierarchy: () => hierarchy,
+      hoveredResult: () => null,
+    );
+    notifyListeners();
+  }
+
   /// Retargets the active selection to a specific [target] candidate (e.g. from breadcrumb or child chips),
   /// updating the highlight and notifying listeners.
   void selectTarget(WidgetInspectionResult target) {
@@ -756,10 +767,14 @@ class AgentationController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Toggles toolbar minimized state.
-  void toggleToolbarMinimized() {
-    final willBeMinimized = !_state.isToolbarMinimized;
-    if (willBeMinimized) {
+  /// Sets toolbar minimized state. When minimized/collapsed, inspection is paused/inactive.
+  /// When expanded, inspection is activated/enabled.
+  void setToolbarMinimized(bool minimized) {
+    if (_state.isToolbarMinimized == minimized &&
+        (minimized ? _state.isInactive : _state.isInspecting)) {
+      return;
+    }
+    if (minimized) {
       _state = _state.copyWith(
         isToolbarMinimized: true,
         mode: InspectionMode.inactive,
@@ -777,6 +792,11 @@ class AgentationController extends ChangeNotifier {
       );
     }
     notifyListeners();
+  }
+
+  /// Toggles toolbar minimized state.
+  void toggleToolbarMinimized() {
+    setToolbarMinimized(!_state.isToolbarMinimized);
   }
 
   /// Toggles visibility of comments and annotation pins on the page.

@@ -175,8 +175,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       }
 
       if (primary.isAvailable) {
-        widget.controller.setActiveHierarchy(hierarchy);
-        widget.controller.selectResult(primary);
+        widget.controller.selectTargetHierarchy(primary, hierarchy);
         widget.onWidgetSelected?.call(primary);
       } else {
         widget.controller.clearSelection();
@@ -309,12 +308,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
     _lastHoverPosition = event.position;
 
-    // Rate-limit hover inspection to at most ~60 FPS (16ms)
+    // Rate-limit hover inspection to at most ~120 FPS (8ms)
     final now = DateTime.now();
     if (_lastHoverTime != null &&
-        now.difference(_lastHoverTime!).inMilliseconds < 16) {
+        now.difference(_lastHoverTime!).inMilliseconds < 8) {
       _hoverThrottleTimer?.cancel();
-      _hoverThrottleTimer = Timer(const Duration(milliseconds: 16), () {
+      _hoverThrottleTimer = Timer(const Duration(milliseconds: 8), () {
         if (!mounted || !widget.controller.isInspecting) return;
         _executeHoverInspection(event.position);
       });
@@ -332,6 +331,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
         rootRenderObject: _hostRenderObject,
         rootElement: _hostAppKey.currentContext as Element?,
         resolveSourceLocation: false,
+        lightweight: true,
       );
       if (result.isAvailable) {
         final current = widget.controller.hoveredResult;
@@ -362,7 +362,9 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
             widget.highlightStyle.strokeColor == const Color(0xFF6366F1)
                 ? HighlightStyle(
                     strokeColor: markerColor,
-                    fillColor: markerColor.withValues(alpha: 0.15),
+                    fillColor: Colors.transparent,
+                    strokeWidth: widget.highlightStyle.strokeWidth,
+                    borderRadius: widget.highlightStyle.borderRadius,
                     hoverStrokeColor: markerColor.withValues(alpha: 0.6),
                     hoverFillColor: markerColor.withValues(alpha: 0.08),
                     badgeBackgroundColor: settings.isDarkMode
@@ -455,42 +457,51 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                 },
               ),
 
-            // Hover candidate highlight
+            // Hover candidate highlight (skip if already selected)
             if (isInspecting &&
                 toolMode == AnnotationToolMode.pointer &&
-                widget.controller.hoveredResult != null)
-              WidgetHighlight(
-                result: widget.controller.hoveredResult,
-                style: effectiveHighlightStyle,
-                isHover: true,
+                widget.controller.hoveredResult != null &&
+                widget.controller.hoveredResult?.identity.id != widget.controller.selectedResult?.identity.id)
+              RepaintBoundary(
+                child: WidgetHighlight(
+                  result: widget.controller.hoveredResult,
+                  style: effectiveHighlightStyle,
+                  isHover: true,
+                ),
               ),
 
             // Active selected widget highlight
             if (!widget.controller.isInactive &&
                 widget.controller.selectedResult != null)
-              WidgetHighlight(
-                result: widget.controller.selectedResult,
-                style: effectiveHighlightStyle,
-                isHover: false,
-                showBadge: false,
+              RepaintBoundary(
+                child: WidgetHighlight(
+                  result: widget.controller.selectedResult,
+                  style: effectiveHighlightStyle,
+                  isHover: false,
+                  showBadge: false,
+                ),
               ),
 
             // Multi-selected items highlights
             if (isInspecting && toolMode == AnnotationToolMode.multiSelect)
               for (final selected in widget.controller.multiSelection)
-                WidgetHighlight(
-                  result: selected,
-                  style: effectiveHighlightStyle,
-                  isHover: false,
+                RepaintBoundary(
+                  child: WidgetHighlight(
+                    result: selected,
+                    style: effectiveHighlightStyle,
+                    isHover: false,
+                  ),
                 ),
 
             // Annotation creation popup when an element is actively selected
             if (isInspecting && widget.controller.selectedResult != null)
               Positioned.fill(
-                child: AnnotationPopup(
-                  key: ValueKey(widget.controller.selectedResult!.identity.id),
-                  result: widget.controller.selectedResult!,
-                  onClose: widget.controller.clearSelection,
+                child: RepaintBoundary(
+                  child: AnnotationPopup(
+                    key: ValueKey(widget.controller.selectedResult!.identity.id),
+                    result: widget.controller.selectedResult!,
+                    onClose: widget.controller.clearSelection,
+                  ),
                 ),
               ),
 
@@ -596,7 +607,10 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
               ),
 
             // Additional overlay elements (e.g. toolbar)
-            if (widget.overlayChild != null) widget.overlayChild!,
+            if (widget.overlayChild != null)
+              RepaintBoundary(
+                child: widget.overlayChild!,
+              ),
           ],
         ),
       );

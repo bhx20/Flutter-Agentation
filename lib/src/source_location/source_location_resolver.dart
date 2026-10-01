@@ -45,10 +45,10 @@ class FlutterSourceLocationResolver implements SourceLocationResolver {
           if (summaryLoc != null && !_isFrameworkFile(summaryLoc.filePath)) {
             loc = summaryLoc;
           } else {
-            // Walk ancestors to find nearest user code (limit to 15 steps, skip private framework widgets)
+            // Walk ancestors to find nearest user code (limit to 5 steps, skip private framework widgets)
             int steps = 0;
             element.visitAncestorElements((ancestor) {
-              if (++steps > 15) return false;
+              if (++steps > 5) return false;
               final typeName = ancestor.widget.runtimeType.toString();
               if (typeName.startsWith('_')) return true;
 

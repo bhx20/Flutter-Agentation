@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/flutter_agentation.dart';
 
@@ -20,7 +21,8 @@ void main() {
     expect(controller.mode, equals(InspectionMode.inactive));
 
     const style = HighlightStyle();
-    expect(style.strokeWidth, equals(2.0));
+    expect(style.strokeWidth, equals(1.5));
+    expect(style.fillColor, equals(Colors.transparent));
 
     // Phase 3 exports
     final storage = MemoryAnnotationStorage();
