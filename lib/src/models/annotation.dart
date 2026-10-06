@@ -63,6 +63,9 @@ class Annotation {
     this.resolvedBy,
     this.resolvedAt,
     this.authorId,
+    this.isFixed = false,
+    this.scrollY = 0.0,
+    this.scrollX = 0.0,
   });
 
   /// Unique identifier for this annotation.
@@ -143,6 +146,15 @@ class Annotation {
   /// Author identifier.
   final String? authorId;
 
+  /// True if element has fixed/sticky positioning (e.g. AppBar, bottom bar) and stays fixed on screen.
+  final bool isFixed;
+
+  /// Vertical scroll offset of the scrollable at the time this annotation was created.
+  final double scrollY;
+
+  /// Horizontal scroll offset of the scrollable at the time this annotation was created.
+  final double scrollX;
+
   /// Converts this annotation into a [FeedbackTarget] model for prompt output formatting.
   FeedbackTarget toFeedbackTarget() {
     return FeedbackTarget(
@@ -195,6 +207,9 @@ class Annotation {
       if (resolvedBy != null) 'resolvedBy': resolvedBy,
       if (resolvedAt != null) 'resolvedAt': resolvedAt!.toIso8601String(),
       if (authorId != null) 'authorId': authorId,
+      if (isFixed) 'isFixed': isFixed,
+      if (scrollY != 0.0) 'scrollY': scrollY,
+      if (scrollX != 0.0) 'scrollX': scrollX,
     };
   }
 
@@ -260,6 +275,9 @@ class Annotation {
           ? DateTime.tryParse(json['resolvedAt'] as String)
           : null,
       authorId: json['authorId'] as String?,
+      isFixed: json['isFixed'] as bool? ?? false,
+      scrollY: (json['scrollY'] as num?)?.toDouble() ?? 0.0,
+      scrollX: (json['scrollX'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
@@ -291,6 +309,9 @@ class Annotation {
     String? resolvedBy,
     DateTime? resolvedAt,
     String? authorId,
+    bool? isFixed,
+    double? scrollY,
+    double? scrollX,
   }) {
     return Annotation(
       id: id ?? this.id,
@@ -319,6 +340,9 @@ class Annotation {
       resolvedBy: resolvedBy ?? this.resolvedBy,
       resolvedAt: resolvedAt ?? this.resolvedAt,
       authorId: authorId ?? this.authorId,
+      isFixed: isFixed ?? this.isFixed,
+      scrollY: scrollY ?? this.scrollY,
+      scrollX: scrollX ?? this.scrollX,
     );
   }
 
@@ -342,6 +366,9 @@ class Annotation {
         other.sourceFile == sourceFile &&
         other.sourceLocation == sourceLocation &&
         other.sessionId == sessionId &&
+        other.isFixed == isFixed &&
+        other.scrollY == scrollY &&
+        other.scrollX == scrollX &&
         listEquals(other.selectedWidgets, selectedWidgets) &&
         listEquals(other.elementBoundingBoxes, elementBoundingBoxes) &&
         listEquals(other.strokes, strokes) &&
@@ -369,6 +396,8 @@ class Annotation {
         kind,
         isMultiSelect,
         sourceLocation,
+        isFixed,
+        scrollY,
       );
 
   @override

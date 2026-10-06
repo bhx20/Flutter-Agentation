@@ -131,26 +131,22 @@ void main() {
       final copyButtonFinder = find.byKey(const ValueKey('toolbar_copy'));
       expect(copyButtonFinder, findsOneWidget);
 
-      // Tap when empty -> should show "No annotations to export"
+      // When empty -> Copy button is disabled (matching Agentation UI specification)
       await tester.tap(copyButtonFinder);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('No annotations to export'), findsOneWidget);
-
-      // Clear first snackbar so it does not block the second tap
-      ScaffoldMessenger.of(tester.element(find.byType(Scaffold))).clearSnackBars();
-      await tester.pumpAndSettle();
+      expect(find.text('Copied 1 annotation to clipboard!'), findsNothing);
 
       // Add an annotation and tap again
       await controller.createAnnotation(comment: 'Make header bold');
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       await tester.tap(copyButtonFinder);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Copied 1 annotation to clipboard!'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 2000));
     });
   });
 }

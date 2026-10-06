@@ -26,8 +26,9 @@ class InspectionDemoApp extends StatefulWidget {
 }
 
 class _InspectionDemoAppState extends State<InspectionDemoApp> {
-  final ValueNotifier<ThemeMode> _themeModeNotifier =
-      ValueNotifier<ThemeMode>(ThemeMode.light);
+  final ValueNotifier<ThemeMode> _themeModeNotifier = ValueNotifier<ThemeMode>(
+    ThemeMode.light,
+  );
 
   @override
   void dispose() {
@@ -57,10 +58,7 @@ class _InspectionDemoAppState extends State<InspectionDemoApp> {
             ),
             useMaterial3: true,
             scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-            cardTheme: const CardThemeData(
-              elevation: 0.5,
-              color: Colors.white,
-            ),
+            cardTheme: const CardThemeData(elevation: 0.5, color: Colors.white),
           ),
           darkTheme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
@@ -74,13 +72,14 @@ class _InspectionDemoAppState extends State<InspectionDemoApp> {
               color: Color(0xFF1E293B),
             ),
           ),
-          home: FlutterAgentation(
-            endpoint: 'http://localhost:4747',
-            appName: 'FlutterAgentation Showcase',
-            child: InspectionDemoScreen(
-              onToggleTheme: _toggleTheme,
-              isDarkMode: themeMode == ThemeMode.dark,
-            ),
+          builder: (context, child) {
+            return FlutterAgentation(
+              child: child,
+            );
+          },
+          home: InspectionDemoScreen(
+            onToggleTheme: _toggleTheme,
+            isDarkMode: themeMode == ThemeMode.dark,
           ),
         );
       },
@@ -139,7 +138,9 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
         elevation: 0,
         actions: [
           IconButton(
-            tooltip: widget.isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+            tooltip: widget.isDarkMode
+                ? 'Switch to Light Mode'
+                : 'Switch to Dark Mode',
             icon: Icon(widget.isDarkMode ? Icons.light_mode : Icons.dark_mode),
             onPressed: widget.onToggleTheme,
           ),
@@ -186,7 +187,11 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
                     '• Tap || on the toolbar to freeze & inspect any component.\n'
                     '• Supports Pointer, Area marquee, Multi-select, Drawing canvas, and Design skeleton modes.\n'
                     '• All localized states run entirely via ValueNotifier.',
-                    style: TextStyle(color: Colors.white70, fontSize: 13.0, height: 1.4),
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 13.0,
+                      height: 1.4,
+                    ),
                   ),
                 ],
               ),
@@ -210,21 +215,28 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
                             size: 16.0,
                             color: isSelected
                                 ? Colors.white
-                                : (isDark ? Colors.white70 : const Color(0xFF4B5563)),
+                                : (isDark
+                                      ? Colors.white70
+                                      : const Color(0xFF4B5563)),
                           ),
                           label: Text(cat.label),
                           selected: isSelected,
                           selectedColor: const Color(0xFF6366F1),
                           labelStyle: TextStyle(
                             fontSize: 12.5,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.w500,
                             color: isSelected
                                 ? Colors.white
-                                : (isDark ? Colors.white70 : const Color(0xFF374151)),
+                                : (isDark
+                                      ? Colors.white70
+                                      : const Color(0xFF374151)),
                           ),
                           checkmarkColor: Colors.white,
-                          backgroundColor:
-                              isDark ? const Color(0xFF262638) : const Color(0xFFF1F5F9),
+                          backgroundColor: isDark
+                              ? const Color(0xFF262638)
+                              : const Color(0xFFF1F5F9),
                           onSelected: (_) {
                             _activeCategoryNotifier.value = cat;
                           },
@@ -241,7 +253,8 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
               valueListenable: _activeCategoryNotifier,
               builder: (context, activeCategory, _) {
                 bool shouldShow(WidgetCategory category) {
-                  return activeCategory == WidgetCategory.all || activeCategory == category;
+                  return activeCategory == WidgetCategory.all ||
+                      activeCategory == category;
                 }
 
                 return Column(
@@ -250,8 +263,7 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
                     if (shouldShow(WidgetCategory.buttons))
                       const ButtonsSection(),
 
-                    if (shouldShow(WidgetCategory.basic))
-                      const BasicSection(),
+                    if (shouldShow(WidgetCategory.basic)) const BasicSection(),
 
                     if (shouldShow(WidgetCategory.layout))
                       const LayoutSection(),
@@ -272,7 +284,9 @@ class _InspectionDemoScreenState extends State<InspectionDemoScreen>
                       const ListsSliversSection(),
 
                     if (shouldShow(WidgetCategory.animations))
-                      AnimationsEffectsInteractionSection(animController: _animController),
+                      AnimationsEffectsInteractionSection(
+                        animController: _animController,
+                      ),
 
                     if (shouldShow(WidgetCategory.cupertino))
                       const CupertinoSection(),

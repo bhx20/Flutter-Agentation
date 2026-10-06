@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../core/agentation_keymap.dart';
 import '../core/agentation_scope.dart';
 import '../models/annotation.dart';
+import '../models/widget_bounds.dart';
 
 /// Numbered circular visual badge rendered on the overlay over an annotated widget.
 class AnnotationMarker extends StatelessWidget {
@@ -14,6 +14,7 @@ class AnnotationMarker extends StatelessWidget {
     required this.onTap,
     this.isSelected = false,
     this.accentColor,
+    this.boundsOverride,
   });
 
   /// The 1-based sequential display number (1, 2, 3...).
@@ -31,11 +32,14 @@ class AnnotationMarker extends StatelessWidget {
   /// Optional accent theme color.
   final Color? accentColor;
 
+  /// Optional live bounding box override when dynamic scrolling reprojection is active.
+  final WidgetBounds? boundsOverride;
+
   @override
   Widget build(BuildContext context) {
-    final bounds = annotation.bounds;
-    final left = math.max(4.0, bounds.x - 10.0);
-    final top = math.max(4.0, bounds.y - 10.0);
+    final bounds = boundsOverride ?? annotation.bounds;
+    final left = boundsOverride != null ? (bounds.x - 10.0) : math.max(4.0, bounds.x - 10.0);
+    final top = boundsOverride != null ? (bounds.y - 10.0) : math.max(4.0, bounds.y - 10.0);
 
     final borderColor = isSelected
         ? Colors.white
@@ -99,6 +103,7 @@ class AnnotationDetailCard extends StatefulWidget {
     required this.onDelete,
     this.accentColor,
     this.isDark = true,
+    this.boundsOverride,
   });
 
   final int index;
@@ -107,6 +112,7 @@ class AnnotationDetailCard extends StatefulWidget {
   final VoidCallback onDelete;
   final Color? accentColor;
   final bool isDark;
+  final WidgetBounds? boundsOverride;
 
   @override
   State<AnnotationDetailCard> createState() => _AnnotationDetailCardState();
@@ -139,7 +145,7 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final bounds = widget.annotation.bounds;
+    final bounds = widget.boundsOverride ?? widget.annotation.bounds;
     const cardWidth = 310.0;
     final active = widget.accentColor ?? const Color(0xFF6366F1);
     final isDark = widget.isDark;
@@ -161,9 +167,22 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
       left: left,
       top: top,
       width: cardWidth,
-      child: AgentationShortcuts(
-        onClose: widget.onClose,
-        onDeleteSelected: widget.onDelete,
+      child: Focus(
+        autofocus: true,
+        onKeyEvent: (node, event) {
+          if (event is KeyDownEvent) {
+            if (event.logicalKey == LogicalKeyboardKey.escape) {
+              widget.onClose();
+              return KeyEventResult.handled;
+            }
+            if (event.logicalKey == LogicalKeyboardKey.delete ||
+                event.logicalKey == LogicalKeyboardKey.backspace) {
+              widget.onDelete();
+              return KeyEventResult.handled;
+            }
+          }
+          return KeyEventResult.ignored;
+        },
         child: Material(
           color: Colors.transparent,
           elevation: 16.0,
@@ -248,6 +267,47 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
                 Text(
                   'Rearrange: ${widget.annotation.rearrange!.direction ?? "reordered"}',
                   style: TextStyle(color: active, fontSize: 11.0, fontWeight: FontWeight.w600),
+                ),
+              ],
+
+              // Source File location & Open in editor (matching upstream Agentation)
+              if (widget.annotation.sourceFile != null &&
+                  widget.annotation.sourceFile!.isNotEmpty) ...[
+                const SizedBox(height: 6.0),
+                Row(
+                  children: [
+                    Icon(Icons.code_rounded, size: 12.0, color: subtextColor),
+                    const SizedBox(width: 4.0),
+                    Expanded(
+                      child: Text(
+                        widget.annotation.sourceFile!,
+                        style: TextStyle(
+                          color: subtextColor,
+                          fontSize: 10.5,
+                          fontFamily: 'monospace',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () {
+                        final controller = AgentationScope.maybeOf(context);
+                        controller?.onOpenSource?.call(widget.annotation.sourceFile!);
+                      },
+                      borderRadius: BorderRadius.circular(4.0),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                        child: Text(
+                          'Open in editor',
+                          style: TextStyle(
+                            color: active,
+                            fontSize: 10.0,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
 

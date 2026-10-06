@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
 import 'package:flutter_agentation/src/core/flutter_agentation.dart';
+import 'package:flutter_agentation/src/core/package_version.dart';
 import 'package:flutter_agentation/src/toolbar/agentation_toolbar.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -34,6 +35,10 @@ void main() {
       expect(find.byKey(const ValueKey('toolbar_clear')), findsOneWidget);
       expect(find.byKey(const ValueKey('toolbar_settings')), findsOneWidget);
       expect(find.byKey(const ValueKey('toolbar_close')), findsOneWidget);
+
+      // Create an annotation so that the inspect toggle is enabled
+      await controller.createAnnotation(comment: 'Test note');
+      await tester.pumpAndSettle();
 
       // Tap Eye toggle to hide comments
       expect(controller.areCommentsVisible, isTrue);
@@ -247,7 +252,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Agentation'), findsOneWidget);
-      expect(find.text('v3.1.2'), findsOneWidget);
+      expect(find.text('v${PackageVersion.current}'), findsOneWidget);
       expect(find.text('Marker Color'), findsOneWidget);
     });
 

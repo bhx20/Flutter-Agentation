@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import '../inspection/flutter_inspection_engine.dart';
 import '../models/annotation.dart';
@@ -29,13 +31,56 @@ class AgentationController extends ChangeNotifier {
     AnnotationStorage? storage,
     AgentSyncClient? syncClient,
     InspectionMode initialMode = InspectionMode.inactive,
+    String? appName,
+    this.onAnnotationAdd,
+    this.onAnnotationDelete,
+    this.onAnnotationUpdate,
+    this.onAnnotationsClear,
+    this.onCopy,
+    this.onSubmit,
+    this.onSessionCreated,
+    this.onOpenSource,
+    bool copyToClipboard = true,
+    this.enableKeyboardShortcuts = true,
   })  : _engine = engine ?? FlutterInspectionEngine(),
         _storage = storage ?? MemoryAnnotationStorage(),
-        _state = AgentationState(mode: initialMode) {
+        _state = AgentationState(mode: initialMode),
+        shouldCopyToClipboard = copyToClipboard {
+    _appName = appName;
     if (syncClient != null) {
       _syncClient = syncClient;
     }
   }
+
+  /// Callback fired when an annotation is created.
+  void Function(Annotation annotation)? onAnnotationAdd;
+
+  /// Callback fired when an annotation is deleted.
+  void Function(Annotation annotation)? onAnnotationDelete;
+
+  /// Callback fired when an annotation is updated or receives a thread message.
+  void Function(Annotation annotation)? onAnnotationUpdate;
+
+  /// Callback fired when all annotations are cleared.
+  void Function(List<Annotation> annotations)? onAnnotationsClear;
+
+  /// Callback fired after a Copy attempt with formatted output.
+  void Function(String output)? onCopy;
+
+  /// Callback fired when "Send Annotations" is clicked.
+  FutureOr<void> Function(String output, List<Annotation> annotations)? onSubmit;
+
+  /// Callback fired when a new session is created.
+  void Function(String sessionId)? onSessionCreated;
+
+  /// Callback fired when "Open in editor" is clicked for source code navigation.
+  void Function(String sourceFile)? onOpenSource;
+
+  /// Whether to write output to the system clipboard on copy. Defaults to true.
+  bool shouldCopyToClipboard;
+
+  /// Whether global keyboard shortcuts are enabled. Defaults to true.
+  bool enableKeyboardShortcuts;
 
   final FlutterInspectionEngine _engine;
   final AnnotationStorage _storage;
@@ -47,6 +92,9 @@ class AgentationController extends ChangeNotifier {
 
   List<WidgetInspectionResult> _multiSelection = [];
   final List<Annotation> _redoStack = [];
+
+  /// ValueNotifier indicating whether a copy feedback action was recently completed.
+  final ValueNotifier<bool> isCopiedNotifier = ValueNotifier<bool>(false);
 
   /// The underlying inspection engine.
   FlutterInspectionEngine get engine => _engine;
@@ -73,6 +121,16 @@ class AgentationController extends ChangeNotifier {
   void setSyncClient(AgentSyncClient? client) {
     _syncClient = client;
     notifyListeners();
+  }
+
+  String? _appName;
+
+  /// The active application name for session branding and markdown export.
+  String? get appName => _appName;
+
+  /// Sets or updates the application name.
+  void setAppName(String? name) {
+    _appName = name;
   }
 
   /// Whether an annotation creation can be undone.
@@ -118,8 +176,17 @@ class AgentationController extends ChangeNotifier {
   /// Floating toolbar position offset.
   Offset get toolbarOffset => _state.toolbarOffset;
 
+  /// Current bounding box of the floating toolbar on screen.
+  Rect? get toolbarBounds => _state.toolbarBounds;
+
   /// Whether the floating toolbar is collapsed.
   bool get isToolbarMinimized => _state.isToolbarMinimized;
+
+  /// Whether the settings panel is currently open.
+  bool get isSettingsOpen => _state.isSettingsOpen;
+
+  /// Whether layout mode / component palette is currently open.
+  bool get isLayoutModeOpen => _state.isLayoutModeOpen;
 
   /// Sets the active interaction tool mode.
   void setToolMode(AnnotationToolMode mode) {
@@ -210,6 +277,7 @@ class AgentationController extends ChangeNotifier {
         _state = _state.copyWith(
           settings: _state.settings.copyWith(sessionId: effectiveId),
         );
+        onSessionCreated?.call(effectiveId);
         notifyListeners();
         return effectiveId;
       } catch (_) {
@@ -217,6 +285,7 @@ class AgentationController extends ChangeNotifier {
         _state = _state.copyWith(
           settings: _state.settings.copyWith(sessionId: fallbackId),
         );
+        onSessionCreated?.call(fallbackId);
         notifyListeners();
         return fallbackId;
       }
@@ -476,6 +545,9 @@ class AgentationController extends ChangeNotifier {
     WidgetSourceLocation? sourceLocation,
     String? sessionId,
     List<ThreadMessage>? thread,
+    bool? isFixed,
+    double? scrollY,
+    double? scrollX,
     Map<String, dynamic> metadata = const {},
   }) async {
     final result = targetResult ?? _state.selectedResult;
@@ -495,6 +567,10 @@ class AgentationController extends ChangeNotifier {
                 ? '${resolvedSource.filePath}:${resolvedSource.line}'
                 : resolvedSource.filePath)
             : null);
+
+    final resolvedIsFixed = isFixed ?? (result?.context.isFixed ?? (result == null));
+    final resolvedScrollY = scrollY ?? (result?.context.scrollOffset ?? 0.0);
+    final resolvedScrollX = scrollX ?? 0.0;
 
     final annotation = Annotation(
       id: 'ann_${DateTime.now().millisecondsSinceEpoch}',
@@ -517,6 +593,9 @@ class AgentationController extends ChangeNotifier {
       sourceLocation: resolvedSource,
       sessionId: sessionId ?? (_state.settings.sessionId?.isNotEmpty == true ? _state.settings.sessionId : null),
       thread: thread ?? const [],
+      isFixed: resolvedIsFixed,
+      scrollY: resolvedScrollY,
+      scrollX: resolvedScrollX,
       metadata: {
         if (result?.pathString != null) 'path': result!.pathString,
         ...metadata,
@@ -537,6 +616,8 @@ class AgentationController extends ChangeNotifier {
       'annotation': annotation.toJson(),
     });
 
+    onAnnotationAdd?.call(annotation);
+
     notifyListeners();
     return annotation;
   }
@@ -547,6 +628,9 @@ class AgentationController extends ChangeNotifier {
     required Offset position,
     required String comment,
     AnnotationSeverity severity = AnnotationSeverity.suggestion,
+    bool? isFixed,
+    double? scrollY,
+    double? scrollX,
     Map<String, dynamic> metadata = const {},
   }) async {
     final bounds = WidgetBounds(
@@ -561,6 +645,9 @@ class AgentationController extends ChangeNotifier {
       kind: AnnotationKind.placement,
       placement: placement,
       severity: severity,
+      isFixed: isFixed,
+      scrollY: scrollY,
+      scrollX: scrollX,
       targetResult: WidgetInspectionResult(
         identity: WidgetIdentity(
           id: 'placement_${DateTime.now().millisecondsSinceEpoch}',
@@ -581,6 +668,9 @@ class AgentationController extends ChangeNotifier {
     required WidgetIdentity targetIdentity,
     required String comment,
     AnnotationSeverity severity = AnnotationSeverity.suggestion,
+    bool? isFixed,
+    double? scrollY,
+    double? scrollX,
     Map<String, dynamic> metadata = const {},
   }) async {
     return createAnnotation(
@@ -588,6 +678,9 @@ class AgentationController extends ChangeNotifier {
       kind: AnnotationKind.rearrange,
       rearrange: rearrange,
       severity: severity,
+      isFixed: isFixed,
+      scrollY: scrollY,
+      scrollX: scrollX,
       targetResult: WidgetInspectionResult(
         identity: targetIdentity,
         bounds: rearrange.newBounds,
@@ -607,20 +700,43 @@ class AgentationController extends ChangeNotifier {
     ExportFormat? format,
     OutputDetailLevel? detailLevel,
     bool prettyJson = true,
+    String? appName,
     ClipboardExporter exporter = const ClipboardExporter(),
   }) async {
     final activeFormat = format ?? _mapCopyFormatToExportFormat(_state.settings.copyFormat);
     final activeDetail = detailLevel ?? _state.settings.outputDetail;
-    final copied = await exporter.copyToClipboard(
+    final activeAppName = appName ?? _appName;
+
+    final output = exporter.formatAnnotations(
       _annotations,
       format: activeFormat,
       detailLevel: activeDetail,
       prettyJson: prettyJson,
+      appName: activeAppName,
     );
-    if (copied != null && _state.settings.autoClearAfterCopy) {
+
+    if (output.isEmpty && _annotations.isNotEmpty) {
+      return null;
+    }
+
+    if (shouldCopyToClipboard && output.isNotEmpty) {
+      await exporter.copyToClipboard(
+        _annotations,
+        format: activeFormat,
+        detailLevel: activeDetail,
+        prettyJson: prettyJson,
+        appName: activeAppName,
+      );
+    }
+
+    if (output.isNotEmpty) {
+      onCopy?.call(output);
+    }
+
+    if (output.isNotEmpty && _state.settings.autoClearAfterCopy) {
       await clearAnnotations();
     }
-    return copied;
+    return output.isNotEmpty ? output : null;
   }
 
   static ExportFormat _mapCopyFormatToExportFormat(CopyFormat copyFormat) {
@@ -640,8 +756,62 @@ class AgentationController extends ChangeNotifier {
     }
   }
 
+  /// Partially updates an existing annotation's comment, intent, severity, or status.
+  Future<Annotation?> updateAnnotation(
+    String id, {
+    String? comment,
+    AnnotationIntent? intent,
+    AnnotationSeverity? severity,
+    AnnotationStatus? status,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final index = _annotations.indexWhere((a) => a.id == id);
+    final Annotation target;
+    if (index == -1) {
+      final fromStorage = await _storage.getById(id);
+      if (fromStorage == null) return null;
+      target = fromStorage;
+    } else {
+      target = _annotations[index];
+    }
+
+    final updated = target.copyWith(
+      comment: comment ?? target.comment,
+      intent: intent ?? target.intent,
+      severity: severity ?? target.severity,
+      status: status ?? target.status,
+      metadata: metadata != null ? {...target.metadata, ...metadata} : target.metadata,
+    );
+
+    await _storage.save(updated);
+    _annotations = await _storage.getAll();
+    if (_activeAnnotation?.id == id) {
+      _activeAnnotation = updated;
+    }
+
+    final activeSessionId = target.sessionId ?? _state.settings.sessionId;
+    if (_syncClient != null && activeSessionId != null && activeSessionId.isNotEmpty) {
+      _syncClient!.updateAnnotation(id, {
+        'comment': ?comment,
+        'status': ?status?.name,
+        'intent': ?intent?.name,
+        'severity': ?severity?.name,
+      });
+    }
+
+    notifyWebhook('annotation.updated', {
+      'sessionId': ?activeSessionId,
+      'annotation': updated.toJson(),
+    });
+
+    onAnnotationUpdate?.call(updated);
+    notifyListeners();
+    return updated;
+  }
+
   /// Deletes an annotation by its unique [id].
   Future<bool> deleteAnnotation(String id) async {
+    final target = _annotations.where((a) => a.id == id).firstOrNull;
     final success = await _storage.delete(id);
     if (success) {
       _annotations = await _storage.getAll();
@@ -652,6 +822,9 @@ class AgentationController extends ChangeNotifier {
         _syncClient!.deleteAnnotation(id);
       }
       AgentationLogger.debug('Deleted annotation: $id');
+      if (target != null) {
+        onAnnotationDelete?.call(target);
+      }
       notifyListeners();
     }
     return success;
@@ -707,6 +880,7 @@ class AgentationController extends ChangeNotifier {
       'message': newMessage.toJson(),
     });
 
+    onAnnotationUpdate?.call(updated);
     notifyListeners();
     return updated;
   }
@@ -725,15 +899,80 @@ class AgentationController extends ChangeNotifier {
     return result;
   }
 
+  /// Whether the "Send Annotations" button should be visible/active.
+  bool get canSend =>
+      onSubmit != null ||
+      _hasWebhookTarget ||
+      (_syncClient != null && _syncClient!.endpoint.isNotEmpty);
+
+  bool get _hasWebhookTarget {
+    final webhook = _state.settings.webhookUrl ?? _syncClient?.webhookUrl;
+    return webhook != null && webhook.isNotEmpty;
+  }
+
+  /// Sends formatted annotations to configured `onSubmit` callback, agent MCP, or webhooks.
+  Future<bool> submitAnnotations() async {
+    if (_annotations.isEmpty && !canSend) return false;
+
+    final output = await exportAnnotations(format: ExportFormat.markdown);
+    if (output == null) return false;
+
+    bool callbackSuccess = true;
+    if (onSubmit != null) {
+      try {
+        await onSubmit!(output, List.unmodifiable(_annotations));
+      } catch (e, stack) {
+        AgentationLogger.error('onSubmit callback failed', e, stack);
+        callbackSuccess = false;
+      }
+    }
+
+    bool syncSuccess = true;
+    if (_syncClient != null && (_state.settings.sessionId?.isNotEmpty == true)) {
+      try {
+        await _syncClient!.requestAction(_state.settings.sessionId!, output);
+      } catch (e, stack) {
+        AgentationLogger.error('MCP requestAction failed', e, stack);
+        syncSuccess = false;
+      }
+    }
+
+    bool webhookSuccess = true;
+    if (_hasWebhookTarget) {
+      try {
+        webhookSuccess = await notifyWebhook('submit', {
+          'output': output,
+          'annotations': _annotations.map((a) => a.toJson()).toList(),
+          'sessionId': _state.settings.sessionId,
+        });
+      } catch (e, stack) {
+        AgentationLogger.error('Webhook submit failed', e, stack);
+        webhookSuccess = false;
+      }
+    }
+
+    final overallSuccess = callbackSuccess && (syncSuccess || onSubmit != null || webhookSuccess);
+
+    if (overallSuccess && _state.settings.autoClearAfterCopy) {
+      await clearAnnotations();
+    }
+
+    return overallSuccess;
+  }
+
   /// Clears all annotations from memory.
   Future<void> clearAnnotations() async {
-    final count = _annotations.length;
+    final cleared = List<Annotation>.from(_annotations);
+    final count = cleared.length;
     await _storage.clear();
     _annotations = [];
     _activeAnnotation = null;
     notifyWebhook('annotations.cleared', {
       'count': count,
     });
+    if (cleared.isNotEmpty) {
+      onAnnotationsClear?.call(cleared);
+    }
     notifyListeners();
   }
 
@@ -767,6 +1006,15 @@ class AgentationController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Updates toolbar bounding box on screen.
+  void updateToolbarBounds(Rect? newBounds) {
+    if (_state.toolbarBounds == newBounds) return;
+    _state = _state.copyWith(
+      toolbarBounds: () => newBounds,
+    );
+    notifyListeners();
+  }
+
   /// Sets toolbar minimized state. When minimized/collapsed, inspection is paused/inactive.
   /// When expanded, inspection is activated/enabled.
   void setToolbarMinimized(bool minimized) {
@@ -779,6 +1027,8 @@ class AgentationController extends ChangeNotifier {
         isToolbarMinimized: true,
         mode: InspectionMode.inactive,
         isFrozen: false,
+        isSettingsOpen: false,
+        isLayoutModeOpen: false,
         selectedResult: () => null,
         hoveredResult: () => null,
         activeHierarchy: () => null,
@@ -814,5 +1064,78 @@ class AgentationController extends ChangeNotifier {
       areCommentsVisible: visible,
     );
     notifyListeners();
+  }
+
+  /// Sets settings panel open state.
+  void setSettingsOpen(bool open) {
+    if (_state.isSettingsOpen == open) return;
+    _state = _state.copyWith(
+      isSettingsOpen: open,
+      isLayoutModeOpen: open ? false : _state.isLayoutModeOpen,
+    );
+    notifyListeners();
+  }
+
+  /// Opens the settings panel.
+  void openSettings() => setSettingsOpen(true);
+
+  /// Closes the settings panel.
+  void closeSettings() => setSettingsOpen(false);
+
+  /// Toggles settings panel open state.
+  void toggleSettings() => setSettingsOpen(!_state.isSettingsOpen);
+
+  /// Sets layout mode / component palette open state.
+  void setLayoutModeOpen(bool open) {
+    if (_state.isLayoutModeOpen == open) return;
+    _state = _state.copyWith(
+      isLayoutModeOpen: open,
+      isSettingsOpen: open ? false : _state.isSettingsOpen,
+      toolMode: open ? AnnotationToolMode.design : AnnotationToolMode.pointer,
+    );
+    if (open) {
+      clearSelection();
+      if (!_state.isInspecting) {
+        activate();
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Opens layout mode.
+  void openLayoutMode() => setLayoutModeOpen(true);
+
+  /// Closes layout mode.
+  void closeLayoutMode() => setLayoutModeOpen(false);
+
+  /// Toggles layout mode open state.
+  void toggleLayoutMode() => setLayoutModeOpen(!_state.isLayoutModeOpen);
+
+  Timer? _copyTimer;
+
+  /// Copies formatted annotations output to clipboard and triggers [onCopy].
+  Future<String> copyFeedback() async {
+    isCopiedNotifier.value = true;
+    _copyTimer?.cancel();
+    _copyTimer = Timer(const Duration(milliseconds: 1500), () {
+      isCopiedNotifier.value = false;
+    });
+
+    final markdown = await exportAnnotations(format: ExportFormat.markdown) ?? '';
+    if (shouldCopyToClipboard && markdown.isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: markdown));
+    }
+    onCopy?.call(markdown);
+    if (settings.autoClearAfterCopy) {
+      await clearAnnotations();
+    }
+    return markdown;
+  }
+
+  @override
+  void dispose() {
+    _copyTimer?.cancel();
+    isCopiedNotifier.dispose();
+    super.dispose();
   }
 }

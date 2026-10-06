@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../core/agentation_controller.dart';
 import '../core/agentation_scope.dart';
@@ -71,10 +70,9 @@ class _ToolbarPositionState {
 class _AgentationToolbarState extends State<AgentationToolbar> {
   final ValueNotifier<_ToolbarPositionState> _positionNotifier =
       ValueNotifier<_ToolbarPositionState>(const _ToolbarPositionState());
-  final ValueNotifier<bool> _isCopiedNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<bool> _isSettingsOpenNotifier = ValueNotifier<bool>(false);
-  final ValueNotifier<bool> _isLayoutModeOpenNotifier = ValueNotifier<bool>(false);
-  Timer? _copyTimer;
+  final ValueNotifier<String> _sendStateNotifier = ValueNotifier<String>('idle');
+  Timer? _sendTimer;
+  bool _initialized = false;
 
   @override
   void initState() {
@@ -91,18 +89,16 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
 
   @override
   void dispose() {
-    _copyTimer?.cancel();
+    _sendTimer?.cancel();
     _positionNotifier.dispose();
-    _isCopiedNotifier.dispose();
-    _isSettingsOpenNotifier.dispose();
-    _isLayoutModeOpenNotifier.dispose();
+    _sendStateNotifier.dispose();
     super.dispose();
   }
 
   AgentationController get _controller =>
       widget.controller ?? AgentationScope.of(context);
 
-  void _onCopy(AgentationController controller) async {
+  Future<void> _onCopy(AgentationController controller) async {
     final count = controller.annotations.length;
     if (count == 0) {
       if (mounted) {
@@ -116,10 +112,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
       return;
     }
 
-    await controller.copyToClipboard(
-      format: controller.settings.copyFormat,
-    );
-    _isCopiedNotifier.value = true;
+    await controller.copyFeedback();
     if (mounted) {
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         SnackBar(
@@ -128,10 +121,6 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
         ),
       );
     }
-    _copyTimer?.cancel();
-    _copyTimer = Timer(const Duration(milliseconds: 1800), () {
-      if (mounted) _isCopiedNotifier.value = false;
-    });
   }
 
   void _initInsetsIfNeeded(
@@ -140,8 +129,8 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     double effectiveWidth,
     double toolbarHeight,
   ) {
-    final current = _positionNotifier.value;
-    if (current.leftInset != null || current.rightInset != null) return;
+    if (_initialized) return;
+    _initialized = true;
 
     final defaultBottom = safePadding.bottom + 20.0;
 
@@ -287,30 +276,30 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
       listenable: Listenable.merge([
         controller,
         _positionNotifier,
-        _isSettingsOpenNotifier,
-        _isLayoutModeOpenNotifier,
-        _isCopiedNotifier,
+        controller.isCopiedNotifier,
+        _sendStateNotifier,
       ]),
       builder: (context, _) {
-        final pos = _positionNotifier.value;
-        final isSettingsOpen = _isSettingsOpenNotifier.value;
-        final isLayoutModeOpen = _isLayoutModeOpenNotifier.value;
-        final isDragging = pos.isDragging;
+        final isSettingsOpen = controller.isSettingsOpen;
+        final isLayoutModeOpen = controller.isLayoutModeOpen;
 
         final isMinimized = controller.isToolbarMinimized;
         final isDark = controller.settings.isDarkMode;
         final markerColor = MarkerColor.findById(controller.settings.markerColorId).color;
 
-        const double expandedWidth = 296.0;
+        final double expandedWidth = controller.canSend ? 336.0 : 296.0;
         final toolbarWidth = isMinimized ? 44.0 : expandedWidth;
         const double toolbarHeight = 44.0;
 
         final effectiveWidth = math.max(
           toolbarWidth,
-          isSettingsOpen ? 300.0 : (isLayoutModeOpen ? 290.0 : 0.0),
+          isSettingsOpen ? 253.0 : (isLayoutModeOpen ? 290.0 : 0.0),
         );
 
         _initInsetsIfNeeded(screenSize, safePadding, effectiveWidth, toolbarHeight);
+
+        final pos = _positionNotifier.value;
+        final isDragging = pos.isDragging;
 
         final minX = safePadding.left + 8.0;
         final maxX = screenSize.width - safePadding.right - 8.0;
@@ -359,6 +348,20 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
           _controller.updateToolbarOffset(currentOffset);
         }
 
+        final currentBounds = Rect.fromLTWH(
+          computedX,
+          computedY,
+          isMinimized ? 44.0 : effectiveWidth,
+          toolbarHeight,
+        );
+        if (_controller.toolbarBounds != currentBounds) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              _controller.updateToolbarBounds(currentBounds);
+            }
+          });
+        }
+
         return AnimatedPositioned(
           duration: isDragging ? Duration.zero : const Duration(milliseconds: 250),
           curve: Curves.easeInOut,
@@ -374,7 +377,9 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                 Container(
                   margin: const EdgeInsets.only(bottom: 8.0),
                   child: SettingsPanel(
-                    onClose: () => _isSettingsOpenNotifier.value = false,
+                    onClose: () {
+                      controller.closeSettings();
+                    },
                     controller: controller,
                   ),
                 )
@@ -384,8 +389,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                   child: ComponentPalette(
                     controller: controller,
                     onClose: () {
-                      _isLayoutModeOpenNotifier.value = false;
-                      controller.setToolMode(AnnotationToolMode.pointer);
+                      controller.closeLayoutMode();
                     },
                     onSelectTemplate: (template) {
                       controller.createPlacementAnnotation(
@@ -393,8 +397,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                         position: Offset(screenSize.width / 2, screenSize.height / 2),
                         comment: 'Add ${template.label} here',
                       );
-                      _isLayoutModeOpenNotifier.value = false;
-                      controller.setToolMode(AnnotationToolMode.pointer);
+                      controller.closeLayoutMode();
                     },
                   ),
                 ),
@@ -412,49 +415,38 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                     curve: Curves.easeInOut,
                     width: toolbarWidth,
                     height: toolbarHeight,
-                    alignment: pillAlignment,
+                    clipBehavior: Clip.none,
+                    alignment: isMinimized ? Alignment.center : pillAlignment,
+                    padding: isMinimized
+                        ? EdgeInsets.zero
+                        : const EdgeInsets.symmetric(horizontal: 5.0, vertical: 5.0),
                     decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF141416)
+                          : const Color(0xFFFFFFFF),
                       borderRadius: BorderRadius.circular(22.0),
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF2C2C2E)
+                            : const Color(0xFFE5E5EA),
+                        width: 1.0,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                          color: Colors.black.withValues(alpha: isDark ? 0.40 : 0.12),
                           blurRadius: 16.0,
                           offset: const Offset(0, 6),
                         ),
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.06),
-                          blurRadius: 6.0,
+                          color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.05),
+                          blurRadius: 4.0,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(22.0),
-                      child: BackdropFilter(
-                        filter: ui.ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
-                        child: Container(
-                          alignment: pillAlignment,
-                          padding: isMinimized
-                              ? EdgeInsets.zero
-                              : const EdgeInsets.symmetric(horizontal: 5.0, vertical: 5.0),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? const Color(0xCC1A1A1A)
-                                : const Color(0xD9FFFFFF),
-                            borderRadius: BorderRadius.circular(22.0),
-                            border: Border.all(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.15)
-                                  : Colors.black.withValues(alpha: 0.08),
-                              width: 1.0,
-                            ),
-                          ),
-                          child: isMinimized
-                              ? _buildMinimizedPill(controller, markerColor, isDark)
-                              : _buildExpandedPill(controller, markerColor, isDark, pillAlignment),
-                        ),
-                      ),
-                    ),
+                    child: isMinimized
+                        ? _buildMinimizedPill(controller, markerColor, isDark)
+                        : _buildExpandedPill(controller, markerColor, isDark, pillAlignment),
                   ),
                 ),
               ),
@@ -466,16 +458,66 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
   }
 
   Widget _buildMinimizedPill(AgentationController controller, Color markerColor, bool isDark) {
-    return InkWell(
-      key: const ValueKey('toolbar_expand'),
-      onTap: () => controller.setToolbarMinimized(false),
-      borderRadius: BorderRadius.circular(22.0),
-      child: Center(
-        child: AgentationIcons.eye(
-          size: 20.0,
-          color: isDark ? Colors.white : Colors.black87,
-        ),
+    final count = controller.annotations.length;
+    final iconColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+
+    final button = _ToolbarIconButton(
+      buttonKey: const ValueKey('toolbar_expand'),
+      icon: AgentationIcons.listSparkle(
+        size: 20.0,
+        color: iconColor,
       ),
+      tooltipLabel: 'Open Agentation',
+      tooltipShortcut: null,
+      buttonSize: 44.0,
+      isActive: false,
+      isEnabled: true,
+      isDark: isDark,
+      onPressed: () => controller.setToolbarMinimized(false),
+    );
+
+    if (count == 0) {
+      return button;
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        button,
+        Positioned(
+          top: -4.0,
+          right: -4.0,
+          child: IgnorePointer(
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 19.0, minHeight: 19.0),
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0088FF),
+                borderRadius: BorderRadius.circular(10.0),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 3.5,
+                    offset: Offset(0, 1.5),
+                  ),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.bold,
+                  height: 1.0,
+                  decoration: TextDecoration.none,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -489,108 +531,133 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     final dividerColor = isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000);
 
     final isPaused = controller.isFrozen;
-    final isLayoutOpen = _isLayoutModeOpenNotifier.value;
-    final isSettingsOpen = _isSettingsOpenNotifier.value;
-    final isCopied = _isCopiedNotifier.value;
+    final isLayoutOpen = controller.isLayoutModeOpen;
+    final isSettingsOpen = controller.isSettingsOpen;
+    final isCopied = controller.isCopiedNotifier.value;
     final isLayoutActive = isLayoutOpen || controller.toolMode == AnnotationToolMode.design;
+    final hasAnnotations = controller.annotations.isNotEmpty;
+
+    final canSend = controller.canSend;
+    final pillWidth = canSend ? 326.0 : 286.0;
 
     return ClipRect(
       child: OverflowBox(
-        minWidth: 286.0,
-        maxWidth: 286.0,
+        minWidth: pillWidth,
+        maxWidth: pillWidth,
         alignment: pillAlignment,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // 1. Play / Pause Animations (|| / ▶) - Screenshot 1 & 2
-            _buildToolbarButton(
-              key: const ValueKey('toolbar_pause'),
+            _ToolbarIconButton(
+              buttonKey: const ValueKey('toolbar_pause'),
               icon: isPaused
-                  ? AgentationIcons.play(size: 18.0, color: const Color(0xFFFF9500))
-                  : AgentationIcons.pause(size: 18.0, color: iconColor),
+                  ? AgentationIcons.play(size: 22.0, color: const Color(0xFFFF9500))
+                  : AgentationIcons.pause(size: 22.0, color: iconColor),
+              tooltipLabel: isPaused ? 'Resume animations' : 'Pause animations',
+              tooltipShortcut: 'P',
               isActive: isPaused,
               activeColor: const Color(0x33FF9500),
+              isEnabled: true,
+              isDark: isDark,
               onPressed: () {
                 controller.toggleFreeze();
               },
             ),
 
             // 2. Layout Mode (split grid/window) - Screenshot 1 & 4
-            _buildToolbarButton(
-              key: const ValueKey('toolbar_layout'),
+            _ToolbarIconButton(
+              buttonKey: const ValueKey('toolbar_layout'),
               icon: AgentationIcons.layout(
-                size: 19.0,
+                size: 22.0,
                 color: isLayoutActive ? Colors.white : iconColor,
               ),
+              tooltipLabel: isLayoutActive ? 'Exit layout mode' : 'Layout mode',
+              tooltipShortcut: 'L',
               isActive: isLayoutActive,
               activeColor: const Color(0xFF0070F3), // Original vibrant blue active circle
+              isEnabled: true,
+              isDark: isDark,
               onPressed: () {
-                final nextVal = !_isLayoutModeOpenNotifier.value;
-                _isLayoutModeOpenNotifier.value = nextVal;
-                _isSettingsOpenNotifier.value = false;
-                if (nextVal) {
-                  controller.setToolMode(AnnotationToolMode.design);
-                  if (!controller.isInspecting) controller.activate();
-                } else {
-                  controller.setToolMode(AnnotationToolMode.pointer);
-                }
+                controller.toggleLayoutMode();
               },
             ),
 
             // 3. Comments Visibility Mode (Eye icon) - Toggle show/hide comments on the page
-            _buildToolbarButton(
-              key: const ValueKey('toolbar_inspect'),
+            _ToolbarIconButton(
+              buttonKey: const ValueKey('toolbar_inspect'),
               icon: controller.areCommentsVisible
                   ? AgentationIcons.eye(
-                      size: 20.0,
-                      color: markerColor,
+                      size: 22.0,
+                      color: iconColor,
                     )
                   : AgentationIcons.eyeOff(
-                      size: 20.0,
+                      size: 22.0,
                       color: isDark ? const Color(0xFF6E6E73) : const Color(0xFF8E8E93),
                     ),
-              isActive: controller.areCommentsVisible,
-              activeColor: markerColor.withValues(alpha: 0.2),
+              tooltipLabel: controller.areCommentsVisible ? 'Hide markers' : 'Show markers',
+              tooltipShortcut: 'H',
+              isActive: false,
+              activeColor: Colors.transparent,
+              isEnabled: hasAnnotations && controller.toolMode != AnnotationToolMode.design,
+              isDark: isDark,
               onPressed: () {
                 controller.toggleCommentsVisibility();
               },
             ),
 
             // 4. Copy (Overlapping rectangles) - Screenshot 1
-            _buildToolbarButton(
-              key: const ValueKey('toolbar_copy'),
+            _ToolbarIconButton(
+              buttonKey: const ValueKey('toolbar_copy'),
               icon: isCopied
-                  ? AgentationIcons.check(size: 19.0, color: const Color(0xFF34C759))
-                  : AgentationIcons.copy(size: 19.0, color: iconColor),
+                  ? AgentationIcons.check(size: 22.0, color: const Color(0xFF34C759))
+                  : AgentationIcons.copy(size: 22.0, color: iconColor),
+              tooltipLabel: isCopied ? 'Copied!' : 'Copy feedback',
+              tooltipShortcut: 'C',
               isActive: isCopied,
               activeColor: const Color(0x2634C759),
+              isEnabled: hasAnnotations,
+              isDark: isDark,
               onPressed: () => _onCopy(controller),
             ),
 
+            // Send button (visible when canSend is true) - matches upstream Agentation
+            if (canSend)
+              _buildSendButton(controller, iconColor, isDark),
+
             // 5. Delete / Trash (Trash can) - Screenshot 1
-            _buildToolbarButton(
-              key: const ValueKey('toolbar_clear'),
-              icon: AgentationIcons.trash(size: 18.0, color: iconColor),
+            _ToolbarIconButton(
+              buttonKey: const ValueKey('toolbar_clear'),
+              icon: AgentationIcons.trash(size: 22.0, color: iconColor),
+              tooltipLabel: 'Clear all',
+              tooltipShortcut: 'X',
               isActive: false,
               activeColor: Colors.transparent,
+              isEnabled: hasAnnotations,
+              isDanger: true,
+              isDark: isDark,
               onPressed: () {
                 controller.clearAnnotations();
               },
             ),
 
             // 6. Settings (Cog wheel) - Screenshot 1 & 3
-            _buildToolbarButton(
-              key: const ValueKey('toolbar_settings'),
+            _ToolbarIconButton(
+              buttonKey: const ValueKey('toolbar_settings'),
               icon: AgentationIcons.gear(
-                size: 19.0,
+                size: 22.0,
                 color: isSettingsOpen ? Colors.white : iconColor,
               ),
+              tooltipLabel: 'Settings',
+              tooltipShortcut: null,
               isActive: isSettingsOpen,
               activeColor: const Color(0xFF333333),
+              isEnabled: true,
+              isDark: isDark,
               onPressed: () {
-                _isSettingsOpenNotifier.value = !_isSettingsOpenNotifier.value;
-                _isLayoutModeOpenNotifier.value = false;
+                widget.onOpenSettings?.call();
+                controller.toggleSettings();
               },
             ),
 
@@ -603,14 +670,18 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
             ),
 
             // 7. Close / Minimize (X) - Screenshot 1
-            _buildToolbarButton(
-              key: const ValueKey('toolbar_close'),
-              icon: AgentationIcons.close(size: 16.0, color: iconColor),
+            _ToolbarIconButton(
+              buttonKey: const ValueKey('toolbar_close'),
+              icon: AgentationIcons.close(size: 20.0, color: iconColor),
+              tooltipLabel: 'Exit',
+              tooltipShortcut: 'Esc',
               isActive: false,
               activeColor: Colors.transparent,
+              isEnabled: true,
+              isDark: isDark,
               onPressed: () {
-                _isLayoutModeOpenNotifier.value = false;
-                _isSettingsOpenNotifier.value = false;
+                controller.closeSettings();
+                controller.closeLayoutMode();
                 controller.setToolbarMinimized(true);
               },
             ),
@@ -620,27 +691,339 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     );
   }
 
-  Widget _buildToolbarButton({
-    Key? key,
-    required Widget icon,
-    required bool isActive,
-    required Color activeColor,
-    required VoidCallback onPressed,
-  }) {
-    return InkWell(
-      key: key,
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(17.0),
-      child: Container(
-        width: 34.0,
-        height: 34.0,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isActive ? activeColor : Colors.transparent,
-          shape: BoxShape.circle,
-        ),
-        child: icon,
-      ),
+  Widget _buildSendButton(AgentationController controller, Color iconColor, bool isDark) {
+    return ValueListenableBuilder<String>(
+      valueListenable: _sendStateNotifier,
+      builder: (context, sendState, _) {
+        final count = controller.annotations.length;
+        final isSending = sendState == 'sending';
+        final isSent = sendState == 'sent';
+        final isFailed = sendState == 'failed';
+        final isEnabled = count > 0 && !isSending;
+
+        final Widget iconWidget;
+        if (isSending) {
+          iconWidget = SizedBox(
+            width: 16.0,
+            height: 16.0,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.0,
+              valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+            ),
+          );
+        } else if (isSent) {
+          iconWidget = AgentationIcons.check(size: 22.0, color: const Color(0xFF34C759));
+        } else if (isFailed) {
+          iconWidget = const Icon(Icons.error_outline_rounded, size: 22.0, color: Colors.redAccent);
+        } else {
+          iconWidget = AgentationIcons.send(size: 22.0, color: iconColor);
+        }
+
+        final stackIcon = Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            iconWidget,
+            if (!isSending && !isSent && !isFailed && count > 0)
+              Positioned(
+                top: -4.0,
+                right: -6.0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0088FF),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  constraints: const BoxConstraints(minWidth: 14.0, minHeight: 14.0),
+                  child: Text(
+                    '$count',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9.0,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
+        );
+
+        return _ToolbarIconButton(
+          buttonKey: const ValueKey('toolbar_send'),
+          icon: stackIcon,
+          tooltipLabel: 'Send Annotations',
+          tooltipShortcut: 'S',
+          isActive: isSent,
+          activeColor: const Color(0x2634C759),
+          isEnabled: isEnabled,
+          isDark: isDark,
+          onPressed: () async {
+            final messenger = ScaffoldMessenger.maybeOf(context);
+            _sendStateNotifier.value = 'sending';
+            final success = await controller.submitAnnotations();
+            _sendStateNotifier.value = success ? 'sent' : 'failed';
+            messenger?.showSnackBar(
+              SnackBar(
+                content: Text(
+                  success
+                      ? 'Sent annotations to agent'
+                      : 'Failed to send annotations',
+                ),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            _sendTimer?.cancel();
+            _sendTimer = Timer(const Duration(milliseconds: 2000), () {
+              if (mounted) {
+                _sendStateNotifier.value = 'idle';
+              }
+            });
+          },
+        );
+      },
     );
   }
+}
+
+/// Interactive toolbar action button with circular hover highlight, enabled/disabled states,
+/// and pixel-perfect tooltip matching Screenshot 1 of Agentation.
+class _ToolbarIconButton extends StatefulWidget {
+  final Key? buttonKey;
+  final Widget icon;
+  final String tooltipLabel;
+  final String? tooltipShortcut;
+  final bool isActive;
+  final Color activeColor;
+  final bool isEnabled;
+  final bool isDanger;
+  final bool isDark;
+  final double buttonSize;
+  final VoidCallback? onPressed;
+
+  const _ToolbarIconButton({
+    this.buttonKey,
+    required this.icon,
+    required this.tooltipLabel,
+    this.tooltipShortcut,
+    this.isActive = false,
+    this.activeColor = Colors.transparent,
+    this.isEnabled = true,
+    this.isDanger = false,
+    this.isDark = true,
+    this.buttonSize = 34.0,
+    this.onPressed,
+  });
+
+  @override
+  State<_ToolbarIconButton> createState() => _ToolbarIconButtonState();
+}
+
+class _ToolbarIconButtonState extends State<_ToolbarIconButton> {
+  bool _isHovered = false;
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isEnabled = widget.isEnabled;
+    final isActive = widget.isActive;
+    final isDark = widget.isDark;
+
+    final Color bgColor;
+    if (isActive) {
+      bgColor = widget.activeColor;
+    } else if (isEnabled && _isHovered) {
+      if (widget.isDanger) {
+        bgColor = const Color(0x33FF3B30);
+      } else {
+        bgColor = isDark ? const Color(0x29FFFFFF) : const Color(0x14000000);
+      }
+    } else {
+      bgColor = Colors.transparent;
+    }
+
+    final double opacity = isEnabled ? 1.0 : 0.35;
+
+    Widget buttonContent = AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      curve: Curves.easeOut,
+      width: widget.buttonSize,
+      height: widget.buttonSize,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: bgColor,
+        shape: BoxShape.circle,
+      ),
+      child: Opacity(
+        opacity: opacity,
+        child: widget.icon,
+      ),
+    );
+
+    if (_isPressed && isEnabled) {
+      buttonContent = Transform.scale(
+        scale: 0.92,
+        child: buttonContent,
+      );
+    }
+
+    Widget result = MouseRegion(
+      cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onEnter: (_) {
+        if (mounted && isEnabled) setState(() => _isHovered = true);
+      },
+      onExit: (_) {
+        if (mounted) setState(() => _isHovered = false);
+      },
+      child: GestureDetector(
+        key: widget.buttonKey,
+        behavior: HitTestBehavior.opaque,
+        onTapDown: isEnabled ? (_) => setState(() => _isPressed = true) : null,
+        onTapUp: isEnabled ? (_) => setState(() => _isPressed = false) : null,
+        onTapCancel: isEnabled ? () => setState(() => _isPressed = false) : null,
+        onTap: isEnabled ? widget.onPressed : null,
+        child: buttonContent,
+      ),
+    );
+
+    if (!isEnabled) {
+      return result;
+    }
+
+    final tooltipBgColor = isDark ? const Color(0xFF18181B) : Colors.white;
+    final tooltipTextColor = isDark ? Colors.white : const Color(0xFF1C1C1E);
+    final tooltipShortcutColor = isDark
+        ? Colors.white.withValues(alpha: 0.5)
+        : const Color(0x73000000);
+
+    return Tooltip(
+      preferBelow: false,
+      verticalOffset: 22.0,
+      waitDuration: const Duration(milliseconds: 150),
+      showDuration: Duration.zero,
+      padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 8.5),
+      richMessage: TextSpan(
+        children: [
+          TextSpan(
+            text: widget.tooltipLabel,
+            style: TextStyle(
+              color: tooltipTextColor,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              decoration: TextDecoration.none,
+            ),
+          ),
+          if (widget.tooltipShortcut != null) ...[
+            const TextSpan(text: ' '),
+            TextSpan(
+              text: widget.tooltipShortcut!,
+              style: TextStyle(
+                color: tooltipShortcutColor,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w500,
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ],
+        ],
+      ),
+      decoration: ShapeDecoration(
+        color: tooltipBgColor,
+        shape: _TooltipBeakBorder(
+          borderRadius: 8.0,
+          beakWidth: 9.0,
+          beakHeight: 5.0,
+          borderColor: isDark ? null : const Color(0x14000000),
+          borderWidth: isDark ? 0.0 : 0.75,
+        ),
+        shadows: isDark
+            ? const [
+                BoxShadow(
+                  color: Color(0x66000000),
+                  blurRadius: 8.0,
+                  offset: Offset(0, 3),
+                ),
+              ]
+            : const [
+                BoxShadow(
+                  color: Color(0x14000000),
+                  blurRadius: 8.0,
+                  offset: Offset(0, 2),
+                ),
+                BoxShadow(
+                  color: Color(0x0F000000),
+                  blurRadius: 16.0,
+                  offset: Offset(0, 4),
+                ),
+                BoxShadow(
+                  color: Color(0x0A000000),
+                  blurRadius: 1.0,
+                  spreadRadius: 0.5,
+                ),
+              ],
+      ),
+      child: result,
+    );
+  }
+}
+
+/// Downward pointing triangular beak shape border for tooltip bubbles.
+class _TooltipBeakBorder extends ShapeBorder {
+  final double borderRadius;
+  final double beakWidth;
+  final double beakHeight;
+  final Color? borderColor;
+  final double borderWidth;
+
+  const _TooltipBeakBorder({
+    this.borderRadius = 8.0,
+    this.beakWidth = 9.0,
+    this.beakHeight = 5.0,
+    this.borderColor,
+    this.borderWidth = 0.0,
+  });
+
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.only(bottom: beakHeight);
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
+      getOuterPath(rect, textDirection: textDirection);
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
+    final w = rect.width;
+    final h = rect.height - beakHeight;
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(rect.left, rect.top, w, h),
+          Radius.circular(borderRadius),
+        ),
+      );
+
+    final centerX = rect.center.dx;
+    final beakTop = rect.top + h - 0.5;
+    final beakPath = Path()
+      ..moveTo(centerX - beakWidth / 2, beakTop)
+      ..lineTo(centerX, beakTop + beakHeight + 0.5)
+      ..lineTo(centerX + beakWidth / 2, beakTop)
+      ..close();
+
+    return Path.combine(PathOperation.union, path, beakPath);
+  }
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
+    if (borderColor != null && borderWidth > 0) {
+      final paint = Paint()
+        ..color = borderColor!
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = borderWidth;
+      canvas.drawPath(getOuterPath(rect, textDirection: textDirection), paint);
+    }
+  }
+
+  @override
+  ShapeBorder scale(double t) => this;
 }

@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../models/widget_inspection_result.dart';
 import 'highlight_style.dart';
@@ -74,18 +73,18 @@ class WidgetHighlight extends StatelessWidget {
                 right: badgeRight,
                 top: badgeTop,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 3.5),
+                  padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 3.0),
                   decoration: BoxDecoration(
-                    color: style.badgeBackgroundColor.withValues(alpha: 0.94),
+                    color: const Color(0xFF000000),
                     borderRadius: BorderRadius.circular(style.borderRadius + 2.0),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.22),
-                      width: 0.8,
+                      color: const Color(0xFFFFFFFF),
+                      width: 1.0,
                     ),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x40000000),
-                        blurRadius: 6.0,
+                        color: Color(0x66000000),
+                        blurRadius: 4.0,
                         offset: Offset(0, 2),
                       ),
                     ],
@@ -95,11 +94,12 @@ class WidgetHighlight extends StatelessWidget {
                     children: [
                       Text(
                         res.identity.widgetType,
-                        style: TextStyle(
-                          color: style.badgeTextColor,
+                        style: const TextStyle(
+                          color: Color(0xFFFFFFFF),
                           fontSize: 11.0,
                           fontWeight: FontWeight.w600,
                           decoration: TextDecoration.none,
+                          letterSpacing: 0.2,
                         ),
                       ),
                       if (!isHover && keyString != null && keyString.isNotEmpty) ...[
@@ -107,7 +107,7 @@ class WidgetHighlight extends StatelessWidget {
                         Text(
                           keyString,
                           style: TextStyle(
-                            color: style.badgeTextColor.withValues(alpha: 0.75),
+                            color: const Color(0xFFFFFFFF).withValues(alpha: 0.8),
                             fontSize: 10.0,
                             fontWeight: FontWeight.normal,
                             decoration: TextDecoration.none,
@@ -147,7 +147,7 @@ class HighlightPainter extends CustomPainter {
     final rrect = RRect.fromRectAndRadius(rect, Radius.circular(borderRadius));
 
     // Paint semi-transparent fill if specified
-    if (fillColor != Colors.transparent && fillColor.alpha > 0) {
+    if (fillColor != Colors.transparent && fillColor.a > 0) {
       final fillPaint = Paint()
         ..color = fillColor
         ..style = PaintingStyle.fill;

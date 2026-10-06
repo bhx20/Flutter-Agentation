@@ -6,6 +6,7 @@ import '../core/agentation_controller.dart';
 import '../core/agentation_keymap.dart';
 import '../core/agentation_logger.dart';
 import '../core/agentation_state.dart';
+import '../models/annotation.dart';
 import '../models/drawing_stroke.dart';
 import '../models/marker_color.dart';
 import '../models/widget_bounds.dart';
@@ -87,6 +88,360 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   Offset? _lastHoverPosition;
   DateTime? _lastHoverTime;
   Timer? _hoverThrottleTimer;
+  Offset? _pointerDownPosition;
+  Offset? _lastDragPosition;
+  bool _isDraggingToScroll = false;
+  ScrollPosition? _dragScrollPosition;
+
+  ScrollPosition? _findScrollPositionAt(
+    Offset position, {
+    Axis axis = Axis.vertical,
+    double? delta,
+  }) {
+    try {
+      final targetBox = widget.controller.engine.hitTestEngine.findTargetRenderBox(
+        position,
+        rootRenderObject: _hostRenderObject,
+        ignoredRenderObjects: widget.controller.engine.ignoredRenderObjects,
+      );
+      if (targetBox != null) {
+        Element? element = widget.controller.engine.elementInspector.findElementForRenderObject(
+          targetBox,
+          rootElement: _hostAppKey.currentContext as Element?,
+        );
+        Element? currentElement = element;
+        ScrollPosition? candidate;
+        while (currentElement != null) {
+          final scrollable = Scrollable.maybeOf(currentElement);
+          if (scrollable != null) {
+            final pos = scrollable.position;
+            if (pos.axis == axis) {
+              if (delta != null) {
+                final canScrollDown = pos.pixels < pos.maxScrollExtent;
+                final canScrollUp = pos.pixels > pos.minScrollExtent;
+                if ((delta > 0 && canScrollDown) || (delta < 0 && canScrollUp)) {
+                  return pos;
+                }
+                candidate ??= pos;
+              } else {
+                return pos;
+              }
+            }
+            Element? outsideScrollable;
+            scrollable.context.visitAncestorElements((ancestor) {
+              outsideScrollable = ancestor;
+              return false;
+            });
+            currentElement = outsideScrollable;
+          } else {
+            break;
+          }
+        }
+        if (candidate != null) return candidate;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  ScrollPosition? _findAnyScrollPosition({Axis axis = Axis.vertical}) {
+    ScrollPosition? found;
+    final root = _hostAppKey.currentContext as Element?;
+    if (root != null) {
+      void search(Element el) {
+        if (found != null) return;
+        final w = el.widget;
+        if (w is Scrollable) {
+          final state = (el as StatefulElement).state;
+          if (state is ScrollableState) {
+            if (state.position.axis == axis) {
+              found = state.position;
+              return;
+            }
+          }
+        }
+        el.visitChildren(search);
+      }
+      search(root);
+    }
+    return found;
+  }
+
+  final ValueNotifier<int> _scrollVersion = ValueNotifier<int>(0);
+  bool _hasScheduledScrollPostFrameCallback = false;
+
+  void _schedulePostFrameScrollUpdate() {
+    if (_hasScheduledScrollPostFrameCallback) return;
+    _hasScheduledScrollPostFrameCallback = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _hasScheduledScrollPostFrameCallback = false;
+      if (mounted) {
+        _scrollVersion.value++;
+      }
+    });
+  }
+
+  Rect? _findViewportForRenderBox(RenderBox renderBox) {
+    try {
+      final element = widget.controller.engine.elementInspector.findElementForRenderObject(
+        renderBox,
+        rootElement: _hostAppKey.currentContext as Element?,
+      );
+      if (element != null) {
+        final scrollable = Scrollable.maybeOf(element);
+        if (scrollable != null) {
+          final sBox = scrollable.context.findRenderObject();
+          if (sBox is RenderBox && sBox.attached && sBox.hasSize) {
+            return sBox.localToGlobal(Offset.zero) & sBox.size;
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Rect? _findViewportForPosition(ScrollPosition position) {
+    try {
+      final context = position.context;
+      if (context is ScrollableState) {
+        final ro = context.context.findRenderObject();
+        if (ro is RenderBox && ro.attached && ro.hasSize) {
+          return ro.localToGlobal(Offset.zero) & ro.size;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Dynamically computes the pixel-accurate current on-screen coordinates for [annotation],
+  /// taking into account live RenderBox position, scroll offsets, and viewport bounds.
+  /// Returns null if the annotated element is scrolled completely out of its visible viewport.
+  WidgetBounds? _resolveCurrentBounds(Annotation annotation) {
+    // 1. Fixed element (e.g. AppBar, bottom navigation bar, floating action button)
+    if (annotation.isFixed) {
+      return annotation.bounds;
+    }
+
+    RenderBox? targetBox;
+    ScrollableState? scrollable;
+    try {
+      targetBox = widget.controller.engine.getRenderBox(annotation.targetWidget.id);
+      if (targetBox != null && targetBox.attached) {
+        final element = widget.controller.engine.elementInspector.findElementForRenderObject(
+          targetBox,
+          rootElement: _hostAppKey.currentContext as Element?,
+        );
+        if (element != null) {
+          scrollable = Scrollable.maybeOf(element);
+        }
+      }
+    } catch (_) {}
+
+    final scrollPos = scrollable?.position ??
+        _findScrollPositionAt(Offset(annotation.bounds.x, annotation.bounds.y)) ??
+        _findAnyScrollPosition();
+
+    double currentX = annotation.bounds.x;
+    double currentY = annotation.bounds.y;
+    double currentWidth = annotation.bounds.width;
+    double currentHeight = annotation.bounds.height;
+
+    bool hasLiveBox = false;
+    if (targetBox != null && targetBox.attached && targetBox.hasSize) {
+      try {
+        final globalPos = targetBox.localToGlobal(Offset.zero);
+        currentX = globalPos.dx;
+        currentY = globalPos.dy;
+        currentWidth = targetBox.size.width;
+        currentHeight = targetBox.size.height;
+        hasLiveBox = true;
+      } catch (_) {}
+    }
+
+    if (scrollPos != null) {
+      final deltaY = scrollPos.axis == Axis.vertical
+          ? scrollPos.pixels - annotation.scrollY
+          : 0.0;
+      final deltaX = scrollPos.axis == Axis.horizontal
+          ? scrollPos.pixels - annotation.scrollX
+          : 0.0;
+
+      // If the target RenderBox is not available or hasn't completed its layout pass
+      // for this frame yet, reproject immediately from initial bounds using the scroll delta.
+      if (!hasLiveBox ||
+          (deltaY != 0.0 && (currentY - annotation.bounds.y).abs() < 0.01)) {
+        currentY = annotation.bounds.y - deltaY;
+      }
+      if (!hasLiveBox ||
+          (deltaX != 0.0 && (currentX - annotation.bounds.x).abs() < 0.01)) {
+        currentX = annotation.bounds.x - deltaX;
+      }
+
+      final viewport = (targetBox != null && targetBox.attached)
+          ? _findViewportForRenderBox(targetBox)
+          : _findViewportForPosition(scrollPos);
+      if (viewport != null) {
+        if (currentY + currentHeight < viewport.top ||
+            currentY > viewport.bottom ||
+            currentX + currentWidth < viewport.left ||
+            currentX > viewport.right) {
+          return null; // Scrolled out of visible viewport
+        }
+      }
+    }
+
+    return WidgetBounds(
+      x: currentX,
+      y: currentY,
+      width: currentWidth,
+      height: currentHeight,
+    );
+  }
+
+  WidgetInspectionResult? _resolveLiveResult(WidgetInspectionResult? result) {
+    if (result == null || !result.isAvailable) return result;
+    if (result.context.isFixed) return result;
+
+    RenderBox? targetBox;
+    ScrollableState? scrollable;
+    try {
+      targetBox = widget.controller.engine.getRenderBox(result.identity.id);
+      if (targetBox != null && targetBox.attached) {
+        final element = widget.controller.engine.elementInspector.findElementForRenderObject(
+          targetBox,
+          rootElement: _hostAppKey.currentContext as Element?,
+        );
+        if (element != null) {
+          scrollable = Scrollable.maybeOf(element);
+        }
+      }
+    } catch (_) {}
+
+    final scrollPos = scrollable?.position ??
+        _findScrollPositionAt(Offset(result.bounds.x, result.bounds.y)) ??
+        _findAnyScrollPosition();
+
+    double currentX = result.bounds.x;
+    double currentY = result.bounds.y;
+    double currentWidth = result.bounds.width;
+    double currentHeight = result.bounds.height;
+
+    bool hasLiveBox = false;
+    if (targetBox != null && targetBox.attached && targetBox.hasSize) {
+      try {
+        final globalPos = targetBox.localToGlobal(Offset.zero);
+        currentX = globalPos.dx;
+        currentY = globalPos.dy;
+        currentWidth = targetBox.size.width;
+        currentHeight = targetBox.size.height;
+        hasLiveBox = true;
+      } catch (_) {}
+    }
+
+    if (scrollPos != null) {
+      final initialScroll = result.context.scrollOffset ?? 0.0;
+      final deltaY = scrollPos.axis == Axis.vertical
+          ? scrollPos.pixels - initialScroll
+          : 0.0;
+      final deltaX = scrollPos.axis == Axis.horizontal
+          ? scrollPos.pixels - initialScroll
+          : 0.0;
+
+      if (!hasLiveBox ||
+          (deltaY != 0.0 && (currentY - result.bounds.y).abs() < 0.01)) {
+        currentY = result.bounds.y - deltaY;
+      }
+      if (!hasLiveBox ||
+          (deltaX != 0.0 && (currentX - result.bounds.x).abs() < 0.01)) {
+        currentX = result.bounds.x - deltaX;
+      }
+
+      final viewport = (targetBox != null && targetBox.attached)
+          ? _findViewportForRenderBox(targetBox)
+          : _findViewportForPosition(scrollPos);
+      if (viewport != null) {
+        if (currentY + currentHeight < viewport.top ||
+            currentY > viewport.bottom ||
+            currentX + currentWidth < viewport.left ||
+            currentX > viewport.right) {
+          return null; // Scrolled out of visible viewport
+        }
+      }
+    }
+
+    return WidgetInspectionResult(
+      identity: result.identity,
+      bounds: WidgetBounds(
+        x: currentX,
+        y: currentY,
+        width: currentWidth,
+        height: currentHeight,
+      ),
+      context: result.context,
+      route: result.route,
+      text: result.text,
+      ancestors: result.ancestors,
+      sourceLocation: result.sourceLocation,
+      metadata: result.metadata,
+      isAvailable: true,
+    );
+  }
+
+  void _handlePointerSignal(PointerSignalEvent event) {
+    if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) return;
+    if (_isEventOnToolbar(event.position)) return;
+    if (event is PointerScrollEvent) {
+      final axis = event.scrollDelta.dx.abs() > event.scrollDelta.dy.abs()
+          ? Axis.horizontal
+          : Axis.vertical;
+      final delta = axis == Axis.vertical ? event.scrollDelta.dy : event.scrollDelta.dx;
+      final scrollPos = _findScrollPositionAt(event.position, axis: axis, delta: delta) ??
+          _findAnyScrollPosition(axis: axis);
+      if (scrollPos != null && delta != 0) {
+        try {
+          scrollPos.pointerScroll(delta);
+        } catch (e) {
+          scrollPos.jumpTo(
+            (scrollPos.pixels + delta).clamp(
+              scrollPos.minScrollExtent,
+              scrollPos.maxScrollExtent,
+            ),
+          );
+        }
+        _schedulePostFrameScrollUpdate();
+      }
+    }
+  }
+
+  void _handlePointerPanZoomUpdate(PointerPanZoomUpdateEvent event) {
+    if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) return;
+    if (_isEventOnToolbar(event.position)) return;
+    final axis = event.pan.dx.abs() > event.pan.dy.abs()
+        ? Axis.horizontal
+        : Axis.vertical;
+    final delta = axis == Axis.vertical ? -event.pan.dy : -event.pan.dx;
+    final scrollPos = _findScrollPositionAt(event.position, axis: axis, delta: delta) ??
+        _findAnyScrollPosition(axis: axis);
+    if (scrollPos != null && delta != 0) {
+      try {
+        scrollPos.pointerScroll(delta);
+      } catch (_) {
+        scrollPos.jumpTo(
+          (scrollPos.pixels + delta).clamp(
+            scrollPos.minScrollExtent,
+            scrollPos.maxScrollExtent,
+          ),
+        );
+      }
+      _schedulePostFrameScrollUpdate();
+    }
+  }
+
+  void _handlePointerCancel(PointerCancelEvent event) {
+    _isDraggingToScroll = false;
+    _pointerDownPosition = null;
+    _lastDragPosition = null;
+    _dragScrollPosition = null;
+  }
 
   @override
   void dispose() {
@@ -97,6 +452,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     _selectedTemplateNotifier.dispose();
     _activeRearrangeTargetNotifier.dispose();
     _activeRearrangeBoundsNotifier.dispose();
+    _scrollVersion.dispose();
     super.dispose();
   }
 
@@ -112,18 +468,28 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   RenderObject? get _hostRenderObject =>
       _hostAppKey.currentContext?.findRenderObject();
 
+  bool _isEventOnToolbar(Offset position) {
+    final bounds = widget.controller.toolbarBounds;
+    if (bounds == null) return false;
+    return bounds.inflate(4.0).contains(position);
+  }
+
   void _handlePointerDown(PointerDownEvent event) {
     if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) return;
+    if (_isEventOnToolbar(event.position)) return;
 
     final toolMode = widget.controller.toolMode;
 
     if (toolMode == AnnotationToolMode.design) {
       final selectedTemplate = _selectedTemplateNotifier.value;
       if (selectedTemplate != null) {
+        final scrollPos = _findScrollPositionAt(event.position) ?? _findAnyScrollPosition();
         widget.controller.createPlacementAnnotation(
           placement: selectedTemplate.toPlacementData(),
           position: event.position,
           comment: 'Add ${selectedTemplate.label} here',
+          isFixed: scrollPos == null,
+          scrollY: scrollPos?.pixels,
         );
         _selectedTemplateNotifier.value = null;
         return;
@@ -159,30 +525,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       return;
     }
 
-    try {
-      final hierarchy = widget.controller.engine.inspectHierarchyAt(
-        event.position,
-        rootRenderObject: _hostRenderObject,
-        rootElement: _hostAppKey.currentContext as Element?,
-      );
-      final primary = hierarchy.primaryTarget;
-
-      if (toolMode == AnnotationToolMode.multiSelect) {
-        if (primary.isAvailable) {
-          widget.controller.toggleMultiSelection(primary);
-        }
-        return;
-      }
-
-      if (primary.isAvailable) {
-        widget.controller.selectTargetHierarchy(primary, hierarchy);
-        widget.onWidgetSelected?.call(primary);
-      } else {
-        widget.controller.clearSelection();
-      }
-    } catch (e, stack) {
-      AgentationLogger.error('Failed to inspect at ${event.position}', e, stack);
-    }
+    // Pointer & MultiSelect modes: prepare for potential drag-to-scroll or tap-selection
+    _pointerDownPosition = event.position;
+    _lastDragPosition = event.position;
+    _isDraggingToScroll = false;
+    _dragScrollPosition = _findScrollPositionAt(event.position) ?? _findAnyScrollPosition();
   }
 
   void _handlePointerMove(PointerMoveEvent event) {
@@ -209,6 +556,43 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       );
       return;
     }
+
+    // Drag-to-scroll for pointer and multiSelect modes
+    if (_pointerDownPosition != null && _dragScrollPosition != null) {
+      final totalDelta = (event.position - _pointerDownPosition!).distance;
+      if (!_isDraggingToScroll && totalDelta > 8.0) {
+        _isDraggingToScroll = true;
+      }
+
+      if (_isDraggingToScroll && _lastDragPosition != null) {
+        final delta = _dragScrollPosition!.axis == Axis.horizontal
+            ? event.position.dx - _lastDragPosition!.dx
+            : event.position.dy - _lastDragPosition!.dy;
+        _lastDragPosition = event.position;
+        if (delta != 0) {
+          final canScroll = delta > 0
+              ? _dragScrollPosition!.pixels > _dragScrollPosition!.minScrollExtent
+              : _dragScrollPosition!.pixels < _dragScrollPosition!.maxScrollExtent;
+          if (!canScroll) {
+            final enclosing = _findScrollPositionAt(
+              event.position,
+              axis: _dragScrollPosition!.axis,
+              delta: -delta,
+            );
+            if (enclosing != null) {
+              _dragScrollPosition = enclosing;
+            }
+          }
+          final target = (_dragScrollPosition!.pixels - delta).clamp(
+            _dragScrollPosition!.minScrollExtent,
+            _dragScrollPosition!.maxScrollExtent,
+          );
+          _dragScrollPosition!.jumpTo(target);
+          _schedulePostFrameScrollUpdate();
+        }
+        return;
+      }
+    }
   }
 
   void _handlePointerUp(PointerUpEvent event) {
@@ -227,6 +611,8 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
           targetIdentity: target.identity,
           comment:
               'Move ${target.identity.widgetType} ${rearrangeData.direction ?? "element"}',
+          isFixed: target.context.isFixed,
+          scrollY: target.context.scrollOffset,
         );
       }
       return;
@@ -237,13 +623,18 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       _activeMarqueeBoundsNotifier.value = null;
 
       if (completed != null) {
+        final scrollPos = _findScrollPositionAt(Offset(completed.x, completed.y)) ?? _findAnyScrollPosition();
         final areaResult = WidgetInspectionResult(
           identity: WidgetIdentity(
             id: 'area_${DateTime.now().millisecondsSinceEpoch}',
             widgetType: 'AreaSelection',
           ),
           bounds: completed,
-          context: const WidgetContext.empty(),
+          context: WidgetContext(
+            isFixed: scrollPos == null,
+            scrollOffset: scrollPos?.pixels,
+            scrollAxis: scrollPos?.axis.name,
+          ),
           ancestors: const [],
         );
         widget.controller.selectResult(areaResult);
@@ -269,6 +660,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       final double minY = stroke.points.map((p) => p.dy).reduce(math.min);
       final double maxY = stroke.points.map((p) => p.dy).reduce(math.max);
 
+      final scrollPos = _findScrollPositionAt(Offset(minX, minY)) ?? _findAnyScrollPosition();
       final drawResult = WidgetInspectionResult(
         identity: WidgetIdentity(
           id: 'draw_${DateTime.now().millisecondsSinceEpoch}',
@@ -280,16 +672,70 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
           width: math.max(20.0, maxX - minX),
           height: math.max(20.0, maxY - minY),
         ),
-        context: const WidgetContext.empty(),
+        context: WidgetContext(
+          isFixed: scrollPos == null,
+          scrollOffset: scrollPos?.pixels,
+          scrollAxis: scrollPos?.axis.name,
+        ),
         ancestors: const [],
       );
       widget.controller.selectResult(drawResult);
       return;
     }
+
+    // Pointer and MultiSelect modes:
+    // If this was a scroll drag, finish scrolling without selecting
+    if (_isDraggingToScroll) {
+      _isDraggingToScroll = false;
+      _pointerDownPosition = null;
+      _lastDragPosition = null;
+      _dragScrollPosition = null;
+      return;
+    }
+
+    _pointerDownPosition = null;
+    _lastDragPosition = null;
+    _dragScrollPosition = null;
+
+    if (_isEventOnToolbar(event.position)) return;
+
+    // Direct tap selection
+    try {
+      final hierarchy = widget.controller.engine.inspectHierarchyAt(
+        event.position,
+        rootRenderObject: _hostRenderObject,
+        rootElement: _hostAppKey.currentContext as Element?,
+      );
+      final primary = hierarchy.primaryTarget;
+
+      if (toolMode == AnnotationToolMode.multiSelect) {
+        if (primary.isAvailable) {
+          widget.controller.toggleMultiSelection(primary);
+        }
+        return;
+      }
+
+      if (primary.isAvailable) {
+        widget.controller.selectTargetHierarchy(primary, hierarchy);
+        widget.onWidgetSelected?.call(primary);
+      } else {
+        widget.controller.clearSelection();
+      }
+    } catch (e, stack) {
+      AgentationLogger.error('Failed to inspect at ${event.position}', e, stack);
+    }
   }
 
   void _handlePointerHover(PointerHoverEvent event) {
     if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) return;
+    if (_isEventOnToolbar(event.position)) {
+      _hoverThrottleTimer?.cancel();
+      _lastHoverPosition = null;
+      if (widget.controller.hoveredResult != null) {
+        widget.controller.setHoveredResult(null);
+      }
+      return;
+    }
     if (widget.controller.toolMode == AnnotationToolMode.draw ||
         widget.controller.toolMode == AnnotationToolMode.area ||
         widget.controller.toolMode == AnnotationToolMode.design) {
@@ -367,15 +813,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                     borderRadius: widget.highlightStyle.borderRadius,
                     hoverStrokeColor: markerColor.withValues(alpha: 0.6),
                     hoverFillColor: markerColor.withValues(alpha: 0.08),
-                    badgeBackgroundColor: settings.isDarkMode
-                        ? const Color(0xFF1E1B4B)
-                        : const Color(0xFF312E81),
+                    badgeBackgroundColor: const Color(0xFF000000),
+                    badgeTextColor: const Color(0xFFFFFFFF),
                   )
                 : widget.highlightStyle;
 
-        return AgentationShortcuts(
-          controller: widget.controller,
-          child: Stack(
+        final content = Stack(
             fit: StackFit.expand,
             children: [
             // Underlying application with dynamic animation freezing and paint boundary isolation
@@ -384,7 +827,23 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                 key: _hostAppKey,
                 child: FreezeOverlay(
                   controller: widget.controller,
-                  child: widget.child,
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (notification) {
+                      if (notification is ScrollUpdateNotification ||
+                          notification is OverscrollNotification ||
+                          notification is ScrollEndNotification ||
+                          notification is UserScrollNotification) {
+                        _schedulePostFrameScrollUpdate();
+                        if (notification is ScrollUpdateNotification &&
+                            _lastHoverPosition != null &&
+                            widget.controller.isInspecting) {
+                          _executeHoverInspection(_lastHoverPosition!);
+                        }
+                      }
+                      return false;
+                    },
+                    child: widget.child,
+                  ),
                 ),
               ),
             ),
@@ -405,6 +864,9 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                     onPointerMove: _handlePointerMove,
                     onPointerUp: _handlePointerUp,
                     onPointerHover: _handlePointerHover,
+                    onPointerCancel: _handlePointerCancel,
+                    onPointerSignal: _handlePointerSignal,
+                    onPointerPanZoomUpdate: _handlePointerPanZoomUpdate,
                     child: const SizedBox.expand(),
                   ),
                 ),
@@ -463,6 +925,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                 widget.controller.hoveredResult != null &&
                 widget.controller.hoveredResult?.identity.id != widget.controller.selectedResult?.identity.id)
               RepaintBoundary(
+                key: const ValueKey('agentation_hover_highlight'),
                 child: WidgetHighlight(
                   result: widget.controller.hoveredResult,
                   style: effectiveHighlightStyle,
@@ -470,71 +933,104 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                 ),
               ),
 
-            // Active selected widget highlight
-            if (!widget.controller.isInactive &&
-                widget.controller.selectedResult != null)
-              RepaintBoundary(
-                child: WidgetHighlight(
-                  result: widget.controller.selectedResult,
-                  style: effectiveHighlightStyle,
-                  isHover: false,
-                  showBadge: false,
-                ),
-              ),
+            // Dynamic scroll-aware layers: selection highlight, popup, markers, detail card
+            ValueListenableBuilder<int>(
+              valueListenable: _scrollVersion,
+              builder: (context, version, _) {
+                final liveSelected = _resolveLiveResult(widget.controller.selectedResult);
 
-            // Multi-selected items highlights
-            if (isInspecting && toolMode == AnnotationToolMode.multiSelect)
-              for (final selected in widget.controller.multiSelection)
-                RepaintBoundary(
-                  child: WidgetHighlight(
-                    result: selected,
-                    style: effectiveHighlightStyle,
-                    isHover: false,
-                  ),
-                ),
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Active selected widget highlight
+                    if (!widget.controller.isInactive && liveSelected != null)
+                      RepaintBoundary(
+                        key: const ValueKey('agentation_selected_highlight'),
+                        child: WidgetHighlight(
+                          result: liveSelected,
+                          style: effectiveHighlightStyle,
+                          isHover: false,
+                          showBadge: false,
+                        ),
+                      ),
 
-            // Annotation creation popup when an element is actively selected
-            if (isInspecting && widget.controller.selectedResult != null)
-              Positioned.fill(
-                child: RepaintBoundary(
-                  child: AnnotationPopup(
-                    key: ValueKey(widget.controller.selectedResult!.identity.id),
-                    result: widget.controller.selectedResult!,
-                    onClose: widget.controller.clearSelection,
-                  ),
-                ),
-              ),
+                    // Multi-selected items highlights
+                    if (isInspecting && toolMode == AnnotationToolMode.multiSelect)
+                      for (final selected in widget.controller.multiSelection) ...[
+                        () {
+                          final liveMulti = _resolveLiveResult(selected);
+                          if (liveMulti == null) return const SizedBox.shrink();
+                          return RepaintBoundary(
+                            key: ValueKey('agentation_multiselect_${liveMulti.identity.id}'),
+                            child: WidgetHighlight(
+                              result: liveMulti,
+                              style: effectiveHighlightStyle,
+                              isHover: false,
+                            ),
+                          );
+                        }(),
+                      ],
 
-            // Numbered spatial annotation markers
-            if (widget.controller.areCommentsVisible)
-              for (int i = 0; i < widget.controller.annotations.length; i++)
-                AnnotationMarker(
-                  index: i + 1,
-                  annotation: widget.controller.annotations[i],
-                  accentColor: markerColor,
-                  isSelected: widget.controller.activeAnnotation?.id ==
-                      widget.controller.annotations[i].id,
-                  onTap: () => widget.controller
-                      .viewAnnotation(widget.controller.annotations[i]),
-                ),
+                    // Annotation creation popup when an element is actively selected
+                    if (isInspecting && liveSelected != null)
+                      Positioned.fill(
+                        key: const ValueKey('agentation_annotation_popup_layer'),
+                        child: RepaintBoundary(
+                          child: AnnotationPopup(
+                            key: ValueKey(liveSelected.identity.id),
+                            result: liveSelected,
+                            onClose: widget.controller.clearSelection,
+                          ),
+                        ),
+                      ),
 
-            // Annotation detail card when a marker is clicked
-            if (widget.controller.areCommentsVisible && widget.controller.activeAnnotation != null)
-              AnnotationDetailCard(
-                index: widget.controller.annotations
-                        .indexOf(widget.controller.activeAnnotation!) +
-                    1,
-                annotation: widget.controller.activeAnnotation!,
-                accentColor: markerColor,
-                isDark: settings.isDarkMode,
-                onClose: () => widget.controller.viewAnnotation(null),
-                onDelete: () => widget.controller
-                    .deleteAnnotation(widget.controller.activeAnnotation!.id),
-              ),
+                    // Numbered spatial annotation markers
+                    if (widget.controller.areCommentsVisible)
+                      for (int i = 0; i < widget.controller.annotations.length; i++) ...[
+                        () {
+                          final ann = widget.controller.annotations[i];
+                          final currentBounds = _resolveCurrentBounds(ann);
+                          if (currentBounds == null) return const SizedBox.shrink();
+                          return AnnotationMarker(
+                            key: ValueKey('agentation_marker_${ann.id}'),
+                            index: i + 1,
+                            annotation: ann,
+                            boundsOverride: currentBounds,
+                            accentColor: markerColor,
+                            isSelected: widget.controller.activeAnnotation?.id == ann.id,
+                            onTap: () => widget.controller.viewAnnotation(ann),
+                          );
+                        }(),
+                      ],
+
+                    // Annotation detail card when a marker is clicked
+                    if (widget.controller.areCommentsVisible &&
+                        widget.controller.activeAnnotation != null) ...[
+                      () {
+                        final active = widget.controller.activeAnnotation!;
+                        final currentBounds = _resolveCurrentBounds(active);
+                        if (currentBounds == null) return const SizedBox.shrink();
+                        return AnnotationDetailCard(
+                          key: ValueKey('agentation_card_${active.id}'),
+                          index: widget.controller.annotations.indexOf(active) + 1,
+                          annotation: active,
+                          boundsOverride: currentBounds,
+                          accentColor: markerColor,
+                          isDark: settings.isDarkMode,
+                          onClose: () => widget.controller.viewAnnotation(null),
+                          onDelete: () => widget.controller.deleteAnnotation(active.id),
+                        );
+                      }(),
+                    ],
+                  ],
+                );
+              },
+            ),
 
             // Spatial guide crosshairs when dragging to rearrange in Design Mode
             if (isInspecting && toolMode == AnnotationToolMode.design)
               ValueListenableBuilder<WidgetBounds?>(
+                key: const ValueKey('agentation_spatial_guides'),
                 valueListenable: _activeRearrangeBoundsNotifier,
                 builder: (context, rearrangeBounds, _) {
                   if (rearrangeBounds == null) return const SizedBox.shrink();
@@ -554,12 +1050,16 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
             // Drop target for dragging wireframe skeletons from the palette
             if (isInspecting && toolMode == AnnotationToolMode.design)
               Positioned.fill(
+                key: const ValueKey('agentation_skeleton_drop_target'),
                 child: DragTarget<SkeletonTemplate>(
                   onAcceptWithDetails: (details) {
+                    final scrollPos = _findScrollPositionAt(details.offset) ?? _findAnyScrollPosition();
                     widget.controller.createPlacementAnnotation(
                       placement: details.data.toPlacementData(),
                       position: details.offset,
                       comment: 'Add ${details.data.label} here',
+                      isFixed: scrollPos == null,
+                      scrollY: scrollPos?.pixels,
                     );
                   },
                   builder: (context, candidateData, rejectedData) {
@@ -587,6 +1087,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                 isInspecting &&
                 toolMode == AnnotationToolMode.design)
               ValueListenableBuilder<bool>(
+                key: const ValueKey('agentation_wireframe_palette'),
                 valueListenable: _showComponentPaletteNotifier,
                 builder: (context, showPalette, _) {
                   if (!showPalette) return const SizedBox.shrink();
@@ -608,12 +1109,25 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
             // Additional overlay elements (e.g. toolbar)
             if (widget.overlayChild != null)
-              RepaintBoundary(
-                child: widget.overlayChild!,
-              ),
+              widget.overlayChild!,
           ],
-        ),
-      );
+        );
+
+        final effectiveContent = Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerSignal: _handlePointerSignal,
+          onPointerPanZoomUpdate: _handlePointerPanZoomUpdate,
+          child: content,
+        );
+
+        if (!widget.controller.enableKeyboardShortcuts ||
+            context.findAncestorWidgetOfExactType<AgentationShortcuts>() != null) {
+          return effectiveContent;
+        }
+        return AgentationShortcuts(
+          controller: widget.controller,
+          child: effectiveContent,
+        );
       },
     );
   }

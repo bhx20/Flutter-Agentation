@@ -56,6 +56,23 @@ class FlutterInspectionEngine {
         routeResolver = routeResolver ?? RouteResolver(),
         sourceLocationResolver = sourceLocationResolver ?? FlutterSourceLocationResolver();
 
+  /// Registry caching weak references to live RenderBoxes for inspected widgets.
+  final Map<String, WeakReference<RenderBox>> _renderBoxRegistry = {};
+
+  /// Caches a live [RenderBox] reference associated with a widget identity [identityId].
+  void registerRenderBox(String identityId, RenderBox renderBox) {
+    _renderBoxRegistry[identityId] = WeakReference(renderBox);
+  }
+
+  /// Retrieves a live, attached [RenderBox] for [identityId], or null if unmounted/recycled.
+  RenderBox? getRenderBox(String identityId) {
+    final ref = _renderBoxRegistry[identityId];
+    if (ref != null && ref.target != null && ref.target!.attached) {
+      return ref.target;
+    }
+    return null;
+  }
+
   /// Inspects the visual Flutter widget under [globalPosition].
   ///
   /// Guaranteed never to throw; returns [WidgetInspectionResult.unavailable()]
@@ -296,6 +313,10 @@ class FlutterInspectionEngine {
       final identity = identityResolver.resolveIdentity(element, renderObject: ro);
       final text = textResolver.extractText(element);
 
+      if (ro is RenderBox) {
+        registerRenderBox(identity.id, ro);
+      }
+
       return WidgetInspectionResult(
         identity: identity,
         bounds: bounds,
@@ -328,9 +349,13 @@ class FlutterInspectionEngine {
         final bounds = renderObject is RenderBox
             ? boundsResolver.resolveBounds(renderObject)
             : const WidgetBounds.zero();
+        final id = renderObject.hashCode.toString();
+        if (renderObject is RenderBox) {
+          registerRenderBox(id, renderObject);
+        }
         return WidgetInspectionResult(
           identity: WidgetIdentity(
-            id: renderObject.hashCode.toString(),
+            id: id,
             widgetType: renderObject.runtimeType.toString(),
           ),
           bounds: bounds,
@@ -371,6 +396,10 @@ class FlutterInspectionEngine {
       // Resolve identity
       final identity = identityResolver.resolveIdentity(meaningfulElement, renderObject: ro);
 
+      if (ro is RenderBox) {
+        registerRenderBox(identity.id, ro);
+      }
+
       if (lightweight) {
         return WidgetInspectionResult(
           identity: identity,
@@ -395,6 +424,26 @@ class FlutterInspectionEngine {
       // Resolve semantics
       final semantics = semanticsResolver.extractSemantics(ro, meaningfulElement);
 
+      // Resolve enclosing scrollable context
+      ScrollableState? scrollable;
+      try {
+        scrollable = Scrollable.maybeOf(meaningfulElement) ??
+            (meaningfulElement != element ? Scrollable.maybeOf(element) : null);
+      } catch (_) {}
+
+      final isFixed = scrollable == null;
+      final scrollOffset = scrollable?.position.pixels;
+      final scrollAxis = scrollable?.position.axis.name;
+      Map<String, dynamic>? viewportBoundsMap;
+      if (scrollable != null) {
+        try {
+          final sBox = scrollable.context.findRenderObject();
+          if (sBox is RenderBox && sBox.attached) {
+            viewportBoundsMap = boundsResolver.resolveBounds(sBox).toJson();
+          }
+        } catch (_) {}
+      }
+
       // Resolve source location via Flutter Inspector runtime metadata
       final sourceLocation = resolveSourceLocation
           ? (sourceLocationResolver.resolve(meaningfulElement) ??
@@ -410,6 +459,10 @@ class FlutterInspectionEngine {
           semanticsLabel: semantics?.label,
           semanticsHint: semantics?.hint,
           depth: ancestors.length,
+          isFixed: isFixed,
+          scrollOffset: scrollOffset,
+          scrollAxis: scrollAxis,
+          viewportBounds: viewportBoundsMap,
         ),
         route: route,
         text: text,

@@ -10,6 +10,7 @@ export 'src/core/agentation_keymap.dart';
 export 'src/core/agentation_scope.dart';
 export 'src/core/agentation_state.dart';
 export 'src/core/flutter_agentation.dart';
+export 'src/core/package_version.dart';
 
 // Overlay, Popup, Freeze & Toolbar Components
 export 'src/overlay/annotation_marker.dart' show AnnotationDetailCard, AnnotationMarker;

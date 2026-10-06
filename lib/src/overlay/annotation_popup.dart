@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../core/agentation_keymap.dart';
 import '../core/agentation_scope.dart';
 import '../models/annotation_intent.dart';
 import '../models/annotation_severity.dart';
@@ -16,6 +15,8 @@ class AnnotationPopup extends StatefulWidget {
     required this.onClose,
     this.initialIntent = AnnotationIntent.suggestion,
     this.initialSeverity = AnnotationSeverity.suggestion,
+    this.showHierarchy = true,
+    this.showIntentSelector = false,
   });
 
   /// The inspected target widget snapshot.
@@ -29,6 +30,12 @@ class AnnotationPopup extends StatefulWidget {
 
   /// Default severity.
   final AnnotationSeverity initialSeverity;
+
+  /// Whether to display the top widget hierarchy breadcrumb trail. Defaults to false.
+  final bool showHierarchy;
+
+  /// Whether to display the intent chips (Change, Bug, Suggestion). Defaults to false.
+  final bool showIntentSelector;
 
   @override
   State<AnnotationPopup> createState() => _AnnotationPopupState();
@@ -132,16 +139,9 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
         ? ' "$textPreview"'
         : '';
 
-    return AgentationShortcuts(
-      onClose: widget.onClose,
-      onSubmit: () {
-        if (_hasTextNotifier.value && !_isSavingNotifier.value) {
-          _handleSave();
-        }
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
+    return Stack(
+      fit: StackFit.expand,
+      children: [
         // ── Pinned '+' badge on target widget (Screenshot 5) ──
         Positioned(
           left: (bounds.x + bounds.width / 2 - 11.0).clamp(4.0, screenSize.width - 26.0),
@@ -197,9 +197,10 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Header line: > link "FAQ" ──
-                  ValueListenableBuilder<bool>(
-                    valueListenable: _showHierarchyNotifier,
+                  // ── Optional Header line: > link "FAQ" & hierarchy (hidden by default) ──
+                  if (widget.showHierarchy) ...[
+                    ValueListenableBuilder<bool>(
+                      valueListenable: _showHierarchyNotifier,
                     builder: (context, showHierarchy, _) {
                       return Column(
                         mainAxisSize: MainAxisSize.min,
@@ -318,8 +319,8 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                       );
                     },
                   ),
-
                   const SizedBox(height: 6.0),
+                ],
 
                   // ── Textarea: "What should change?" with vibrant blue border (Screenshot 5) ──
                   Container(
@@ -379,27 +380,28 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                     ),
                   ),
 
-                  // ── Intent Selector Pills (Change, Bug, Suggestion) ──
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: ValueListenableBuilder<AnnotationIntent>(
-                      valueListenable: _selectedIntentNotifier,
-                      builder: (context, selectedIntent, _) {
-                        return SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _buildIntentChip('Change', AnnotationIntent.change, selectedIntent, isDark),
-                              const SizedBox(width: 6.0),
-                              _buildIntentChip('Bug', AnnotationIntent.bug, selectedIntent, isDark),
-                              const SizedBox(width: 6.0),
-                              _buildIntentChip('Suggestion', AnnotationIntent.suggestion, selectedIntent, isDark),
-                            ],
-                          ),
-                        );
-                      },
+                  // ── Intent Selector Pills (Change, Bug, Suggestion) (hidden by default) ──
+                  if (widget.showIntentSelector)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: ValueListenableBuilder<AnnotationIntent>(
+                        valueListenable: _selectedIntentNotifier,
+                        builder: (context, selectedIntent, _) {
+                          return SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _buildIntentChip('Change', AnnotationIntent.change, selectedIntent, isDark),
+                                const SizedBox(width: 6.0),
+                                _buildIntentChip('Bug', AnnotationIntent.bug, selectedIntent, isDark),
+                                const SizedBox(width: 6.0),
+                                _buildIntentChip('Suggestion', AnnotationIntent.suggestion, selectedIntent, isDark),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  ),
 
                   const SizedBox(height: 10.0),
 
@@ -485,8 +487,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
           ),
         ),
       ],
-    ),
-  );
+    );
   }
 
   Widget _buildIntentChip(String label, AnnotationIntent intent, AnnotationIntent selectedIntent, bool isDark) {

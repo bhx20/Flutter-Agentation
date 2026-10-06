@@ -8,7 +8,7 @@ class HighlightStyle {
     this.fillColor = Colors.transparent,
     this.strokeWidth = 1.5,
     this.borderRadius = 4.0,
-    this.badgeBackgroundColor = const Color(0xFF1C1C1E),
+    this.badgeBackgroundColor = const Color(0xFF000000),
     this.badgeTextColor = const Color(0xFFFFFFFF),
     this.hoverStrokeColor = const Color(0x99007AFF), // Translucent Blue
     this.hoverFillColor = const Color(0x10007AFF), // ~6% opacity Blue

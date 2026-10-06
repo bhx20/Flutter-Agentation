@@ -221,5 +221,211 @@ void main() {
       expect(controller.annotations.first.comment, equals('Shortcut saved note'));
       expect(find.byType(AnnotationPopup), findsNothing);
     });
+
+    testWidgets('when settings panel is open, pressing Escape closes only settings panel and toolbar remains open', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              showToolbar: true,
+              child: const Center(child: Text('Inspectable Widget')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Open settings panel
+      controller.openSettings();
+      await tester.pumpAndSettle();
+
+      expect(controller.isSettingsOpen, isTrue);
+      expect(controller.isToolbarMinimized, isFalse);
+      expect(find.text('Marker Color'), findsOneWidget);
+
+      // Press Escape
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      // Settings panel is closed, but toolbar is STILL OPEN
+      expect(controller.isSettingsOpen, isFalse);
+      expect(controller.isToolbarMinimized, isFalse);
+      expect(find.text('Marker Color'), findsNothing);
+      expect(find.byKey(const ValueKey('agentation_floating_toolbar')), findsOneWidget);
+
+      // Press Escape a second time -> now toolbar minimizes
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      expect(controller.isToolbarMinimized, isTrue);
+    });
+
+    testWidgets('when layout mode is open, pressing Escape closes layout mode and toolbar remains open', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              showToolbar: true,
+              child: const Center(child: Text('Inspectable Widget')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Open layout mode
+      controller.openLayoutMode();
+      await tester.pumpAndSettle();
+
+      expect(controller.isLayoutModeOpen, isTrue);
+      expect(controller.isToolbarMinimized, isFalse);
+      expect(find.text('Layout Mode'), findsOneWidget);
+
+      // Press Escape
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+
+      // Layout mode closes, but toolbar stays open
+      expect(controller.isLayoutModeOpen, isFalse);
+      expect(controller.isToolbarMinimized, isFalse);
+      expect(find.text('Layout Mode'), findsNothing);
+    });
+
+    testWidgets('single-key shortcuts P, L, H, C, X match upstream Agentation specifications', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              showToolbar: true,
+              child: const Center(child: Text('Inspectable Widget')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // P -> toggle freeze
+      expect(controller.isFrozen, isFalse);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
+      await tester.pumpAndSettle();
+      expect(controller.isFrozen, isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
+      await tester.pumpAndSettle();
+      expect(controller.isFrozen, isFalse);
+
+      // L -> toggle layout mode
+      expect(controller.isLayoutModeOpen, isFalse);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+      await tester.pumpAndSettle();
+      expect(controller.isLayoutModeOpen, isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+      await tester.pumpAndSettle();
+      expect(controller.isLayoutModeOpen, isFalse);
+
+      // Add annotation for H, C, X
+      await controller.createAnnotation(comment: 'Test shortcut item');
+      await tester.pumpAndSettle();
+      expect(controller.annotations.length, equals(1));
+
+      // H -> toggle markers visibility
+      expect(controller.areCommentsVisible, isTrue);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyH);
+      await tester.pumpAndSettle();
+      expect(controller.areCommentsVisible, isFalse);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyH);
+      await tester.pumpAndSettle();
+      expect(controller.areCommentsVisible, isTrue);
+
+      // C -> copy feedback
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyC);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(controller.isCopiedNotifier.value, isTrue);
+      await tester.pump(const Duration(milliseconds: 1600));
+      expect(controller.isCopiedNotifier.value, isFalse);
+
+      // X -> clear annotations
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyX);
+      await tester.pumpAndSettle();
+      expect(controller.annotations.isEmpty, isTrue);
+    });
+
+    testWidgets('Ctrl+Shift+F toggles feedback mode (toolbar minimization)', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              showToolbar: true,
+              child: const Center(child: Text('Inspectable Widget')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.isToolbarMinimized, isFalse);
+
+      // Send Ctrl+Shift+F to minimize
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+      await tester.pumpAndSettle();
+
+      expect(controller.isToolbarMinimized, isTrue);
+
+      // Send Ctrl+Shift+F to expand
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyF);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+      await tester.pumpAndSettle();
+
+      expect(controller.isToolbarMinimized, isFalse);
+    });
+
+    testWidgets('single-key shortcuts are ignored when typing in a TextField', (tester) async {
+      final textController = TextEditingController();
+      final focusNode = FocusNode();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              showToolbar: true,
+              child: Center(
+                child: TextField(
+                  focusNode: focusNode,
+                  controller: textController,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Request focus directly
+      focusNode.requestFocus();
+      await tester.pumpAndSettle();
+      expect(AgentationShortcuts.isEditingText(), isTrue);
+
+      // Focus is in the text field
+      expect(controller.isFrozen, isFalse);
+
+      // Press 'P' -> Should not toggle freeze because user is typing
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
+      await tester.pumpAndSettle();
+
+      expect(controller.isFrozen, isFalse);
+      focusNode.dispose();
+      textController.dispose();
+    });
   });
 }

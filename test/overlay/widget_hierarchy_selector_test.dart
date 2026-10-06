@@ -79,6 +79,7 @@ void main() {
                   AnnotationPopup(
                     result: textResult,
                     onClose: () {},
+                    showHierarchy: true,
                   ),
                 ],
               ),

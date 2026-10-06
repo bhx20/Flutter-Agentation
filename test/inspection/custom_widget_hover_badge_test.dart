@@ -139,7 +139,7 @@ void main() {
           widgetType: 'list item',
         ),
         bounds: WidgetBounds(x: 20.0, y: 100.0, width: 300.0, height: 40.0),
-        context: const WidgetContext(depth: 1),
+        context: WidgetContext(depth: 1),
         ancestors: ['Column', 'ListTile'],
       );
 

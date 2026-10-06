@@ -17,9 +17,7 @@ class ElementInspector {
     final creator = renderObject.debugCreator;
     if (creator is DebugCreator) {
       final el = creator.element;
-      if (el != null) {
-        _roToElementCache[renderObject] = el;
-      }
+      _roToElementCache[renderObject] = el;
       return el;
     }
 
@@ -206,6 +204,7 @@ class ElementInspector {
   }
 
   static bool _isCompoundContainer(String typeName) {
+    if (typeName.startsWith('Sliver')) return true;
     const containers = {
       'MaterialApp',
       'CupertinoApp',
@@ -299,6 +298,13 @@ class ElementInspector {
   }
 
   static bool _isStrictFrameworkPlumbing(String typeName) {
+    if (typeName.startsWith('Inherited') ||
+        typeName.startsWith('NotificationListener') ||
+        typeName.endsWith('Semantics') ||
+        typeName.endsWith('KeepAlive') ||
+        (typeName.endsWith('Theme') && typeName != 'ThemeData')) {
+      return true;
+    }
     const plumbing = {
       'RepaintBoundary',
       'CustomPaint',

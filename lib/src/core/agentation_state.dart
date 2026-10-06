@@ -44,9 +44,12 @@ class AgentationState {
     this.hoveredResult,
     this.activeHierarchy,
     this.toolbarOffset = Offset.zero,
+    this.toolbarBounds,
     this.isToolbarMinimized = false,
     this.isFrozen = false,
     this.areCommentsVisible = true,
+    this.isSettingsOpen = false,
+    this.isLayoutModeOpen = false,
   });
 
   /// The current inspection mode.
@@ -70,6 +73,9 @@ class AgentationState {
   /// Current coordinate offset of the floating toolbar.
   final Offset toolbarOffset;
 
+  /// Current bounding box of the floating toolbar on screen.
+  final Rect? toolbarBounds;
+
   /// Whether the floating toolbar is collapsed.
   final bool isToolbarMinimized;
 
@@ -78,6 +84,12 @@ class AgentationState {
 
   /// Whether comments and annotation pins are displayed on the page.
   final bool areCommentsVisible;
+
+  /// Whether the settings panel is currently open.
+  final bool isSettingsOpen;
+
+  /// Whether layout mode / component palette is currently open.
+  final bool isLayoutModeOpen;
 
   /// Whether inspection is actively intercepting events.
   bool get isInspecting => mode == InspectionMode.inspecting;
@@ -97,9 +109,12 @@ class AgentationState {
     WidgetInspectionResult? Function()? hoveredResult,
     HierarchicalInspectionResult? Function()? activeHierarchy,
     Offset? toolbarOffset,
+    Rect? Function()? toolbarBounds,
     bool? isToolbarMinimized,
     bool? isFrozen,
     bool? areCommentsVisible,
+    bool? isSettingsOpen,
+    bool? isLayoutModeOpen,
   }) {
     return AgentationState(
       mode: mode ?? this.mode,
@@ -112,9 +127,13 @@ class AgentationState {
       activeHierarchy:
           activeHierarchy != null ? activeHierarchy() : this.activeHierarchy,
       toolbarOffset: toolbarOffset ?? this.toolbarOffset,
+      toolbarBounds:
+          toolbarBounds != null ? toolbarBounds() : this.toolbarBounds,
       isToolbarMinimized: isToolbarMinimized ?? this.isToolbarMinimized,
       isFrozen: isFrozen ?? this.isFrozen,
       areCommentsVisible: areCommentsVisible ?? this.areCommentsVisible,
+      isSettingsOpen: isSettingsOpen ?? this.isSettingsOpen,
+      isLayoutModeOpen: isLayoutModeOpen ?? this.isLayoutModeOpen,
     );
   }
 
@@ -129,9 +148,12 @@ class AgentationState {
         other.hoveredResult == hoveredResult &&
         other.activeHierarchy == activeHierarchy &&
         other.toolbarOffset == toolbarOffset &&
+        other.toolbarBounds == toolbarBounds &&
         other.isToolbarMinimized == isToolbarMinimized &&
         other.isFrozen == isFrozen &&
-        other.areCommentsVisible == areCommentsVisible;
+        other.areCommentsVisible == areCommentsVisible &&
+        other.isSettingsOpen == isSettingsOpen &&
+        other.isLayoutModeOpen == isLayoutModeOpen;
   }
 
   @override
@@ -143,8 +165,11 @@ class AgentationState {
         hoveredResult,
         activeHierarchy,
         toolbarOffset,
+        toolbarBounds,
         isToolbarMinimized,
         isFrozen,
         areCommentsVisible,
+        isSettingsOpen,
+        isLayoutModeOpen,
       );
 }

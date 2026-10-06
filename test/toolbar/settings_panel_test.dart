@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
+import 'package:flutter_agentation/src/core/package_version.dart';
 import 'package:flutter_agentation/src/models/marker_color.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
 import 'package:flutter_agentation/src/toolbar/settings_panel.dart';
@@ -20,46 +21,35 @@ void main() {
       controller.dispose();
     });
 
-    testWidgets('renders theme toggle, all 6 marker color swatches, and behavior switches',
+    testWidgets('renders theme toggle, all 7 marker color swatches, and behavior switches',
         (tester) async {
-      bool closed = false;
-
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: AgentationScope(
               controller: controller,
               child: SettingsPanel(
-                onClose: () => closed = true,
+                onClose: () {},
               ),
             ),
           ),
         ),
       );
+      await tester.pumpAndSettle();
 
-      // Verify title & close button
-      expect(find.text('Settings'), findsOneWidget);
-      expect(find.byIcon(Icons.close), findsOneWidget);
+      // Verify title & version dynamically from pubspec.yaml
+      expect(find.textContaining('Agentation'), findsOneWidget);
+      expect(find.textContaining('v${PackageVersion.current}'), findsOneWidget);
+      expect(find.byKey(const ValueKey('theme_toggle_button')), findsOneWidget);
 
-      // Verify Theme selector exists
-      expect(find.text('Dark'), findsOneWidget);
-      expect(find.text('Light'), findsOneWidget);
-
-      // Verify all 6 color swatches exist by tooltip or label
+      // Verify all 7 color swatches exist by tooltip or label
       for (final color in MarkerColor.values) {
         expect(find.byTooltip(color.label), findsOneWidget);
       }
 
       // Verify behavior toggles exist
-      expect(find.text('Clear after copy'), findsOneWidget);
+      expect(find.text('Clear on copy/send'), findsOneWidget);
       expect(find.text('Block page interactions'), findsOneWidget);
-
-      // Verify Automations sub-panel exists
-      expect(find.text('Automations & MCP Sync'), findsOneWidget);
-
-      // Verify close callback
-      await tester.tap(find.byIcon(Icons.close));
-      expect(closed, isTrue);
     });
 
     testWidgets('selecting marker color swatch updates controller settings', (tester) async {
@@ -107,14 +97,14 @@ void main() {
 
       expect(controller.settings.isDarkMode, isTrue);
 
-      // Tap Light mode toggle
-      await tester.tap(find.text('Light'));
+      // Tap Theme toggle button (Sun/Moon icon)
+      await tester.tap(find.byKey(const ValueKey('theme_toggle_button')));
       await tester.pumpAndSettle();
 
       expect(controller.settings.isDarkMode, isFalse);
 
-      // Tap Dark mode toggle
-      await tester.tap(find.text('Dark'));
+      // Tap Theme toggle button again
+      await tester.tap(find.byKey(const ValueKey('theme_toggle_button')));
       await tester.pumpAndSettle();
 
       expect(controller.settings.isDarkMode, isTrue);
@@ -152,7 +142,8 @@ void main() {
       expect(controller.settings.blockInteractions, isFalse);
     });
 
-    testWidgets('navigating to Manage MCP & Webhooks allows setting endpoint, webhook, and testing', (tester) async {
+    testWidgets('verifies clean Agentation settings layout, React components removed, and version matching pubspec.yaml',
+        (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -163,54 +154,68 @@ void main() {
           ),
         ),
       );
-
-      // 1. Tap Manage MCP & Webhooks tile
-      final manageTile = find.byKey(const ValueKey('manage_mcp_webhooks_tile'));
-      expect(manageTile, findsOneWidget);
-      await tester.tap(manageTile);
       await tester.pumpAndSettle();
 
-      // 2. Verify subpage controls are visible
-      expect(find.byKey(const ValueKey('mcp_endpoint_input')), findsOneWidget);
-      expect(find.byKey(const ValueKey('webhook_url_input')), findsOneWidget);
-      expect(find.byKey(const ValueKey('session_id_input')), findsOneWidget);
-      expect(find.byKey(const ValueKey('mcp_test_button')), findsOneWidget);
-      expect(find.byKey(const ValueKey('mcp_save_button')), findsOneWidget);
+      // Header displays dynamic version
+      expect(find.textContaining('Agentation'), findsOneWidget);
+      expect(find.textContaining('v${PackageVersion.current}'), findsOneWidget);
+      expect(find.byKey(const ValueKey('theme_toggle_button')), findsOneWidget);
 
-      // 3. Enter endpoint and webhook URL
-      await tester.enterText(
-        find.byKey(const ValueKey('mcp_endpoint_input')),
-        'http://localhost:4747',
-      );
-      await tester.enterText(
-        find.byKey(const ValueKey('webhook_url_input')),
-        'https://agent.test/webhook',
-      );
-      await tester.enterText(
-        find.byKey(const ValueKey('session_id_input')),
-        'sess_custom_99',
-      );
-      await tester.pump();
+      // Rows match specification
+      expect(find.text('Output Detail'), findsOneWidget);
+      expect(find.text('Standard'), findsOneWidget);
+      expect(find.text('Hide Until Restart'), findsOneWidget);
+      expect(find.text('Marker Color'), findsOneWidget);
+      expect(find.text('Clear on copy/send'), findsOneWidget);
+      expect(find.text('Block page interactions'), findsOneWidget);
 
-      // 4. Tap Save & Apply
-      await tester.tap(find.byKey(const ValueKey('mcp_save_button')));
+      // Verify React Components is removed (Flutter widgets always inspected by default)
+      expect(find.text('React Components'), findsNothing);
+
+      // Verify MCP & Webhook controls are completely removed
+      expect(find.text('Manage MCP & Webhooks'), findsNothing);
+      expect(find.text('Automations & MCP Sync'), findsNothing);
+      expect(find.byKey(const ValueKey('manage_mcp_webhooks_tile')), findsNothing);
+      expect(find.byKey(const ValueKey('mcp_endpoint_input')), findsNothing);
+    });
+
+    testWidgets('displays help popup tooltip on "?" icon tap or hover', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AgentationScope(
+              controller: controller,
+              child: SettingsPanel(onClose: () {}),
+            ),
+          ),
+        ),
+      );
       await tester.pumpAndSettle();
 
-      expect(controller.settings.mcpEndpoint, equals('http://localhost:4747'));
-      expect(controller.settings.webhookUrl, equals('https://agent.test/webhook'));
-      expect(controller.settings.sessionId, equals('sess_custom_99'));
-      expect(controller.syncClient, isNotNull);
-      expect(controller.syncClient!.endpoint, equals('http://localhost:4747'));
-      expect(controller.syncClient!.webhookUrl, equals('https://agent.test/webhook'));
-      expect(find.text('✓ Settings saved and active!'), findsOneWidget);
+      // Tooltip is initially not visible
+      expect(find.text('Controls how much detail is included in the copied output'), findsNothing);
 
-      // 5. Back button returns to main page
-      await tester.tap(find.byKey(const ValueKey('mcp_back_button')));
+      // Tap on Output Detail help icon
+      final outputDetailRow = find.ancestor(
+        of: find.text('Output Detail'),
+        matching: find.byType(Row),
+      ).first;
+
+      final helpIconFinder = find.descendant(
+        of: outputDetailRow,
+        matching: find.byType(GestureDetector),
+      ).first;
+
+      await tester.tap(helpIconFinder);
       await tester.pumpAndSettle();
 
-      expect(find.text('Manage MCP & Webhooks'), findsOneWidget);
-      expect(find.text('Settings'), findsOneWidget);
+      // Tooltip popup is visible
+      expect(find.text('Controls how much detail is included in the copied output'), findsOneWidget);
+
+      // Tapping again hides it
+      await tester.tap(helpIconFinder);
+      await tester.pumpAndSettle();
+      expect(find.text('Controls how much detail is included in the copied output'), findsNothing);
     });
   });
 }
-
