@@ -153,5 +153,297 @@ void main() {
       expect(controller.annotations, isEmpty);
       expect(closed, isTrue);
     });
+
+    testWidgets('AnnotationPopup code review box is collapsed by default and expands on tap',
+        (tester) async {
+      final controller = AgentationController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: AnnotationPopup(
+                    result: dummyResult,
+                    onClose: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify controller.popupBounds is populated
+      expect(controller.popupBounds, isNotNull);
+
+      // Verify header is present
+      expect(find.text('ElevatedButton'), findsOneWidget);
+
+      // Verify code review box is collapsed by default
+      expect(find.text('WIDGET CODE'), findsNothing);
+      expect(find.text('Copy'), findsNothing);
+
+      // Tap header to expand code review box
+      await tester.tap(find.text('ElevatedButton'));
+      await tester.pumpAndSettle();
+
+      // Verify WIDGET CODE label and Copy button are now present
+      expect(find.text('WIDGET CODE'), findsOneWidget);
+      expect(find.text('Copy'), findsOneWidget);
+      expect(find.textContaining('ElevatedButton('), findsWidgets);
+
+      // Tap Copy button
+      await tester.tap(find.text('Copy'));
+      await tester.pump();
+
+      // Verify visual feedback indicates Copied
+      expect(find.text('Copied'), findsOneWidget);
+
+      // Tap header again to collapse
+      await tester.tap(find.text('ElevatedButton'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('WIDGET CODE'), findsNothing);
+      expect(find.text('Copy'), findsNothing);
+    });
+
+    testWidgets('AnnotationPopup with initialCodeExpanded: true renders code box immediately',
+        (tester) async {
+      final controller = AgentationController();
+      const customCodeResult = WidgetInspectionResult(
+        identity: WidgetIdentity(
+          id: 'custom_widget',
+          widgetType: 'SpecialCard',
+        ),
+        bounds: WidgetBounds(x: 10, y: 10, width: 200, height: 100),
+        context: WidgetContext.empty(),
+        ancestors: ['SpecialCard'],
+        widgetCode: 'SpecialCard(\n  color: Colors.purple,\n)',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: AnnotationPopup(
+                    result: customCodeResult,
+                    initialCodeExpanded: true,
+                    onClose: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('WIDGET CODE'), findsOneWidget);
+      expect(find.textContaining('SpecialCard('), findsWidgets);
+      expect(find.textContaining('Colors.purple'), findsWidgets);
+    });
+
+    testWidgets('AnnotationPopup adapts responsively to narrow mobile screens and sets basic cursor',
+        (tester) async {
+      final controller = AgentationController();
+
+      tester.view.physicalSize = const Size(320, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: AnnotationPopup(
+                    result: dummyResult,
+                    onClose: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify popup renders within screen bounds without overflow
+      final mouseRegionFinder = find.byKey(const ValueKey('annotation_popup_card_mouse_region'));
+      expect(mouseRegionFinder, findsOneWidget);
+      final mouseRegion = tester.widget<MouseRegion>(mouseRegionFinder);
+      expect(mouseRegion.cursor, equals(SystemMouseCursors.basic));
+    });
+
+    testWidgets('AnnotationPopup positions dynamically near tapPosition rather than fixed at widget bounds',
+        (tester) async {
+      final controller = AgentationController();
+
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      // Wide container spanning 800px, user clicks at (550, 90)
+      final wideResult = WidgetInspectionResult(
+        identity: const WidgetIdentity(id: 'wide_card', widgetType: 'Card'),
+        bounds: const WidgetBounds(x: 50.0, y: 50.0, width: 800.0, height: 200.0),
+        context: const WidgetContext.empty(),
+        ancestors: const [],
+        tapPosition: const Offset(550.0, 90.0),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: AnnotationPopup(
+                    result: wideResult,
+                    onClose: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Pinned '+' badge must be at the tap coordinates (550, 90), NOT at the widget bottom-left (50, 250)
+      final plusCenter = tester.getCenter(find.byIcon(Icons.add));
+      expect(plusCenter.dx, closeTo(550.0, 1.0));
+      expect(plusCenter.dy, closeTo(90.0, 1.0));
+
+      // Card must be centered horizontally on tapPosition (550.0)
+      final cardRect = tester.getRect(find.byKey(const ValueKey('annotation_popup_card_mouse_region')));
+      expect(cardRect.center.dx, closeTo(550.0, 1.0));
+      expect(cardRect.top, greaterThanOrEqualTo(90.0 + 16.0));
+    });
+
+    testWidgets('dynamically resolves action colors and placeholders for AreaSelection, MultiSelect, and Rearrange',
+        (tester) async {
+      final controller = AgentationController();
+
+      // 1. AreaSelection: Green (#34C759) and "What should change in this area?"
+      const areaResult = WidgetInspectionResult(
+        identity: WidgetIdentity(id: 'area_1', widgetType: 'AreaSelection'),
+        bounds: WidgetBounds(x: 20, y: 30, width: 200, height: 100),
+        context: WidgetContext.empty(),
+        ancestors: [],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: AnnotationPopup(
+                    result: areaResult,
+                    onClose: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('What should change in this area?'), findsOneWidget);
+      expect(find.text('Area selection'), findsOneWidget);
+
+      // Verify Add button background is Green (#34C759)
+      final addButton = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+      expect(addButton.style?.backgroundColor?.resolve({}), equals(const Color(0xFF34C759)));
+
+      // 2. Standard element click uses vibrant Blue (#0088FF)
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: AnnotationPopup(
+                    result: dummyResult,
+                    onClose: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      var dynamicAddButton = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+      expect(dynamicAddButton.style?.backgroundColor?.resolve({}), equals(const Color(0xFF0088FF)));
+
+      // 3. Intent Selector: tapping Change, Bug, Suggestion dynamically updates colors
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: AnnotationPopup(
+                    result: dummyResult,
+                    showIntentSelector: true,
+                    onClose: () {},
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Initial intent is Suggestion -> Green (#34C759)
+      dynamicAddButton = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+      expect(dynamicAddButton.style?.backgroundColor?.resolve({}), equals(const Color(0xFF34C759)));
+
+      // Tap 'Change' -> updates button and active color to Yellow (#FFCC00)
+      await tester.tap(find.text('Change'));
+      await tester.pumpAndSettle();
+
+      dynamicAddButton = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+      expect(dynamicAddButton.style?.backgroundColor?.resolve({}), equals(const Color(0xFFFFCC00)));
+
+      // Tap 'Bug' -> updates button and active color to Red (#FF383C)
+      await tester.tap(find.text('Bug'));
+      await tester.pumpAndSettle();
+
+      dynamicAddButton = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+      expect(dynamicAddButton.style?.backgroundColor?.resolve({}), equals(const Color(0xFFFF383C)));
+
+      // Tap 'Suggestion' -> updates button and active color to Green (#34C759)
+      await tester.tap(find.text('Suggestion'));
+      await tester.pumpAndSettle();
+
+      dynamicAddButton = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+      expect(dynamicAddButton.style?.backgroundColor?.resolve({}), equals(const Color(0xFF34C759)));
+    });
   });
 }
+

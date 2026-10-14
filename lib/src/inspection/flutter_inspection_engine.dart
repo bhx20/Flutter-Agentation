@@ -7,6 +7,7 @@ import '../models/widget_context.dart';
 import '../models/widget_identity.dart';
 import '../models/widget_inspection_result.dart';
 import '../source_location/source_location_resolver.dart';
+import '../source_location/widget_code_resolver.dart';
 import '../source_location/widget_source_location.dart';
 import 'bounds_resolver.dart';
 import 'element_inspector.dart';
@@ -71,6 +72,13 @@ class FlutterInspectionEngine {
       return ref.target;
     }
     return null;
+  }
+
+  /// Clears internal RenderBox registry and element/source location caches across hot reload.
+  void clearCaches() {
+    _renderBoxRegistry.clear();
+    ElementInspector.clearCaches();
+    FlutterSourceLocationResolver.clearCache();
   }
 
   /// Inspects the visual Flutter widget under [globalPosition].
@@ -451,6 +459,16 @@ class FlutterInspectionEngine {
               const WidgetSourceLocation.unavailable())
           : const WidgetSourceLocation.unavailable();
 
+      // Resolve exact or canonical Flutter Dart widget code snippet
+      final widgetCode = WidgetCodeResolver.resolveWidgetCode(
+        element: meaningfulElement,
+        sourceLocation: sourceLocation,
+        widgetType: identity.widgetType,
+        text: text,
+        keyString: identity.keyString,
+        bounds: bounds,
+      );
+
       return WidgetInspectionResult(
         identity: identity,
         bounds: bounds,
@@ -468,6 +486,7 @@ class FlutterInspectionEngine {
         text: text,
         ancestors: ancestors,
         sourceLocation: sourceLocation,
+        widgetCode: widgetCode,
       );
     } catch (e, st) {
       AgentationLogger.error('Element inspection failed', e, st);

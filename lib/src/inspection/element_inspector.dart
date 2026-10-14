@@ -5,20 +5,31 @@ import '../core/agentation_logger.dart';
 /// Helper responsible for mapping Flutter [RenderObject]s to their owning [Element]s
 /// and identifying meaningful developer widgets.
 class ElementInspector {
-  static final Expando<Element> _roToElementCache = Expando<Element>();
-  static final Expando<Element> _meaningfulCache = Expando<Element>();
+  static Expando<Element> _roToElementCache = Expando<Element>();
+  static Expando<Element> _meaningfulCache = Expando<Element>();
+
+  /// Clears all element caches across hot reload, hot restart, and rebuilds,
+  /// breaking cyclic Expando references and preventing memory leaks.
+  static void clearCaches() {
+    _roToElementCache = Expando<Element>();
+    _meaningfulCache = Expando<Element>();
+  }
 
   /// Locates the owning [Element] for [renderObject].
   Element? findElementForRenderObject(
     RenderObject renderObject, {
     Element? rootElement,
   }) {
-    // 1. Try debugCreator in debug/profile builds
+    // Fast-path: detached render objects cannot be part of the active element tree
+    if (!renderObject.attached) return null;
+
+    // 1. Try debugCreator in debug/profile builds (instant O(1) without Expando memory cycles)
     final creator = renderObject.debugCreator;
     if (creator is DebugCreator) {
       final el = creator.element;
-      _roToElementCache[renderObject] = el;
-      return el;
+      if (el.mounted) {
+        return el;
+      }
     }
 
     // 2. Fast Expando cache lookup
@@ -27,19 +38,17 @@ class ElementInspector {
       return cached;
     }
 
-    // 3. Fallback: tree walk from rootElement with batch cache population
+    // 3. Fallback: targeted tree walk from rootElement
     final root = rootElement ?? WidgetsBinding.instance.rootElement;
-    if (root == null) return null;
+    if (root == null || !root.mounted) return null;
 
     Element? foundElement;
     void visitor(Element element) {
-      final ro = element.renderObject;
-      if (ro != null) {
-        _roToElementCache[ro] = element;
-      }
       if (foundElement != null) return;
+      final ro = element.renderObject;
       if (ro == renderObject) {
         foundElement = element;
+        _roToElementCache[renderObject] = element;
         return;
       }
       element.visitChildren(visitor);
@@ -60,6 +69,7 @@ class ElementInspector {
   /// Filters out low-level rendering or internal framework composition nodes
   /// (e.g. private `_RawGestureDetector`, internal `Focus`, internal `Semantics`, internal ink keys).
   Element findMeaningfulElement(Element element, {Element? rootElement}) {
+    if (!element.mounted) return element;
     final cached = _meaningfulCache[element];
     if (cached != null && cached.mounted) {
       return cached;
@@ -96,6 +106,12 @@ class ElementInspector {
         if (publicCandidate == null) {
           publicCandidate = current;
           isLeafPrimitive = _isFrameworkLeafPrimitive(typeName);
+        } else if (_isFrameworkLayoutWrapper(publicCandidate.widget.runtimeType.toString()) &&
+            !_isFrameworkWidget(typeName)) {
+          // Promote from generic framework container (e.g. Card, Container, ColoredBox, Material)
+          // to developer-authored custom widget (e.g. WidgetCard, ProductCard).
+          publicCandidate = current;
+          isLeafPrimitive = false;
         } else if (isLeafPrimitive) {
           // If we started on a primitive leaf (like Text or Icon),
           // and we encounter an enclosing custom developer widget (like AppHeadingText)
@@ -126,6 +142,21 @@ class ElementInspector {
     final resolved = publicCandidate ?? element;
     _meaningfulCache[element] = resolved;
     return resolved;
+  }
+
+  static bool _isFrameworkLayoutWrapper(String typeName) {
+    const wrappers = {
+      'Card',
+      'Container',
+      'Material',
+      'ColoredBox',
+      'DecoratedBox',
+      'Padding',
+      'SizedBox',
+      'Center',
+      'Align',
+    };
+    return wrappers.contains(typeName);
   }
 
   static bool _isFrameworkLeafPrimitive(String typeName) {
@@ -340,6 +371,7 @@ class ElementInspector {
       'InkWell',
       'InkResponse',
       'MouseRegion',
+      'ScrollNotificationObserver',
       'InheritedWidget',
     };
     return plumbing.contains(typeName);
@@ -364,6 +396,7 @@ class ElementInspector {
       'ClipRect',
       'ClipRRect',
       'PhysicalModel',
+      'AnimatedPhysicalModel',
       'PhysicalShape',
       'DecoratedBox',
       'ColoredBox',
@@ -414,6 +447,7 @@ class ElementInspector {
       'Navigator',
       'SafeArea',
       'MediaQuery',
+      'ScrollNotificationObserver',
     };
     return ignored.contains(typeName);
   }

@@ -1,5 +1,5 @@
-import 'dart:convert';
-import 'dart:io';
+import 'package_version_file_reader_stub.dart'
+    if (dart.library.io) 'package_version_file_reader_io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -60,9 +60,8 @@ class PackageVersion {
           '../pubspec.yaml',
         ];
         for (final path in candidates) {
-          final file = File(path);
-          if (file.existsSync()) {
-            final content = file.readAsStringSync(encoding: utf8);
+          final content = readPubspecYamlFromFile(path);
+          if (content != null && content.isNotEmpty) {
             final parsed = parseYamlVersion(content);
             if (parsed != null && parsed.isNotEmpty) {
               _version = parsed;

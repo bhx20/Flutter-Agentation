@@ -129,5 +129,40 @@ void main() {
         isTrue,
       );
     });
+
+    testWidgets('findMeaningfulElement promotes framework Card to custom developer widget', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: TestCustomCard(
+              title: 'Card Header',
+            ),
+          ),
+        ),
+      );
+
+      final cardFinder = find.byType(Card);
+      expect(cardFinder, findsOneWidget);
+
+      final cardElement = tester.element(cardFinder);
+      final meaningful = inspector.findMeaningfulElement(cardElement);
+
+      expect(meaningful.widget.runtimeType.toString(), equals('TestCustomCard'));
+    });
   });
+}
+
+class TestCustomCard extends StatelessWidget {
+  final String title;
+  const TestCustomCard({super.key, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Text(title),
+      ),
+    );
+  }
 }

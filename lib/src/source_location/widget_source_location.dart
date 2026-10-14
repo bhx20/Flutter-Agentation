@@ -9,6 +9,9 @@ class WidgetSourceLocation {
   /// Project-relative file path (e.g. 'lib/features/auth/login_page.dart').
   final String? filePath;
 
+  /// Raw absolute file path or URI from creation location (e.g. 'file:///D:/app/lib/page.dart').
+  final String? rawPath;
+
   /// 1-based source code line number where the widget was constructed.
   final int? line;
 
@@ -18,6 +21,7 @@ class WidgetSourceLocation {
   const WidgetSourceLocation({
     this.fileName,
     this.filePath,
+    this.rawPath,
     this.line,
     this.column,
   });
@@ -26,6 +30,7 @@ class WidgetSourceLocation {
   const WidgetSourceLocation.unavailable()
       : fileName = null,
         filePath = null,
+        rawPath = null,
         line = null,
         column = null;
 
@@ -45,6 +50,7 @@ class WidgetSourceLocation {
   Map<String, dynamic> toJson() => {
         'fileName': fileName,
         'filePath': filePath,
+        if (rawPath != null) 'rawPath': rawPath,
         'line': line,
         'column': column,
       };
@@ -54,6 +60,7 @@ class WidgetSourceLocation {
     return WidgetSourceLocation(
       fileName: json['fileName'] as String?,
       filePath: json['filePath'] as String?,
+      rawPath: json['rawPath'] as String?,
       line: json['line'] as int?,
       column: json['column'] as int?,
     );
@@ -66,11 +73,12 @@ class WidgetSourceLocation {
           runtimeType == other.runtimeType &&
           fileName == other.fileName &&
           filePath == other.filePath &&
+          rawPath == other.rawPath &&
           line == other.line &&
           column == other.column;
 
   @override
-  int get hashCode => Object.hash(fileName, filePath, line, column);
+  int get hashCode => Object.hash(fileName, filePath, rawPath, line, column);
 
   @override
   String toString() =>

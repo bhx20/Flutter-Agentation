@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import '../core/agentation_controller.dart';
 import '../core/agentation_keymap.dart';
 import '../core/agentation_logger.dart';
@@ -88,10 +89,34 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   Offset? _lastHoverPosition;
   DateTime? _lastHoverTime;
   Timer? _hoverThrottleTimer;
+  final ValueNotifier<Offset?> _hoverPositionNotifier = ValueNotifier<Offset?>(null);
+  final ValueNotifier<String?> _hoveredAnnotationIdNotifier = ValueNotifier<String?>(null);
   Offset? _pointerDownPosition;
   Offset? _lastDragPosition;
   bool _isDraggingToScroll = false;
+  bool _isMarqueeDragging = false;
   ScrollPosition? _dragScrollPosition;
+
+  bool _isTextWidget(WidgetInspectionResult? res) {
+    if (res == null) return false;
+    final type = res.identity.widgetType;
+    return type == 'Text' ||
+        type == 'RichText' ||
+        type == 'SelectableText' ||
+        type == 'EditableText' ||
+        type == 'TextField' ||
+        type == 'TextFormField';
+  }
+
+  MouseCursor get _currentInspectionCursor {
+    if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) {
+      return MouseCursor.defer;
+    }
+    if (_isTextWidget(widget.controller.hoveredResult)) {
+      return SystemMouseCursors.text;
+    }
+    return SystemMouseCursors.precise;
+  }
 
   ScrollPosition? _findScrollPositionAt(
     Offset position, {
@@ -143,21 +168,47 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     return null;
   }
 
+  ScrollPosition? _cachedPrimaryScrollPosition;
+  bool _hasSearchedForScrollPosition = false;
+
+  ScrollPosition? _getPrimaryScrollPosition({Axis axis = Axis.vertical}) {
+    if (_cachedPrimaryScrollPosition != null &&
+        _cachedPrimaryScrollPosition!.axis == axis) {
+      try {
+        if (_cachedPrimaryScrollPosition!.hasPixels) {
+          return _cachedPrimaryScrollPosition;
+        }
+      } catch (_) {
+        _cachedPrimaryScrollPosition = null;
+      }
+    }
+
+    if (_hasSearchedForScrollPosition) {
+      return _cachedPrimaryScrollPosition;
+    }
+
+    _hasSearchedForScrollPosition = true;
+    _cachedPrimaryScrollPosition = _findAnyScrollPosition(axis: axis);
+    return _cachedPrimaryScrollPosition;
+  }
+
   ScrollPosition? _findAnyScrollPosition({Axis axis = Axis.vertical}) {
     ScrollPosition? found;
     final root = _hostAppKey.currentContext as Element?;
-    if (root != null) {
+    if (root != null && root.mounted) {
       void search(Element el) {
         if (found != null) return;
         final w = el.widget;
         if (w is Scrollable) {
-          final state = (el as StatefulElement).state;
-          if (state is ScrollableState) {
-            if (state.position.axis == axis) {
-              found = state.position;
-              return;
+          try {
+            final state = (el as StatefulElement).state;
+            if (state is ScrollableState) {
+              if (state.position.axis == axis) {
+                found = state.position;
+                return;
+              }
             }
-          }
+          } catch (_) {}
         }
         el.visitChildren(search);
       }
@@ -181,19 +232,15 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   }
 
   Rect? _findViewportForRenderBox(RenderBox renderBox) {
+    if (!renderBox.attached) return null;
     try {
-      final element = widget.controller.engine.elementInspector.findElementForRenderObject(
-        renderBox,
-        rootElement: _hostAppKey.currentContext as Element?,
-      );
-      if (element != null) {
-        final scrollable = Scrollable.maybeOf(element);
-        if (scrollable != null) {
-          final sBox = scrollable.context.findRenderObject();
-          if (sBox is RenderBox && sBox.attached && sBox.hasSize) {
-            return sBox.localToGlobal(Offset.zero) & sBox.size;
-          }
+      // Direct render tree walk: locate RenderViewportBase in microseconds without heavy element tree lookups
+      RenderObject? cur = renderBox.parent;
+      while (cur != null) {
+        if (cur is RenderViewportBase && cur.attached && cur.hasSize) {
+          return cur.localToGlobal(Offset.zero) & cur.size;
         }
+        cur = cur.parent;
       }
     } catch (_) {}
     return null;
@@ -222,23 +269,36 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     }
 
     RenderBox? targetBox;
-    ScrollableState? scrollable;
+    ScrollPosition? scrollPos;
     try {
       targetBox = widget.controller.engine.getRenderBox(annotation.targetWidget.id);
       if (targetBox != null && targetBox.attached) {
-        final element = widget.controller.engine.elementInspector.findElementForRenderObject(
-          targetBox,
-          rootElement: _hostAppKey.currentContext as Element?,
-        );
-        if (element != null) {
-          scrollable = Scrollable.maybeOf(element);
+        // Fast-path: locate viewport offset directly in render tree in microseconds
+        RenderObject? cur = targetBox.parent;
+        while (cur != null) {
+          if (cur is RenderViewportBase) {
+            final offset = cur.offset;
+            if (offset is ScrollPosition) {
+              scrollPos = offset;
+              break;
+            }
+          }
+          cur = cur.parent;
+        }
+        if (scrollPos == null) {
+          final element = widget.controller.engine.elementInspector.findElementForRenderObject(
+            targetBox,
+            rootElement: _hostAppKey.currentContext as Element?,
+          );
+          if (element != null && element.mounted) {
+            final scrollable = Scrollable.maybeOf(element);
+            scrollPos = scrollable?.position;
+          }
         }
       }
     } catch (_) {}
 
-    final scrollPos = scrollable?.position ??
-        _findScrollPositionAt(Offset(annotation.bounds.x, annotation.bounds.y)) ??
-        _findAnyScrollPosition();
+    scrollPos ??= _getPrimaryScrollPosition();
 
     double currentX = annotation.bounds.x;
     double currentY = annotation.bounds.y;
@@ -302,23 +362,36 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     if (result.context.isFixed) return result;
 
     RenderBox? targetBox;
-    ScrollableState? scrollable;
+    ScrollPosition? scrollPos;
     try {
       targetBox = widget.controller.engine.getRenderBox(result.identity.id);
       if (targetBox != null && targetBox.attached) {
-        final element = widget.controller.engine.elementInspector.findElementForRenderObject(
-          targetBox,
-          rootElement: _hostAppKey.currentContext as Element?,
-        );
-        if (element != null) {
-          scrollable = Scrollable.maybeOf(element);
+        // Fast-path: locate viewport offset directly in render tree in microseconds
+        RenderObject? cur = targetBox.parent;
+        while (cur != null) {
+          if (cur is RenderViewportBase) {
+            final offset = cur.offset;
+            if (offset is ScrollPosition) {
+              scrollPos = offset;
+              break;
+            }
+          }
+          cur = cur.parent;
+        }
+        if (scrollPos == null) {
+          final element = widget.controller.engine.elementInspector.findElementForRenderObject(
+            targetBox,
+            rootElement: _hostAppKey.currentContext as Element?,
+          );
+          if (element != null && element.mounted) {
+            final scrollable = Scrollable.maybeOf(element);
+            scrollPos = scrollable?.position;
+          }
         }
       }
     } catch (_) {}
 
-    final scrollPos = scrollable?.position ??
-        _findScrollPositionAt(Offset(result.bounds.x, result.bounds.y)) ??
-        _findAnyScrollPosition();
+    scrollPos ??= _getPrimaryScrollPosition();
 
     double currentX = result.bounds.x;
     double currentY = result.bounds.y;
@@ -368,6 +441,24 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       }
     }
 
+    Offset? liveTapPosition;
+    if (result.tapPosition != null) {
+      if (scrollPos != null) {
+        final deltaY = scrollPos.axis == Axis.vertical
+            ? scrollPos.pixels - (result.context.scrollOffset ?? 0.0)
+            : 0.0;
+        final deltaX = scrollPos.axis == Axis.horizontal
+            ? scrollPos.pixels - (result.context.scrollOffset ?? 0.0)
+            : 0.0;
+        liveTapPosition = Offset(
+          result.tapPosition!.dx - deltaX,
+          result.tapPosition!.dy - deltaY,
+        );
+      } else {
+        liveTapPosition = result.tapPosition;
+      }
+    }
+
     return WidgetInspectionResult(
       identity: result.identity,
       bounds: WidgetBounds(
@@ -382,13 +473,15 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       ancestors: result.ancestors,
       sourceLocation: result.sourceLocation,
       metadata: result.metadata,
+      widgetCode: result.widgetCode,
       isAvailable: true,
+      tapPosition: liveTapPosition ?? result.tapPosition,
     );
   }
 
   void _handlePointerSignal(PointerSignalEvent event) {
     if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) return;
-    if (_isEventOnToolbar(event.position)) return;
+    if (_isEventOnInteractiveOverlay(event.position)) return;
     if (event is PointerScrollEvent) {
       final axis = event.scrollDelta.dx.abs() > event.scrollDelta.dy.abs()
           ? Axis.horizontal
@@ -414,7 +507,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
   void _handlePointerPanZoomUpdate(PointerPanZoomUpdateEvent event) {
     if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) return;
-    if (_isEventOnToolbar(event.position)) return;
+    if (_isEventOnInteractiveOverlay(event.position)) return;
     final axis = event.pan.dx.abs() > event.pan.dy.abs()
         ? Axis.horizontal
         : Axis.vertical;
@@ -438,6 +531,8 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
   void _handlePointerCancel(PointerCancelEvent event) {
     _isDraggingToScroll = false;
+    _isMarqueeDragging = false;
+    _activeMarqueeBoundsNotifier.value = null;
     _pointerDownPosition = null;
     _lastDragPosition = null;
     _dragScrollPosition = null;
@@ -446,14 +541,36 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   @override
   void dispose() {
     _hoverThrottleTimer?.cancel();
+    _hoverPositionNotifier.dispose();
     _drawingNotifier.dispose();
     _activeMarqueeBoundsNotifier.dispose();
     _showComponentPaletteNotifier.dispose();
     _selectedTemplateNotifier.dispose();
     _activeRearrangeTargetNotifier.dispose();
     _activeRearrangeBoundsNotifier.dispose();
+    _hoveredAnnotationIdNotifier.dispose();
     _scrollVersion.dispose();
     super.dispose();
+  }
+
+  @override
+  void reassemble() {
+    super.reassemble();
+    _hoverThrottleTimer?.cancel();
+    _lastHoverPosition = null;
+    _lastHoverTime = null;
+    _hoverPositionNotifier.value = null;
+    _hoveredAnnotationIdNotifier.value = null;
+    _cachedPrimaryScrollPosition = null;
+    _hasSearchedForScrollPosition = false;
+    _dragScrollPosition = null;
+    _isDraggingToScroll = false;
+    _isMarqueeDragging = false;
+    _activeMarqueeBoundsNotifier.value = null;
+    widget.controller.clearCaches();
+    if (widget.controller.hoveredResult != null) {
+      widget.controller.setHoveredResult(null);
+    }
   }
 
   @override
@@ -474,9 +591,16 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     return bounds.inflate(4.0).contains(position);
   }
 
+  bool _isEventOnInteractiveOverlay(Offset position) {
+    if (_isEventOnToolbar(position)) return true;
+    final pBounds = widget.controller.popupBounds;
+    if (pBounds != null && pBounds.inflate(8.0).contains(position)) return true;
+    return false;
+  }
+
   void _handlePointerDown(PointerDownEvent event) {
     if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) return;
-    if (_isEventOnToolbar(event.position)) return;
+    if (_isEventOnInteractiveOverlay(event.position)) return;
 
     final toolMode = widget.controller.toolMode;
 
@@ -525,15 +649,17 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       return;
     }
 
-    // Pointer & MultiSelect modes: prepare for potential drag-to-scroll or tap-selection
+    // Pointer & MultiSelect modes: prepare for potential drag-to-select, drag-to-scroll, or tap-selection
     _pointerDownPosition = event.position;
     _lastDragPosition = event.position;
     _isDraggingToScroll = false;
+    _isMarqueeDragging = false;
     _dragScrollPosition = _findScrollPositionAt(event.position) ?? _findAnyScrollPosition();
   }
 
   void _handlePointerMove(PointerMoveEvent event) {
     if (!widget.controller.isInspecting) return;
+    if (_isEventOnInteractiveOverlay(event.position)) return;
 
     final toolMode = widget.controller.toolMode;
 
@@ -557,40 +683,57 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       return;
     }
 
-    // Drag-to-scroll for pointer and multiSelect modes
-    if (_pointerDownPosition != null && _dragScrollPosition != null) {
+    // Drag handling for pointer and multiSelect modes:
+    // Mouse drag initiates area marquee selection (matching agentation-main desktop/web flow).
+    // Touch drag initiates natural list scrolling (preserving mobile scroll tests).
+    if (_pointerDownPosition != null) {
       final totalDelta = (event.position - _pointerDownPosition!).distance;
-      if (!_isDraggingToScroll && totalDelta > 8.0) {
-        _isDraggingToScroll = true;
-      }
 
-      if (_isDraggingToScroll && _lastDragPosition != null) {
-        final delta = _dragScrollPosition!.axis == Axis.horizontal
-            ? event.position.dx - _lastDragPosition!.dx
-            : event.position.dy - _lastDragPosition!.dy;
-        _lastDragPosition = event.position;
-        if (delta != 0) {
-          final canScroll = delta > 0
-              ? _dragScrollPosition!.pixels > _dragScrollPosition!.minScrollExtent
-              : _dragScrollPosition!.pixels < _dragScrollPosition!.maxScrollExtent;
-          if (!canScroll) {
-            final enclosing = _findScrollPositionAt(
-              event.position,
-              axis: _dragScrollPosition!.axis,
-              delta: -delta,
-            );
-            if (enclosing != null) {
-              _dragScrollPosition = enclosing;
-            }
-          }
-          final target = (_dragScrollPosition!.pixels - delta).clamp(
-            _dragScrollPosition!.minScrollExtent,
-            _dragScrollPosition!.maxScrollExtent,
-          );
-          _dragScrollPosition!.jumpTo(target);
-          _schedulePostFrameScrollUpdate();
+      if (event.kind == PointerDeviceKind.mouse) {
+        if (!_isMarqueeDragging && totalDelta > 8.0) {
+          _isMarqueeDragging = true;
         }
-        return;
+        if (_isMarqueeDragging) {
+          final left = math.min(_pointerDownPosition!.dx, event.position.dx);
+          final top = math.min(_pointerDownPosition!.dy, event.position.dy);
+          final width = (event.position.dx - _pointerDownPosition!.dx).abs();
+          final height = (event.position.dy - _pointerDownPosition!.dy).abs();
+          _activeMarqueeBoundsNotifier.value = WidgetBounds(x: left, y: top, width: width, height: height);
+          return;
+        }
+      } else if (_dragScrollPosition != null) {
+        if (!_isDraggingToScroll && totalDelta > 8.0) {
+          _isDraggingToScroll = true;
+        }
+
+        if (_isDraggingToScroll && _lastDragPosition != null) {
+          final delta = _dragScrollPosition!.axis == Axis.horizontal
+              ? event.position.dx - _lastDragPosition!.dx
+              : event.position.dy - _lastDragPosition!.dy;
+          _lastDragPosition = event.position;
+          if (delta != 0) {
+            final canScroll = delta > 0
+                ? _dragScrollPosition!.pixels > _dragScrollPosition!.minScrollExtent
+                : _dragScrollPosition!.pixels < _dragScrollPosition!.maxScrollExtent;
+            if (!canScroll) {
+              final enclosing = _findScrollPositionAt(
+                event.position,
+                axis: _dragScrollPosition!.axis,
+                delta: -delta,
+              );
+              if (enclosing != null) {
+                _dragScrollPosition = enclosing;
+              }
+            }
+            final target = (_dragScrollPosition!.pixels - delta).clamp(
+              _dragScrollPosition!.minScrollExtent,
+              _dragScrollPosition!.maxScrollExtent,
+            );
+            _dragScrollPosition!.jumpTo(target);
+            _schedulePostFrameScrollUpdate();
+          }
+          return;
+        }
       }
     }
   }
@@ -684,7 +827,37 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     }
 
     // Pointer and MultiSelect modes:
-    // If this was a scroll drag, finish scrolling without selecting
+    // If this was a marquee drag selection, finalize and select the area
+    if (_isMarqueeDragging) {
+      final completed = _activeMarqueeBoundsNotifier.value;
+      _activeMarqueeBoundsNotifier.value = null;
+      _isMarqueeDragging = false;
+      _pointerDownPosition = null;
+      _lastDragPosition = null;
+      _dragScrollPosition = null;
+
+      if (completed != null && completed.width > 20.0 && completed.height > 20.0) {
+        final scrollPos = _findScrollPositionAt(Offset(completed.x, completed.y)) ?? _findAnyScrollPosition();
+        final areaResult = WidgetInspectionResult(
+          identity: WidgetIdentity(
+            id: 'area_${DateTime.now().millisecondsSinceEpoch}',
+            widgetType: 'AreaSelection',
+          ),
+          bounds: completed,
+          context: WidgetContext(
+            isFixed: scrollPos == null,
+            scrollOffset: scrollPos?.pixels,
+            scrollAxis: scrollPos?.axis.name,
+          ),
+          ancestors: const [],
+        );
+        widget.controller.selectResult(areaResult);
+        widget.onWidgetSelected?.call(areaResult);
+        return;
+      }
+    }
+
+    // If this was a touch scroll drag, finish scrolling without selecting
     if (_isDraggingToScroll) {
       _isDraggingToScroll = false;
       _pointerDownPosition = null;
@@ -697,7 +870,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     _lastDragPosition = null;
     _dragScrollPosition = null;
 
-    if (_isEventOnToolbar(event.position)) return;
+    if (_isEventOnInteractiveOverlay(event.position)) return;
 
     // Direct tap selection
     try {
@@ -706,7 +879,10 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
         rootRenderObject: _hostRenderObject,
         rootElement: _hostAppKey.currentContext as Element?,
       );
-      final primary = hierarchy.primaryTarget;
+      final rawPrimary = hierarchy.primaryTarget;
+      final primary = rawPrimary.isAvailable
+          ? rawPrimary.copyWith(tapPosition: event.position)
+          : rawPrimary;
 
       if (toolMode == AnnotationToolMode.multiSelect) {
         if (primary.isAvailable) {
@@ -728,9 +904,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
   void _handlePointerHover(PointerHoverEvent event) {
     if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) return;
-    if (_isEventOnToolbar(event.position)) {
+    _hoverPositionNotifier.value = event.position;
+    if (_isEventOnInteractiveOverlay(event.position)) {
       _hoverThrottleTimer?.cancel();
       _lastHoverPosition = null;
+      _hoverPositionNotifier.value = null;
       if (widget.controller.hoveredResult != null) {
         widget.controller.setHoveredResult(null);
       }
@@ -743,12 +921,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     }
 
     final currentHover = widget.controller.hoveredResult;
-    // Fast path: if the cursor is still inside the current hovered widget bounds
-    // and hasn't moved substantially (< 4px), skip costly tree re-inspection.
+    // Fast path: if the cursor is still inside the current hovered widget bounds,
+    // skip costly tree re-inspection. The cursor badge position notifier already
+    // updates smoothly at 120 FPS.
     if (currentHover != null &&
-        _lastHoverPosition != null &&
-        (event.position - _lastHoverPosition!).distanceSquared < 16.0 &&
-        currentHover.bounds.toRect().inflate(4.0).contains(event.position)) {
+        currentHover.bounds.toRect().inflate(2.0).contains(event.position)) {
+      _lastHoverPosition = event.position;
       return;
     }
 
@@ -829,6 +1007,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                   controller: widget.controller,
                   child: NotificationListener<ScrollNotification>(
                     onNotification: (notification) {
+                      final metrics = notification.metrics;
+                      if (metrics is ScrollPosition) {
+                        _cachedPrimaryScrollPosition = metrics;
+                        _hasSearchedForScrollPosition = true;
+                      }
                       if (notification is ScrollUpdateNotification ||
                           notification is OverscrollNotification ||
                           notification is ScrollEndNotification ||
@@ -837,7 +1020,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                         if (notification is ScrollUpdateNotification &&
                             _lastHoverPosition != null &&
                             widget.controller.isInspecting) {
-                          _executeHoverInspection(_lastHoverPosition!);
+                          _hoverThrottleTimer?.cancel();
+                          _hoverThrottleTimer = Timer(const Duration(milliseconds: 16), () {
+                            if (mounted && widget.controller.isInspecting && _lastHoverPosition != null) {
+                              _executeHoverInspection(_lastHoverPosition!);
+                            }
+                          });
                         }
                       }
                       return false;
@@ -853,9 +1041,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
               child: IgnorePointer(
                 ignoring: !isInspecting || !settings.blockInteractions,
                 child: MouseRegion(
+                  cursor: _currentInspectionCursor,
                   onExit: (_) {
                     _hoverThrottleTimer?.cancel();
                     _lastHoverPosition = null;
+                    _hoverPositionNotifier.value = null;
                     widget.controller.setHoveredResult(null);
                   },
                   child: Listener(
@@ -892,7 +1082,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                 },
               ),
 
-            // In-flight Area marquee drag highlight
+            // In-flight Area marquee drag highlight (green theme matching agentation-main)
             if (isInspecting)
               ValueListenableBuilder<WidgetBounds?>(
                 valueListenable: _activeMarqueeBoundsNotifier,
@@ -906,10 +1096,10 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                     child: IgnorePointer(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: markerColor.withValues(alpha: 0.15),
+                          color: const Color(0xFF34C759).withValues(alpha: 0.08),
                           border: Border.all(
-                            color: markerColor,
-                            width: 1.5,
+                            color: const Color(0xFF34C759).withValues(alpha: 0.6),
+                            width: 2.0,
                           ),
                           borderRadius: BorderRadius.circular(4.0),
                         ),
@@ -923,15 +1113,65 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
             if (isInspecting &&
                 toolMode == AnnotationToolMode.pointer &&
                 widget.controller.hoveredResult != null &&
-                widget.controller.hoveredResult?.identity.id != widget.controller.selectedResult?.identity.id)
+                widget.controller.hoveredResult?.identity.id != widget.controller.selectedResult?.identity.id) ...[
               RepaintBoundary(
                 key: const ValueKey('agentation_hover_highlight'),
                 child: WidgetHighlight(
                   result: widget.controller.hoveredResult,
                   style: effectiveHighlightStyle,
                   isHover: true,
+                  showBadge: false, // Replaced by the floating cursor-following badge
                 ),
               ),
+              // Floating cursor-following badge (matching agentation-main HoverTooltip)
+              ValueListenableBuilder<Offset?>(
+                valueListenable: _hoverPositionNotifier,
+                builder: (context, hoverPos, _) {
+                  if (hoverPos == null || _isMarqueeDragging) return const SizedBox.shrink();
+                  final screenSize = MediaQuery.of(context).size;
+                  final hovered = widget.controller.hoveredResult!;
+                  final label = hovered.identity.widgetType;
+                  final left = math.max(8.0, math.min(hoverPos.dx, screenSize.width - 160.0));
+                  final preferredTop = hoverPos.dy - 28.0 - 8.0;
+                  final top = math.max(8.0, math.min(preferredTop, screenSize.height - 36.0));
+
+                  return Positioned(
+                    left: left,
+                    top: top,
+                    child: IgnorePointer(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7.5, vertical: 3.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xE6000000), // rgba(0, 0, 0, 0.85)
+                          borderRadius: BorderRadius.circular(3.5),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            width: 1.0,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x33000000),
+                              blurRadius: 4.0,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11.0,
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.none,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
 
             // Dynamic scroll-aware layers: selection highlight, popup, markers, detail card
             ValueListenableBuilder<int>(
@@ -943,16 +1183,29 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                   fit: StackFit.expand,
                   children: [
                     // Active selected widget highlight
-                    if (!widget.controller.isInactive && liveSelected != null)
-                      RepaintBoundary(
-                        key: const ValueKey('agentation_selected_highlight'),
-                        child: WidgetHighlight(
-                          result: liveSelected,
-                          style: effectiveHighlightStyle,
-                          isHover: false,
-                          showBadge: false,
-                        ),
-                      ),
+                    if (!widget.controller.isInactive && liveSelected != null) ...[
+                      () {
+                        final isAreaSelection = liveSelected.identity.widgetType == 'AreaSelection';
+                        final selectionStyle = isAreaSelection
+                            ? HighlightStyle(
+                                strokeColor: const Color(0xFF34C759),
+                                fillColor: const Color(0xFF34C759).withValues(alpha: 0.08),
+                                strokeWidth: 2.0,
+                                borderRadius: 4.0,
+                              )
+                            : effectiveHighlightStyle;
+
+                        return RepaintBoundary(
+                          key: const ValueKey('agentation_selected_highlight'),
+                          child: WidgetHighlight(
+                            result: liveSelected,
+                            style: selectionStyle,
+                            isHover: false,
+                            showBadge: false,
+                          ),
+                        );
+                      }(),
+                    ],
 
                     // Multi-selected items highlights
                     if (isInspecting && toolMode == AnnotationToolMode.multiSelect)
@@ -979,43 +1232,135 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                           child: AnnotationPopup(
                             key: ValueKey(liveSelected.identity.id),
                             result: liveSelected,
+                            accentColor: (liveSelected.identity.widgetType == 'AreaSelection' ||
+                                    toolMode == AnnotationToolMode.area ||
+                                    widget.controller.multiSelection.length > 1)
+                                ? const Color(0xFF34C759)
+                                : null,
                             onClose: widget.controller.clearSelection,
                           ),
                         ),
                       ),
 
-                    // Numbered spatial annotation markers
+                    // Numbered spatial annotation markers, hover preview tooltip, and edit dialog
                     if (widget.controller.areCommentsVisible)
-                      for (int i = 0; i < widget.controller.annotations.length; i++) ...[
-                        () {
-                          final ann = widget.controller.annotations[i];
-                          final currentBounds = _resolveCurrentBounds(ann);
-                          if (currentBounds == null) return const SizedBox.shrink();
-                          return AnnotationMarker(
-                            key: ValueKey('agentation_marker_${ann.id}'),
-                            index: i + 1,
-                            annotation: ann,
-                            boundsOverride: currentBounds,
-                            accentColor: markerColor,
-                            isSelected: widget.controller.activeAnnotation?.id == ann.id,
-                            onTap: () => widget.controller.viewAnnotation(ann),
-                          );
-                        }(),
-                      ],
+                      ValueListenableBuilder<String?>(
+                        valueListenable: _hoveredAnnotationIdNotifier,
+                        builder: (context, hoveredId, _) {
+                          return Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              // 1. Highlight outline around the hovered annotation element (matching Screenshot 1)
+                              if (hoveredId != null && widget.controller.activeAnnotation == null)
+                                ...(() {
+                                  final hoveredAnn = widget.controller.annotations
+                                      .where((a) => a.id == hoveredId)
+                                      .firstOrNull;
+                                  if (hoveredAnn == null) return <Widget>[];
+                                  final hoveredBounds = _resolveCurrentBounds(hoveredAnn);
+                                  if (hoveredBounds == null) return <Widget>[];
+                                  return <Widget>[
+                                    Positioned(
+                                      left: hoveredBounds.x,
+                                      top: hoveredBounds.y,
+                                      width: hoveredBounds.width,
+                                      height: hoveredBounds.height,
+                                      child: IgnorePointer(
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF0088FF).withValues(alpha: 0.05),
+                                            border: Border.all(
+                                              color: const Color(0xFF0088FF).withValues(alpha: 0.75),
+                                              width: 1.5,
+                                            ),
+                                            borderRadius: BorderRadius.circular(4.0),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ];
+                                })(),
 
-                    // Annotation detail card when a marker is clicked
+                              // 2. The markers
+                              for (int i = 0; i < widget.controller.annotations.length; i++) ...[
+                                () {
+                                  final ann = widget.controller.annotations[i];
+                                  final currentBounds = _resolveCurrentBounds(ann);
+                                  if (currentBounds == null) return const SizedBox.shrink();
+                                  final isArea = ann.targetWidget.widgetType == 'AreaSelection' ||
+                                      ann.isMultiSelect;
+                                  final effectiveMarkerAccent = isArea
+                                      ? const Color(0xFF34C759)
+                                      : const Color(0xFF0088FF);
+                                  final isHovered = hoveredId == ann.id;
+
+                                  return AnnotationMarker(
+                                    key: ValueKey('agentation_marker_${ann.id}'),
+                                    index: i + 1,
+                                    annotation: ann,
+                                    boundsOverride: currentBounds,
+                                    accentColor: effectiveMarkerAccent,
+                                    isSelected: widget.controller.activeAnnotation?.id == ann.id,
+                                    isHovered: isHovered,
+                                    onHoverChanged: (hovering) {
+                                      if (hovering) {
+                                        _hoveredAnnotationIdNotifier.value = ann.id;
+                                      } else if (_hoveredAnnotationIdNotifier.value == ann.id) {
+                                        _hoveredAnnotationIdNotifier.value = null;
+                                      }
+                                    },
+                                    onTap: () {
+                                      _hoveredAnnotationIdNotifier.value = null;
+                                      widget.controller.viewAnnotation(ann);
+                                    },
+                                  );
+                                }(),
+                              ],
+
+                              // 3. Hover Preview Tooltip Card (matching Screenshot 1)
+                              if (hoveredId != null && widget.controller.activeAnnotation == null)
+                                ...(() {
+                                  final hoveredAnn = widget.controller.annotations
+                                      .where((a) => a.id == hoveredId)
+                                      .firstOrNull;
+                                  if (hoveredAnn == null) return <Widget>[];
+                                  final hoveredBounds = _resolveCurrentBounds(hoveredAnn);
+                                  if (hoveredBounds == null) return <Widget>[];
+                                  return <Widget>[
+                                    AnnotationHoverPreviewCard(
+                                      annotation: hoveredAnn,
+                                      bounds: hoveredBounds,
+                                      isDark: settings.isDarkMode,
+                                      onTap: () {
+                                        _hoveredAnnotationIdNotifier.value = null;
+                                        widget.controller.viewAnnotation(hoveredAnn);
+                                      },
+                                    ),
+                                  ];
+                                })(),
+                            ],
+                          );
+                        },
+                      ),
+
+                    // Annotation edit dialog (matching Screenshot 2)
                     if (widget.controller.areCommentsVisible &&
                         widget.controller.activeAnnotation != null) ...[
                       () {
                         final active = widget.controller.activeAnnotation!;
                         final currentBounds = _resolveCurrentBounds(active);
                         if (currentBounds == null) return const SizedBox.shrink();
+                        final isActiveArea = active.targetWidget.widgetType == 'AreaSelection' ||
+                            active.isMultiSelect;
+                        final effectiveCardAccent = isActiveArea
+                            ? const Color(0xFF34C759)
+                            : const Color(0xFF0088FF);
                         return AnnotationDetailCard(
                           key: ValueKey('agentation_card_${active.id}'),
                           index: widget.controller.annotations.indexOf(active) + 1,
                           annotation: active,
                           boundsOverride: currentBounds,
-                          accentColor: markerColor,
+                          accentColor: effectiveCardAccent,
                           isDark: settings.isDarkMode,
                           onClose: () => widget.controller.viewAnnotation(null),
                           onDelete: () => widget.controller.deleteAnnotation(active.id),

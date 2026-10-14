@@ -54,9 +54,15 @@ class HitTestEngine {
         }
       }
 
-      // Also collect render boxes whose bounds contain globalPosition
-      // to capture non-pointer-listener leaf boxes (like RenderParagraph, RenderImage, RenderFlex).
-      // Uses branch-pruning and local coordinate checking for 1000x faster execution without UI thread blocking.
+      // Fast-path: if native hit testing already resolved valid candidate boxes,
+      // return immediately. Innermost leaf render boxes are already at the front.
+      if (candidateBoxes.isNotEmpty) {
+        return candidateBoxes;
+      }
+
+      // Fallback: collect render boxes whose bounds contain globalPosition
+      // only when native hit-testing found zero candidates (e.g. empty whitespace,
+      // transparent backgrounds, or non-pointer-listener leaf boxes).
       final searchRoot = root is RenderBox ? root : (root is RenderView ? root.child : null);
       if (searchRoot != null) {
         // Fast-path: if globalPosition is outside searchRoot bounds, skip entirely

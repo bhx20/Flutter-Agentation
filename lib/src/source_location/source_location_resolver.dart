@@ -17,7 +17,12 @@ abstract interface class SourceLocationResolver {
 /// [WidgetInspectorService] and AST constructor creation tracking.
 class FlutterSourceLocationResolver implements SourceLocationResolver {
   final WidgetInspectorService inspectorService;
-  static final Expando<WidgetSourceLocation> _cache = Expando<WidgetSourceLocation>();
+  static Expando<WidgetSourceLocation> _cache = Expando<WidgetSourceLocation>();
+
+  /// Clears source location caches across hot reload and rebuilds.
+  static void clearCache() {
+    _cache = Expando<WidgetSourceLocation>();
+  }
 
   FlutterSourceLocationResolver({WidgetInspectorService? inspectorService})
       : inspectorService = inspectorService ?? WidgetInspectorService.instance;
@@ -111,6 +116,7 @@ class FlutterSourceLocationResolver implements SourceLocationResolver {
       return WidgetSourceLocation(
         fileName: fileName,
         filePath: normalizedPath,
+        rawPath: rawFile,
         line: line,
         column: column,
       );
@@ -141,6 +147,7 @@ class FlutterSourceLocationResolver implements SourceLocationResolver {
       return WidgetSourceLocation(
         fileName: fileName,
         filePath: normalizedPath,
+        rawPath: rawFile,
         line: line,
         column: column,
       );

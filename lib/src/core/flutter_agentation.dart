@@ -250,6 +250,16 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
   }
 
   @override
+  void reassemble() {
+    super.reassemble();
+    _effectiveController.clearCaches();
+    if (_effectiveController.hoveredResult != null) {
+      _effectiveController.setHoveredResult(null);
+    }
+    _configureController();
+  }
+
+  @override
   void didUpdateWidget(FlutterAgentation oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.controller != oldWidget.controller) {

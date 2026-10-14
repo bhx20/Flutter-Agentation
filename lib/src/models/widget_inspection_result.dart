@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 
 import '../source_location/feedback_target.dart';
@@ -33,6 +34,9 @@ class WidgetInspectionResult {
   /// Exact source code location resolved via Flutter Inspector runtime metadata.
   final WidgetSourceLocation? sourceLocation;
 
+  /// Exact or canonical Flutter Dart widget code snippet for this element.
+  final String? widgetCode;
+
   /// Additional arbitrary inspection metadata.
   final Map<String, dynamic> metadata;
 
@@ -42,6 +46,9 @@ class WidgetInspectionResult {
   /// Formatted hierarchical ancestry path string (e.g. "LoginPage > LoginForm > ElevatedButton").
   String get pathString => ancestors.isEmpty ? identity.widgetType : ancestors.join(' > ');
 
+  /// The global screen position where the user tapped/clicked to inspect this element, if available.
+  final Offset? tapPosition;
+
   const WidgetInspectionResult({
     required this.identity,
     required this.bounds,
@@ -50,8 +57,10 @@ class WidgetInspectionResult {
     this.text,
     required this.ancestors,
     this.sourceLocation,
+    this.widgetCode,
     this.metadata = const {},
     this.isAvailable = true,
+    this.tapPosition,
   });
 
   /// Defensive fallback constructor for when hit testing fails or encounters an unhandled node.
@@ -63,8 +72,39 @@ class WidgetInspectionResult {
         text = null,
         ancestors = const [],
         sourceLocation = const WidgetSourceLocation.unavailable(),
+        widgetCode = null,
         metadata = const {},
-        isAvailable = false;
+        isAvailable = false,
+        tapPosition = null;
+
+  /// Creates a copy of this result with the given fields replaced.
+  WidgetInspectionResult copyWith({
+    WidgetIdentity? identity,
+    WidgetBounds? bounds,
+    WidgetContext? context,
+    String? route,
+    String? text,
+    List<String>? ancestors,
+    WidgetSourceLocation? sourceLocation,
+    String? widgetCode,
+    Map<String, dynamic>? metadata,
+    bool? isAvailable,
+    Offset? tapPosition,
+  }) {
+    return WidgetInspectionResult(
+      identity: identity ?? this.identity,
+      bounds: bounds ?? this.bounds,
+      context: context ?? this.context,
+      route: route ?? this.route,
+      text: text ?? this.text,
+      ancestors: ancestors ?? this.ancestors,
+      sourceLocation: sourceLocation ?? this.sourceLocation,
+      widgetCode: widgetCode ?? this.widgetCode,
+      metadata: metadata ?? this.metadata,
+      isAvailable: isAvailable ?? this.isAvailable,
+      tapPosition: tapPosition ?? this.tapPosition,
+    );
+  }
 
   /// Converts this inspection target into a [FeedbackTarget] model for prompt output formatting.
   FeedbackTarget toFeedbackTarget() {
@@ -84,6 +124,7 @@ class WidgetInspectionResult {
         'ancestors': ancestors,
         'pathString': pathString,
         if (sourceLocation != null) 'sourceLocation': sourceLocation!.toJson(),
+        if (widgetCode != null) 'widgetCode': widgetCode,
         'metadata': metadata,
         'isAvailable': isAvailable,
       };
@@ -110,6 +151,7 @@ class WidgetInspectionResult {
           ? WidgetSourceLocation.fromJson(
               Map<String, dynamic>.from(json['sourceLocation'] as Map))
           : null,
+      widgetCode: json['widgetCode'] as String?,
       metadata: json['metadata'] != null
           ? Map<String, dynamic>.from(json['metadata'] as Map)
           : const {},
@@ -129,6 +171,7 @@ class WidgetInspectionResult {
           text == other.text &&
           listEquals(ancestors, other.ancestors) &&
           sourceLocation == other.sourceLocation &&
+          widgetCode == other.widgetCode &&
           mapEquals(metadata, other.metadata) &&
           isAvailable == other.isAvailable;
 
@@ -141,10 +184,11 @@ class WidgetInspectionResult {
         text,
         Object.hashAll(ancestors),
         sourceLocation,
+        widgetCode,
         isAvailable,
       );
 
   @override
   String toString() =>
-      'WidgetInspectionResult(available: $isAvailable, type: ${identity.widgetType}, path: $pathString, source: $sourceLocation, text: $text)';
+      'WidgetInspectionResult(available: $isAvailable, type: ${identity.widgetType}, path: $pathString, source: $sourceLocation, text: $text, code: ${widgetCode != null})';
 }

@@ -45,6 +45,7 @@ class AgentationState {
     this.activeHierarchy,
     this.toolbarOffset = Offset.zero,
     this.toolbarBounds,
+    this.popupBounds,
     this.isToolbarMinimized = false,
     this.isFrozen = false,
     this.areCommentsVisible = true,
@@ -75,6 +76,9 @@ class AgentationState {
 
   /// Current bounding box of the floating toolbar on screen.
   final Rect? toolbarBounds;
+
+  /// Current bounding box of the active annotation popup on screen.
+  final Rect? popupBounds;
 
   /// Whether the floating toolbar is collapsed.
   final bool isToolbarMinimized;
@@ -110,6 +114,7 @@ class AgentationState {
     HierarchicalInspectionResult? Function()? activeHierarchy,
     Offset? toolbarOffset,
     Rect? Function()? toolbarBounds,
+    Rect? Function()? popupBounds,
     bool? isToolbarMinimized,
     bool? isFrozen,
     bool? areCommentsVisible,
@@ -129,6 +134,8 @@ class AgentationState {
       toolbarOffset: toolbarOffset ?? this.toolbarOffset,
       toolbarBounds:
           toolbarBounds != null ? toolbarBounds() : this.toolbarBounds,
+      popupBounds:
+          popupBounds != null ? popupBounds() : this.popupBounds,
       isToolbarMinimized: isToolbarMinimized ?? this.isToolbarMinimized,
       isFrozen: isFrozen ?? this.isFrozen,
       areCommentsVisible: areCommentsVisible ?? this.areCommentsVisible,
@@ -149,6 +156,7 @@ class AgentationState {
         other.activeHierarchy == activeHierarchy &&
         other.toolbarOffset == toolbarOffset &&
         other.toolbarBounds == toolbarBounds &&
+        other.popupBounds == popupBounds &&
         other.isToolbarMinimized == isToolbarMinimized &&
         other.isFrozen == isFrozen &&
         other.areCommentsVisible == areCommentsVisible &&
@@ -166,6 +174,7 @@ class AgentationState {
         activeHierarchy,
         toolbarOffset,
         toolbarBounds,
+        popupBounds,
         isToolbarMinimized,
         isFrozen,
         areCommentsVisible,

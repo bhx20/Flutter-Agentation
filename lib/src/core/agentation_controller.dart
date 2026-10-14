@@ -179,6 +179,9 @@ class AgentationController extends ChangeNotifier {
   /// Current bounding box of the floating toolbar on screen.
   Rect? get toolbarBounds => _state.toolbarBounds;
 
+  /// Current bounding box of the active annotation popup on screen.
+  Rect? get popupBounds => _state.popupBounds;
+
   /// Whether the floating toolbar is collapsed.
   bool get isToolbarMinimized => _state.isToolbarMinimized;
 
@@ -516,6 +519,7 @@ class AgentationController extends ChangeNotifier {
       selectedResult: () => null,
       hoveredResult: () => null,
       activeHierarchy: () => null,
+      popupBounds: () => null,
     );
     _activeAnnotation = null;
     notifyListeners();
@@ -1015,6 +1019,14 @@ class AgentationController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Updates annotation popup bounding box on screen.
+  void updatePopupBounds(Rect? newBounds) {
+    if (_state.popupBounds == newBounds) return;
+    _state = _state.copyWith(
+      popupBounds: () => newBounds,
+    );
+  }
+
   /// Sets toolbar minimized state. When minimized/collapsed, inspection is paused/inactive.
   /// When expanded, inspection is activated/enabled.
   void setToolbarMinimized(bool minimized) {
@@ -1132,10 +1144,16 @@ class AgentationController extends ChangeNotifier {
     return markdown;
   }
 
+  /// Clears internal inspection caches and registries across hot reload/restart.
+  void clearCaches() {
+    _engine.clearCaches();
+  }
+
   @override
   void dispose() {
     _copyTimer?.cancel();
     isCopiedNotifier.dispose();
+    _engine.clearCaches();
     super.dispose();
   }
 }

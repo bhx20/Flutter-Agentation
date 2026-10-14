@@ -82,4 +82,5 @@ export 'src/source_location/feedback_context_builder.dart';
 export 'src/source_location/feedback_target.dart';
 export 'src/source_location/source_location_resolver.dart';
 export 'src/source_location/source_path_normalizer.dart';
+export 'src/source_location/widget_code_resolver.dart';
 export 'src/source_location/widget_source_location.dart';
