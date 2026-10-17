@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_agentation/src/models/annotation.dart';
-import 'package:flutter_agentation/src/models/drawing_stroke.dart';
-import 'package:flutter_agentation/src/models/marker_color.dart';
-import 'package:flutter_agentation/src/models/placement_data.dart';
-import 'package:flutter_agentation/src/models/rearrange_data.dart';
-import 'package:flutter_agentation/src/models/thread_message.dart';
-import 'package:flutter_agentation/src/models/toolbar_settings.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
+import 'package:flutter_agentation/src/domain/annotation.dart';
+import 'package:flutter_agentation/src/domain/drawing_stroke.dart';
+import 'package:flutter_agentation/src/domain/marker_color.dart';
+import 'package:flutter_agentation/src/domain/placement_data.dart';
+import 'package:flutter_agentation/src/domain/rearrange_data.dart';
+import 'package:flutter_agentation/src/domain/thread_message.dart';
+import 'package:flutter_agentation/src/domain/toolbar_settings.dart';
+import 'package:flutter_agentation/src/domain/widget_bounds.dart';
+import 'package:flutter_agentation/src/domain/widget_identity.dart';
 
 void main() {
   group('Parity Models Test Suite', () {
@@ -191,3 +191,4 @@ void main() {
     });
   });
 }
+

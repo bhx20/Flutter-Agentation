@@ -3,14 +3,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
 import 'package:flutter_agentation/src/core/agentation_state.dart';
-import 'package:flutter_agentation/src/models/annotation.dart';
-import 'package:flutter_agentation/src/models/toolbar_settings.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
+import 'package:flutter_agentation/src/domain/annotation.dart';
+import 'package:flutter_agentation/src/domain/toolbar_settings.dart';
+import 'package:flutter_agentation/src/domain/widget_bounds.dart';
+import 'package:flutter_agentation/src/domain/widget_identity.dart';
 import 'package:flutter_agentation/src/output/annotation_markdown_encoder.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
-import 'package:flutter_agentation/src/toolbar/agentation_toolbar.dart';
-import 'package:flutter_agentation/src/toolbar/output_detail_button.dart';
+import 'package:flutter_agentation/src/ui/toolbar/agentation_toolbar.dart';
+import 'package:flutter_agentation/src/ui/toolbar/output_detail_button.dart';
 
 void main() {
   group('Comprehensive Toolbar & Detail Level Cycling', () {
@@ -168,3 +168,4 @@ void main() {
     });
   });
 }
+

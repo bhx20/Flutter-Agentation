@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
-import '../models/annotation.dart';
-import '../models/toolbar_settings.dart';
+import '../domain/annotation.dart';
+import '../domain/toolbar_settings.dart';
 import '../source_location/feedback_context_builder.dart';
 import 'agentation_format_adapter.dart';
 import 'annotation_json_encoder.dart';
@@ -119,3 +119,4 @@ class ClipboardExporter {
     }
   }
 }
+

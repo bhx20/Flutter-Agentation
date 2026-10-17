@@ -25,3 +25,4 @@ class AgentationScope extends InheritedNotifier<AgentationController> {
     return scope?.notifier;
   }
 }
+

@@ -1,4 +1,4 @@
-import '../models/annotation.dart';
+import '../domain/annotation.dart';
 import 'annotation_storage.dart';
 
 /// In-memory implementation of [AnnotationStorage].
@@ -41,3 +41,4 @@ class MemoryAnnotationStorage implements AnnotationStorage {
     _storage.clear();
   }
 }
+

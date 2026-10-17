@@ -84,3 +84,4 @@ class WidgetSourceLocation {
   String toString() =>
       'WidgetSourceLocation($locationString:$lineString:$column)';
 }
+

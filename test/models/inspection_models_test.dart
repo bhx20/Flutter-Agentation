@@ -1,9 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_context.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
-import 'package:flutter_agentation/src/models/widget_inspection_result.dart';
+import 'package:flutter_agentation/src/domain/widget_bounds.dart';
+import 'package:flutter_agentation/src/domain/widget_context.dart';
+import 'package:flutter_agentation/src/domain/widget_identity.dart';
+import 'package:flutter_agentation/src/domain/widget_inspection_result.dart';
 
 void main() {
   group('WidgetBounds', () {
@@ -148,3 +148,4 @@ void main() {
     });
   });
 }
+

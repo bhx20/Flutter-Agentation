@@ -48,22 +48,33 @@ class HitTestEngine {
               ignoredRenderObjects.contains(target)) {
             continue;
           }
+          if (_isScrollbarRenderBox(target)) {
+            continue;
+          }
           if (target.hasSize && target.attached) {
             candidateBoxes.add(target);
           }
         }
       }
 
-      // Fast-path: if native hit testing already resolved valid candidate boxes,
+      final searchRoot = root is RenderBox ? root : (root is RenderView ? root.child : null);
+
+      // Fast-path: if native hit testing resolved a specific child/leaf widget (not a giant full-screen container),
       // return immediately. Innermost leaf render boxes are already at the front.
       if (candidateBoxes.isNotEmpty) {
-        return candidateBoxes;
+        if (searchRoot == null || !searchRoot.hasSize) {
+          return candidateBoxes;
+        }
+        final searchArea = searchRoot.size.width * searchRoot.size.height;
+        final firstArea = candidateBoxes.first.size.width * candidateBoxes.first.size.height;
+        if (firstArea < searchArea * 0.8) {
+          return candidateBoxes;
+        }
       }
 
       // Fallback: collect render boxes whose bounds contain globalPosition
       // only when native hit-testing found zero candidates (e.g. empty whitespace,
       // transparent backgrounds, or non-pointer-listener leaf boxes).
-      final searchRoot = root is RenderBox ? root : (root is RenderView ? root.child : null);
       if (searchRoot != null) {
         // Fast-path: if globalPosition is outside searchRoot bounds, skip entirely
         if (searchRoot.hasSize && searchRoot.attached) {
@@ -78,6 +89,9 @@ class HitTestEngine {
         final spatialMatches = <RenderBox>[];
         void walk(RenderObject node) {
           if (ignoredRenderObjects != null && ignoredRenderObjects.contains(node)) {
+            return;
+          }
+          if (_isScrollbarRenderBox(node)) {
             return;
           }
           if (node is RenderBox && node.hasSize && node.attached) {
@@ -149,4 +163,40 @@ class HitTestEngine {
     if (candidates.isEmpty) return null;
     return candidates.first;
   }
+
+  static bool _isScrollbarRenderBox(RenderObject node) {
+    final boxType = node.runtimeType.toString();
+    if (boxType == '_RenderScrollSemantics' || boxType.contains('Scrollbar')) {
+      return true;
+    }
+    final creator = node.debugCreator;
+    if (creator is DebugCreator) {
+      Element? el = creator.element;
+      int depth = 0;
+      while (el != null && depth < 6) {
+        final name = el.widget.runtimeType.toString();
+        if (name == 'RawScrollbar' ||
+            name == 'Scrollbar' ||
+            name == 'CupertinoScrollbar' ||
+            name.startsWith('_Scrollbar')) {
+          return true;
+        }
+        if (name == 'SingleChildScrollView' ||
+            name == 'ListView' ||
+            name == 'CustomScrollView' ||
+            name == 'NestedScrollView') {
+          break;
+        }
+        Element? parent;
+        el.visitAncestorElements((a) {
+          parent = a;
+          return false;
+        });
+        el = parent;
+        depth++;
+      }
+    }
+    return false;
+  }
 }
+

@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
 
 import '../core/agentation_logger.dart';
-import '../models/hierarchical_inspection_result.dart';
-import '../models/widget_bounds.dart';
-import '../models/widget_context.dart';
-import '../models/widget_identity.dart';
-import '../models/widget_inspection_result.dart';
+import '../domain/hierarchical_inspection_result.dart';
+import '../domain/widget_bounds.dart';
+import '../domain/widget_context.dart';
+import '../domain/widget_identity.dart';
+import '../domain/widget_inspection_result.dart';
 import '../source_location/source_location_resolver.dart';
 import '../source_location/widget_code_resolver.dart';
 import '../source_location/widget_source_location.dart';
@@ -494,3 +494,4 @@ class FlutterInspectionEngine {
     }
   }
 }
+

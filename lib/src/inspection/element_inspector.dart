@@ -371,6 +371,12 @@ class ElementInspector {
       'InkWell',
       'InkResponse',
       'MouseRegion',
+      'Scrollbar',
+      'RawScrollbar',
+      'CupertinoScrollbar',
+      'Scrollable',
+      'PrimaryScrollController',
+      'ScrollConfiguration',
       'ScrollNotificationObserver',
       'InheritedWidget',
     };
@@ -387,6 +393,18 @@ class ElementInspector {
 
   /// Identifies whether a widget type is internal framework boilerplate.
   static bool _isFrameworkBoilerplate(String typeName) {
+    if (typeName.startsWith('_')) return true;
+    if (typeName.startsWith('NotificationListener')) return true;
+    if (typeName.endsWith('NotificationListener')) return true;
+    if (typeName.endsWith('Builder') &&
+        typeName != 'StreamBuilder' &&
+        typeName != 'FutureBuilder' &&
+        typeName != 'StatefulBuilder') {
+      return true;
+    }
+    if (typeName.endsWith('Transition')) return true;
+    if (typeName.endsWith('Scope')) return true;
+
     const ignored = {
       'RepaintBoundary',
       'CustomPaint',
@@ -447,8 +465,15 @@ class ElementInspector {
       'Navigator',
       'SafeArea',
       'MediaQuery',
+      'Scrollbar',
+      'RawScrollbar',
+      'CupertinoScrollbar',
+      'Scrollable',
+      'PrimaryScrollController',
+      'ScrollConfiguration',
       'ScrollNotificationObserver',
     };
     return ignored.contains(typeName);
   }
 }
+

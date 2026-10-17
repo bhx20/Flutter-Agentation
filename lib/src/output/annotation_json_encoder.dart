@@ -1,5 +1,5 @@
 import 'dart:convert';
-import '../models/annotation.dart';
+import '../domain/annotation.dart';
 
 /// Formats annotations into JSON strings with support for indented or compact representations.
 class AnnotationJsonEncoder {
@@ -27,3 +27,4 @@ class AnnotationJsonEncoder {
     return pretty ? _indentEncoder.convert(map) : jsonEncode(map);
   }
 }
+

@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_agentation/src/models/annotation.dart';
-import 'package:flutter_agentation/src/models/annotation_intent.dart';
-import 'package:flutter_agentation/src/models/annotation_severity.dart';
-import 'package:flutter_agentation/src/models/annotation_status.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
+import 'package:flutter_agentation/src/domain/annotation.dart';
+import 'package:flutter_agentation/src/domain/annotation_intent.dart';
+import 'package:flutter_agentation/src/domain/annotation_severity.dart';
+import 'package:flutter_agentation/src/domain/annotation_status.dart';
+import 'package:flutter_agentation/src/domain/widget_bounds.dart';
+import 'package:flutter_agentation/src/domain/widget_identity.dart';
 import 'package:flutter_agentation/src/output/annotation_json_encoder.dart';
 
 void main() {
@@ -76,3 +76,4 @@ void main() {
     });
   });
 }
+

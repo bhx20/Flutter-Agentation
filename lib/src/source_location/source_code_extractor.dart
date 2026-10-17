@@ -103,7 +103,7 @@ String? extractSnippetFromSource(String sourceText, int line, String? widgetType
         } else {
           final currentIndent = l.indexOf(RegExp(r'\S'));
           final extraIndent = (currentIndent >= minIndent) ? currentIndent - minIndent : 0;
-          snippetLines[i] = '  ' + (' ' * extraIndent) + l.trimLeft();
+          snippetLines[i] = '  ${' ' * extraIndent}${l.trimLeft()}';
         }
       }
     }
@@ -118,3 +118,4 @@ String? extractSnippetFromSource(String sourceText, int line, String? widgetType
   final result = snippetLines.join('\n').trim();
   return result.isNotEmpty ? result : null;
 }
+

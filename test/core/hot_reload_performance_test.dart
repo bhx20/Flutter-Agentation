@@ -59,6 +59,7 @@ void main() {
 
       // Simulate 20 consecutive hot reloads while moving pointer continuously
       for (int i = 0; i < 20; i++) {
+        // ignore: invalid_use_of_protected_member
         tester.element(find.byType(FlutterAgentation)).reassemble();
         await tester.pump();
 
@@ -122,3 +123,4 @@ void main() {
     });
   });
 }
+

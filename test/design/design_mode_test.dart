@@ -4,15 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
 import 'package:flutter_agentation/src/core/agentation_state.dart';
-import 'package:flutter_agentation/src/design/component_palette.dart';
-import 'package:flutter_agentation/src/design/rearrange_controller.dart';
-import 'package:flutter_agentation/src/design/skeleton_templates.dart';
-import 'package:flutter_agentation/src/design/spatial_guide_painter.dart';
-import 'package:flutter_agentation/src/models/annotation.dart';
-import 'package:flutter_agentation/src/models/placement_data.dart';
-import 'package:flutter_agentation/src/models/rearrange_data.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
+import 'package:flutter_agentation/src/ui/design/component_palette.dart';
+import 'package:flutter_agentation/src/ui/design/rearrange_controller.dart';
+import 'package:flutter_agentation/src/ui/design/skeleton_templates.dart';
+import 'package:flutter_agentation/src/ui/design/spatial_guide_painter.dart';
+import 'package:flutter_agentation/src/domain/annotation.dart';
+import 'package:flutter_agentation/src/domain/placement_data.dart';
+import 'package:flutter_agentation/src/domain/rearrange_data.dart';
+import 'package:flutter_agentation/src/domain/widget_bounds.dart';
+import 'package:flutter_agentation/src/domain/widget_identity.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
 
 void main() {
@@ -158,3 +158,4 @@ void main() {
     });
   });
 }
+

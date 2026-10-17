@@ -3,7 +3,8 @@ import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
 import 'package:flutter_agentation/src/core/flutter_agentation.dart';
 import 'package:flutter_agentation/src/core/package_version.dart';
-import 'package:flutter_agentation/src/toolbar/agentation_toolbar.dart';
+import 'package:flutter_agentation/src/ui/design/component_palette.dart';
+import 'package:flutter_agentation/src/ui/toolbar/agentation_toolbar.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -221,12 +222,23 @@ void main() {
         ),
       );
 
-      // Tap layout mode button
+      // Initial state: Layout Mode popup is closed, button is de-highlighted
+      expect(controller.isLayoutModeOpen, isFalse);
+
+      // Tap layout mode button to open
       await tester.tap(find.byKey(const ValueKey('toolbar_layout')));
       await tester.pumpAndSettle();
 
+      expect(controller.isLayoutModeOpen, isTrue);
       expect(find.text('Layout Mode'), findsOneWidget);
       expect(find.text('Wireframe New Page'), findsOneWidget);
+
+      // Tap layout mode button again to close -> popup closes and button de-highlights
+      await tester.tap(find.byKey(const ValueKey('toolbar_layout')));
+      await tester.pumpAndSettle();
+
+      expect(controller.isLayoutModeOpen, isFalse);
+      expect(find.text('Layout Mode'), findsNothing);
     });
 
     testWidgets('toggling settings opens Settings panel (Screenshot 3)', (tester) async {
@@ -466,5 +478,42 @@ void main() {
       expect(controller.areCommentsVisible, isTrue);
       expect(find.text('1'), findsOneWidget);
     });
+
+    testWidgets('on mobile, opening Layout Mode centers ComponentPalette horizontally with compact size', (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final controller = AgentationController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      );
+
+      // Open Layout Mode
+      await tester.tap(find.byKey(const ValueKey('toolbar_layout')));
+      await tester.pumpAndSettle();
+
+      expect(controller.isLayoutModeOpen, isTrue);
+      expect(find.byType(ComponentPalette), findsOneWidget);
+
+      final paletteRect = tester.getRect(find.byType(ComponentPalette));
+      expect(paletteRect.width, equals(268.0));
+      // Verify horizontally centered: left margin equals right margin
+      final leftMargin = paletteRect.left;
+      final rightMargin = 360.0 - paletteRect.right;
+      expect((leftMargin - rightMargin).abs(), lessThan(1.0));
+    });
   });
 }
+

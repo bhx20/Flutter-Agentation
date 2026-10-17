@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
-import '../models/annotation.dart';
-import '../models/toolbar_settings.dart';
+import '../domain/annotation.dart';
+import '../domain/toolbar_settings.dart';
 
 /// Formats annotations into Markdown matching the official Agentation protocol and Section 27.
 class AnnotationMarkdownEncoder {
@@ -172,3 +172,4 @@ class AnnotationMarkdownEncoder {
     return buffer.toString().trim();
   }
 }
+

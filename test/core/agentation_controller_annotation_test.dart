@@ -1,11 +1,11 @@
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
-import 'package:flutter_agentation/src/models/annotation.dart';
-import 'package:flutter_agentation/src/models/annotation_intent.dart';
-import 'package:flutter_agentation/src/models/annotation_severity.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_context.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
-import 'package:flutter_agentation/src/models/widget_inspection_result.dart';
+import 'package:flutter_agentation/src/domain/annotation.dart';
+import 'package:flutter_agentation/src/domain/annotation_intent.dart';
+import 'package:flutter_agentation/src/domain/annotation_severity.dart';
+import 'package:flutter_agentation/src/domain/widget_bounds.dart';
+import 'package:flutter_agentation/src/domain/widget_context.dart';
+import 'package:flutter_agentation/src/domain/widget_identity.dart';
+import 'package:flutter_agentation/src/domain/widget_inspection_result.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -86,3 +86,4 @@ void main() {
     });
   });
 }
+

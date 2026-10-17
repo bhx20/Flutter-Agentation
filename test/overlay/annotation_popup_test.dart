@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_context.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
-import 'package:flutter_agentation/src/models/widget_inspection_result.dart';
-import 'package:flutter_agentation/src/overlay/annotation_popup.dart';
+import 'package:flutter_agentation/src/domain/widget_bounds.dart';
+import 'package:flutter_agentation/src/domain/widget_context.dart';
+import 'package:flutter_agentation/src/domain/widget_identity.dart';
+import 'package:flutter_agentation/src/domain/widget_inspection_result.dart';
+import 'package:flutter_agentation/src/ui/overlay/annotation_popup.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -51,9 +51,10 @@ void main() {
       expect(find.text('Bug'), findsNothing);
       expect(find.text('Suggestion'), findsNothing);
 
-      // Verify Cancel and Add buttons exist
+      // Verify Cancel and Add buttons exist and Add button height is 32.0
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Add'), findsOneWidget);
+      expect(tester.getSize(find.byType(ElevatedButton)).height, equals(32.0));
     });
 
     testWidgets('typing comment and tapping Add persists annotation to controller',
@@ -280,11 +281,22 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Verify popup renders within screen bounds without overflow
+      // Verify popup renders within screen bounds without overflow and is centered
       final mouseRegionFinder = find.byKey(const ValueKey('annotation_popup_card_mouse_region'));
       expect(mouseRegionFinder, findsOneWidget);
       final mouseRegion = tester.widget<MouseRegion>(mouseRegionFinder);
       expect(mouseRegion.cursor, equals(SystemMouseCursors.basic));
+
+      final positioned = tester.widget<Positioned>(
+        find.ancestor(of: mouseRegionFinder, matching: find.byType(Positioned)).first,
+      );
+      // On 320 width screen, card width is 320 - 24 = 296, centered at (320 - 296)/2 = 12.0
+      expect(positioned.left, equals(12.0));
+
+      // Verify comment box is compact on mobile (minLines: 1)
+      final textField = tester.widget<TextField>(find.byType(TextField));
+      expect(textField.minLines, equals(1));
+      expect(textField.maxLines, equals(3));
     });
 
     testWidgets('AnnotationPopup positions dynamically near tapPosition rather than fixed at widget bounds',
@@ -446,4 +458,5 @@ void main() {
     });
   });
 }
+
 

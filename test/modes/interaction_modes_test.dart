@@ -4,15 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
 import 'package:flutter_agentation/src/core/agentation_state.dart';
-import 'package:flutter_agentation/src/models/drawing_stroke.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_context.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
-import 'package:flutter_agentation/src/models/widget_inspection_result.dart';
-import 'package:flutter_agentation/src/modes/area_selection_handler.dart';
-import 'package:flutter_agentation/src/modes/draw_canvas_painter.dart';
-import 'package:flutter_agentation/src/modes/multi_select_handler.dart';
-import 'package:flutter_agentation/src/overlay/inspection_overlay.dart';
+import 'package:flutter_agentation/src/domain/drawing_stroke.dart';
+import 'package:flutter_agentation/src/domain/widget_bounds.dart';
+import 'package:flutter_agentation/src/domain/widget_context.dart';
+import 'package:flutter_agentation/src/domain/widget_identity.dart';
+import 'package:flutter_agentation/src/domain/widget_inspection_result.dart';
+import 'package:flutter_agentation/src/ui/modes/area_selection_handler.dart';
+import 'package:flutter_agentation/src/ui/modes/draw_canvas_painter.dart';
+import 'package:flutter_agentation/src/ui/modes/multi_select_handler.dart';
+import 'package:flutter_agentation/src/ui/overlay/inspection_overlay.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
 
 void main() {
@@ -170,3 +170,4 @@ void main() {
     });
   });
 }
+

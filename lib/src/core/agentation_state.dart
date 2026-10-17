@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
-import '../models/hierarchical_inspection_result.dart';
-import '../models/toolbar_settings.dart';
-import '../models/widget_inspection_result.dart';
+import '../domain/hierarchical_inspection_result.dart';
+import '../domain/toolbar_settings.dart';
+import '../domain/widget_inspection_result.dart';
 
 /// Interaction mode of the visual inspection overlay.
 enum InspectionMode {
@@ -182,3 +182,4 @@ class AgentationState {
         isLayoutModeOpen,
       );
 }
+

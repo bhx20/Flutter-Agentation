@@ -11,6 +11,7 @@ class PackageVersion {
   static const String defaultVersion = '0.0.1';
 
   static String _version = defaultVersion;
+  static final ValueNotifier<String> versionNotifier = ValueNotifier<String>(_version);
 
   /// Current package version (e.g. '0.0.1').
   static String get current => _version;
@@ -18,6 +19,7 @@ class PackageVersion {
   /// Update the current in-memory version.
   static void setVersion(String version) {
     _version = version;
+    versionNotifier.value = version;
   }
 
   /// Parses `version: <value>` from pubspec.yaml content.
@@ -47,6 +49,7 @@ class PackageVersion {
         final parsed = parseYamlVersion(yaml);
         if (parsed != null && parsed.isNotEmpty) {
           _version = parsed;
+          versionNotifier.value = _version;
           return _version;
         }
       }
@@ -65,6 +68,7 @@ class PackageVersion {
             final parsed = parseYamlVersion(content);
             if (parsed != null && parsed.isNotEmpty) {
               _version = parsed;
+              versionNotifier.value = _version;
               return _version;
             }
           }
@@ -75,3 +79,4 @@ class PackageVersion {
     return _version;
   }
 }
+

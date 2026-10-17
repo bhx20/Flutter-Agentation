@@ -1,14 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_agentation/src/core/agentation_controller.dart';
-import 'package:flutter_agentation/src/core/agentation_scope.dart';
-import 'package:flutter_agentation/src/models/annotation.dart';
-import 'package:flutter_agentation/src/models/annotation_severity.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_context.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
-import 'package:flutter_agentation/src/models/widget_inspection_result.dart';
-import 'package:flutter_agentation/src/overlay/annotation_marker.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_agentation/flutter_agentation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -138,10 +131,18 @@ void main() {
       // TextField contains existing comment "sdfdf"
       expect(find.text('sdfdf'), findsOneWidget);
 
-      // Buttons: Delete, Cancel, Save
-      expect(find.text('Delete'), findsOneWidget);
+      // Buttons: Delete icon, Cancel, Save
+      expect(find.byKey(const ValueKey('agentation_card_delete_button')), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Save'), findsOneWidget);
+
+      final saveText = tester.widget<Text>(find.text('Save'));
+      expect(saveText.style?.fontWeight, equals(FontWeight.normal));
+      final saveContainerFinder = find.ancestor(
+        of: find.text('Save'),
+        matching: find.byType(Container),
+      );
+      expect(tester.getSize(saveContainerFinder.first).height, equals(32.0));
 
       // Edit the text
       await tester.enterText(find.byType(TextField), 'updated comment text');
@@ -152,7 +153,113 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(closed, isTrue);
+      expect(deleted, isFalse);
       expect(controller.annotations.first.comment, equals('updated comment text'));
+    });
+
+    testWidgets('tapping delete icon in AnnotationDetailCard triggers onDelete callback', (tester) async {
+      bool deleted = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AnnotationDetailCard(
+                  index: 1,
+                  annotation: dummyAnnotation,
+                  onClose: () {},
+                  onDelete: () => deleted = true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byKey(const ValueKey('agentation_card_delete_button')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('agentation_card_delete_button')));
+      await tester.pumpAndSettle();
+
+      expect(deleted, isTrue);
+    });
+
+    testWidgets('AnnotationMarker places marker exactly at tapPosition when provided', (tester) async {
+      final tapPos = const Offset(155.0, 165.0);
+      final annotationWithTap = dummyAnnotation.copyWith(
+        tapPosition: tapPos,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AnnotationMarker(
+                  index: 1,
+                  annotation: annotationWithTap,
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Verify Positioned widget has coordinates centered on tapPosition (posX - 12, posY - 12)
+      final positionedFinder = find.byType(Positioned);
+      expect(positionedFinder, findsOneWidget);
+      final positioned = tester.widget<Positioned>(positionedFinder);
+      expect(positioned.left, equals(155.0 - 12.0));
+      expect(positioned.top, equals(165.0 - 12.0));
+    });
+
+    testWidgets('typing in AnnotationDetailCard text field and pressing Backspace deletes characters', (tester) async {
+      final controller = AgentationController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              child: const Center(child: Text('Inspectable Widget')),
+            ),
+          ),
+        ),
+      );
+
+      final ann = await controller.createAnnotation(
+        comment: 'Needs contrast',
+        targetResult: const WidgetInspectionResult(
+          identity: WidgetIdentity(id: 'btn1', widgetType: 'ElevatedButton'),
+          bounds: WidgetBounds(x: 50, y: 50, width: 100, height: 40),
+          context: WidgetContext.empty(),
+          ancestors: [],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      controller.viewAnnotation(ann);
+      await tester.pumpAndSettle();
+
+      final textField = find.byType(TextField);
+      expect(textField, findsOneWidget);
+
+      await tester.tap(textField);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(textField, 'hello');
+      await tester.pumpAndSettle();
+
+      final tf = tester.widget<TextField>(textField);
+      tf.controller!.selection = TextSelection.collapsed(offset: tf.controller!.text.length);
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.backspace);
+      await tester.pumpAndSettle();
+
+      expect(tf.controller!.text, equals('hell'));
+      expect(controller.annotations.length, equals(1));
     });
   });
 }
+

@@ -3,9 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
 import 'package:flutter_agentation/src/core/package_version.dart';
-import 'package:flutter_agentation/src/models/marker_color.dart';
+import 'package:flutter_agentation/src/domain/marker_color.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
-import 'package:flutter_agentation/src/toolbar/settings_panel.dart';
+import 'package:flutter_agentation/src/ui/toolbar/settings_panel.dart';
 
 void main() {
   group('SettingsPanel Widget & Parity Theming', () {
@@ -219,3 +219,4 @@ void main() {
     });
   });
 }
+

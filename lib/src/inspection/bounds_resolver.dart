@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 
 import '../core/agentation_logger.dart';
-import '../models/widget_bounds.dart';
+import '../domain/widget_bounds.dart';
 
 /// Specialized resolver responsible for calculating accurate global coordinates
 /// and bounding boxes for RenderBoxes, including transformed and rotated geometry.
@@ -44,3 +44,4 @@ class BoundsResolver {
     }
   }
 }
+

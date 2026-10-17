@@ -1,4 +1,4 @@
-import '../models/annotation.dart';
+import '../domain/annotation.dart';
 
 /// Adapter converting native Flutter [Annotation] objects into the canonical
 /// Agentation-compatible schema for AI and web interoperability (Section 28 of flow.md).
@@ -63,3 +63,4 @@ class AgentationFormatAdapter {
     return payload;
   }
 }
+

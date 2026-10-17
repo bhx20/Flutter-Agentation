@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../domain/widget_bounds.dart';
 import 'agentation_controller.dart';
 import 'agentation_scope.dart';
 import 'agentation_state.dart';
@@ -249,19 +251,7 @@ class AgentationShortcuts extends StatefulWidget {
     if (context.findAncestorWidgetOfExactType<EditableText>() != null) return true;
     if (context.findAncestorWidgetOfExactType<TextField>() != null) return true;
     if (context.findAncestorStateOfType<EditableTextState>() != null) return true;
-
-    // Check if the focused element has an EditableText in its descendant subtree
-    Element? editableElement;
-    void visitor(Element element) {
-      if (editableElement != null) return;
-      if (element.widget is EditableText) {
-        editableElement = element;
-        return;
-      }
-      element.visitChildren(visitor);
-    }
-    context.visitChildElements(visitor);
-    return editableElement != null;
+    return false;
   }
 
   @override
@@ -405,6 +395,46 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
       return _handleDelete();
     }
 
+    // Arrow keys nudge: ArrowUp, ArrowDown, ArrowLeft, ArrowRight
+    if (key == LogicalKeyboardKey.arrowUp ||
+        key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.arrowLeft ||
+        key == LogicalKeyboardKey.arrowRight) {
+      if (ctrl.isLayoutModeOpen || ctrl.toolMode == AnnotationToolMode.design || ctrl.activeAnnotation != null) {
+        final step = isShift ? 20.0 : 1.0;
+        final dx = key == LogicalKeyboardKey.arrowLeft
+            ? -step
+            : key == LogicalKeyboardKey.arrowRight
+                ? step
+                : 0.0;
+        final dy = key == LogicalKeyboardKey.arrowUp
+            ? -step
+            : key == LogicalKeyboardKey.arrowDown
+                ? step
+                : 0.0;
+        if (_handleNudge(dx, dy)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  bool _handleNudge(double dx, double dy) {
+    final ctrl = _ctrl;
+    final active = ctrl.activeAnnotation;
+    if (active != null) {
+      final oldBounds = active.bounds;
+      final newBounds = WidgetBounds(
+        x: math.max(0.0, oldBounds.x + dx),
+        y: math.max(0.0, oldBounds.y + dy),
+        width: oldBounds.width,
+        height: oldBounds.height,
+      );
+      ctrl.updateAnnotation(active.id, bounds: newBounds);
+      return true;
+    }
     return false;
   }
 
@@ -500,61 +530,58 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
           CloseAnnotationIntent: CallbackAction<CloseAnnotationIntent>(
             onInvoke: (_) => _handleClose(),
           ),
-          PauseAnimationsIntent: CallbackAction<PauseAnimationsIntent>(
+          PauseAnimationsIntent: _AgentationAction<PauseAnimationsIntent>(
             onInvoke: (_) {
-              if (AgentationShortcuts.isEditingText() || _ctrl.isToolbarMinimized) return null;
+              if (_ctrl.isToolbarMinimized) return null;
               _ctrl.toggleFreeze();
               return null;
             },
           ),
-          ToggleLayoutModeIntent: CallbackAction<ToggleLayoutModeIntent>(
+          ToggleLayoutModeIntent: _AgentationAction<ToggleLayoutModeIntent>(
             onInvoke: (_) {
-              if (AgentationShortcuts.isEditingText() || _ctrl.isToolbarMinimized) return null;
+              if (_ctrl.isToolbarMinimized) return null;
               _ctrl.toggleLayoutMode();
               return null;
             },
           ),
-          ToggleCommentsVisibilityIntent: CallbackAction<ToggleCommentsVisibilityIntent>(
+          ToggleCommentsVisibilityIntent: _AgentationAction<ToggleCommentsVisibilityIntent>(
             onInvoke: (_) {
-              if (AgentationShortcuts.isEditingText() || _ctrl.isToolbarMinimized) return null;
+              if (_ctrl.isToolbarMinimized) return null;
               if (_ctrl.annotations.isNotEmpty) {
                 _ctrl.toggleCommentsVisibility();
               }
               return null;
             },
           ),
-          CopyFeedbackIntent: CallbackAction<CopyFeedbackIntent>(
+          CopyFeedbackIntent: _AgentationAction<CopyFeedbackIntent>(
             onInvoke: (_) {
-              if (AgentationShortcuts.isEditingText() || _ctrl.isToolbarMinimized) return null;
+              if (_ctrl.isToolbarMinimized) return null;
               if (_ctrl.annotations.isNotEmpty) {
                 _ctrl.copyFeedback();
               }
               return null;
             },
           ),
-          ClearAllAnnotationsIntent: CallbackAction<ClearAllAnnotationsIntent>(
+          ClearAllAnnotationsIntent: _AgentationAction<ClearAllAnnotationsIntent>(
             onInvoke: (_) {
-              if (AgentationShortcuts.isEditingText() || _ctrl.isToolbarMinimized) return null;
+              if (_ctrl.isToolbarMinimized) return null;
               if (_ctrl.annotations.isNotEmpty) {
                 _ctrl.clearAnnotations();
               }
               return null;
             },
           ),
-          SendAnnotationsIntent: CallbackAction<SendAnnotationsIntent>(
+          SendAnnotationsIntent: _AgentationAction<SendAnnotationsIntent>(
             onInvoke: (_) {
-              if (AgentationShortcuts.isEditingText() || _ctrl.isToolbarMinimized) return null;
+              if (_ctrl.isToolbarMinimized) return null;
               if (_ctrl.annotations.isNotEmpty && _ctrl.canSend) {
                 _ctrl.submitAnnotations();
               }
               return null;
             },
           ),
-          DeleteAnnotationIntent: CallbackAction<DeleteAnnotationIntent>(
-            onInvoke: (_) {
-              if (AgentationShortcuts.isEditingText()) return null;
-              return _handleDelete();
-            },
+          DeleteAnnotationIntent: _AgentationAction<DeleteAnnotationIntent>(
+            onInvoke: (_) => _handleDelete(),
           ),
           SubmitAnnotationIntent: CallbackAction<SubmitAnnotationIntent>(
             onInvoke: (_) {
@@ -590,3 +617,25 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
     );
   }
 }
+
+class _AgentationAction<T extends Intent> extends Action<T> {
+  _AgentationAction({
+    required this.onInvoke,
+    this.checkIsEditingText = true,
+  });
+
+  final Object? Function(T intent) onInvoke;
+  final bool checkIsEditingText;
+
+  @override
+  bool isEnabled(T intent) {
+    if (checkIsEditingText && AgentationShortcuts.isEditingText()) {
+      return false;
+    }
+    return true;
+  }
+
+  @override
+  Object? invoke(T intent) => onInvoke(intent);
+}
+

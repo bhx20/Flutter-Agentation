@@ -1,4 +1,4 @@
-import '../models/annotation.dart';
+import '../domain/annotation.dart';
 
 /// Abstract persistence contract for storing and querying annotations.
 abstract class AnnotationStorage {
@@ -20,3 +20,4 @@ abstract class AnnotationStorage {
   /// Clears all stored annotations.
   Future<void> clear();
 }
+

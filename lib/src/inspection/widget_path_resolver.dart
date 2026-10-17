@@ -122,8 +122,13 @@ class WidgetPathResolver {
       'CustomMultiChildLayout',
       'LayoutId',
       'ScrollConfiguration',
+      'Scrollbar',
+      'RawScrollbar',
+      'CupertinoScrollbar',
+      'Scrollable',
     };
 
     return omitted.contains(name);
   }
 }
+

@@ -165,3 +165,4 @@ class FlutterSourceLocationResolver implements SourceLocationResolver {
         lower.contains('flutter/bin/cache');
   }
 }
+

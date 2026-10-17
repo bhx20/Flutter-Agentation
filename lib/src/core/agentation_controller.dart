@@ -2,20 +2,20 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import '../inspection/flutter_inspection_engine.dart';
-import '../models/annotation.dart';
-import '../models/annotation_intent.dart';
-import '../models/annotation_severity.dart';
-import '../models/annotation_status.dart';
-import '../models/drawing_stroke.dart';
-import '../models/hierarchical_inspection_result.dart';
-import '../models/placement_data.dart';
-import '../models/rearrange_data.dart';
-import '../models/thread_message.dart';
-import '../models/toolbar_settings.dart';
-import '../models/widget_bounds.dart';
-import '../models/widget_context.dart';
-import '../models/widget_identity.dart';
-import '../models/widget_inspection_result.dart';
+import '../domain/annotation.dart';
+import '../domain/annotation_intent.dart';
+import '../domain/annotation_severity.dart';
+import '../domain/annotation_status.dart';
+import '../domain/drawing_stroke.dart';
+import '../domain/hierarchical_inspection_result.dart';
+import '../domain/placement_data.dart';
+import '../domain/rearrange_data.dart';
+import '../domain/thread_message.dart';
+import '../domain/toolbar_settings.dart';
+import '../domain/widget_bounds.dart';
+import '../domain/widget_context.dart';
+import '../domain/widget_identity.dart';
+import '../domain/widget_inspection_result.dart';
 import '../storage/annotation_storage.dart';
 import '../storage/memory_annotation_storage.dart';
 import '../output/clipboard_exporter.dart';
@@ -535,6 +535,7 @@ class AgentationController extends ChangeNotifier {
   /// Creates and persists an [Annotation] attached to the currently selected widget.
   Future<Annotation> createAnnotation({
     required String comment,
+    Offset? tapPosition,
     AnnotationIntent intent = AnnotationIntent.suggestion,
     AnnotationSeverity severity = AnnotationSeverity.suggestion,
     AnnotationStatus status = AnnotationStatus.pending,
@@ -575,6 +576,7 @@ class AgentationController extends ChangeNotifier {
     final resolvedIsFixed = isFixed ?? (result?.context.isFixed ?? (result == null));
     final resolvedScrollY = scrollY ?? (result?.context.scrollOffset ?? 0.0);
     final resolvedScrollX = scrollX ?? 0.0;
+    final resolvedTapPosition = tapPosition ?? result?.tapPosition;
 
     final annotation = Annotation(
       id: 'ann_${DateTime.now().millisecondsSinceEpoch}',
@@ -600,6 +602,7 @@ class AgentationController extends ChangeNotifier {
       isFixed: resolvedIsFixed,
       scrollY: resolvedScrollY,
       scrollX: resolvedScrollX,
+      tapPosition: resolvedTapPosition,
       metadata: {
         if (result?.pathString != null) 'path': result!.pathString,
         ...metadata,
@@ -760,13 +763,15 @@ class AgentationController extends ChangeNotifier {
     }
   }
 
-  /// Partially updates an existing annotation's comment, intent, severity, or status.
+  /// Partially updates an existing annotation's comment, bounds, intent, severity, status, or tapPosition.
   Future<Annotation?> updateAnnotation(
     String id, {
     String? comment,
+    WidgetBounds? bounds,
     AnnotationIntent? intent,
     AnnotationSeverity? severity,
     AnnotationStatus? status,
+    Offset? tapPosition,
     Map<String, dynamic>? metadata,
   }) async {
     final index = _annotations.indexWhere((a) => a.id == id);
@@ -781,9 +786,11 @@ class AgentationController extends ChangeNotifier {
 
     final updated = target.copyWith(
       comment: comment ?? target.comment,
+      bounds: bounds ?? target.bounds,
       intent: intent ?? target.intent,
       severity: severity ?? target.severity,
       status: status ?? target.status,
+      tapPosition: tapPosition ?? target.tapPosition,
       metadata: metadata != null ? {...target.metadata, ...metadata} : target.metadata,
     );
 
@@ -916,10 +923,16 @@ class AgentationController extends ChangeNotifier {
 
   /// Sends formatted annotations to configured `onSubmit` callback, agent MCP, or webhooks.
   Future<bool> submitAnnotations() async {
-    if (_annotations.isEmpty && !canSend) return false;
+    if (_annotations.isEmpty || !canSend) return false;
 
-    final output = await exportAnnotations(format: ExportFormat.markdown);
-    if (output == null) return false;
+    const exporter = ClipboardExporter();
+    final output = exporter.formatAnnotations(
+      _annotations,
+      format: ExportFormat.markdown,
+      detailLevel: _state.settings.outputDetail,
+      appName: _appName,
+    );
+    if (output.isEmpty) return false;
 
     bool callbackSuccess = true;
     if (onSubmit != null) {
@@ -1157,3 +1170,4 @@ class AgentationController extends ChangeNotifier {
     super.dispose();
   }
 }
+

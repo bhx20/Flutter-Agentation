@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/src/inspection/flutter_inspection_engine.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_context.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
-import 'package:flutter_agentation/src/models/widget_inspection_result.dart';
-import 'package:flutter_agentation/src/overlay/widget_highlight.dart';
+import 'package:flutter_agentation/src/domain/widget_bounds.dart';
+import 'package:flutter_agentation/src/domain/widget_context.dart';
+import 'package:flutter_agentation/src/domain/widget_identity.dart';
+import 'package:flutter_agentation/src/domain/widget_inspection_result.dart';
+import 'package:flutter_agentation/src/ui/overlay/widget_highlight.dart';
 
 class AppHeadingText extends StatelessWidget {
   final String text;
@@ -171,3 +171,4 @@ void main() {
     });
   });
 }
+

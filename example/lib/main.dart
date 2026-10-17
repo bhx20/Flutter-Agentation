@@ -13,6 +13,21 @@ import 'sections/surfaces_navigation_tables_section.dart';
 import 'sections/text_media_icons_section.dart';
 
 void main() {
+  final originalOnError = FlutterError.onError;
+  FlutterError.onError = (FlutterErrorDetails details) {
+    final msg = details.exceptionAsString();
+    final stack = details.stack?.toString() ?? '';
+    if ((msg.contains('didChangeViewFocus') || stack.contains('didChangeViewFocus')) &&
+        msg.contains('RenderBox was not laid out')) {
+      // Suppress known upstream Flutter Web framework race condition during window focus change / hot restart
+      return;
+    }
+    if (originalOnError != null) {
+      originalOnError(details);
+    } else {
+      FlutterError.presentError(details);
+    }
+  };
   runApp(const InspectionDemoApp());
 }
 

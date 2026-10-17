@@ -51,3 +51,4 @@ class FeedbackTarget {
   @override
   String toString() => 'FeedbackTarget($widgetName @ $source)';
 }
+

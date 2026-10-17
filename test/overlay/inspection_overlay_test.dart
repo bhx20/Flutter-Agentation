@@ -2,8 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/flutter_agentation.dart';
-import 'package:flutter_agentation/src/models/widget_inspection_result.dart';
-import 'package:flutter_agentation/src/overlay/annotation_popup.dart';
+import 'package:flutter_agentation/src/domain/widget_inspection_result.dart';
+import 'package:flutter_agentation/src/ui/overlay/annotation_popup.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -226,7 +226,7 @@ void main() {
       // Verify ability to comment on the selected area
       await tester.enterText(find.byType(TextField), 'Review this section layout');
       await tester.pump();
-      await tester.tap(find.text('Add'));
+      await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
 
       expect(controller.annotations.length, equals(1));
@@ -271,3 +271,4 @@ void main() {
     });
   });
 }
+

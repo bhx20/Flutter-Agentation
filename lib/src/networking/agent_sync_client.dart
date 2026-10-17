@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../core/agentation_logger.dart';
-import '../models/annotation.dart';
+import '../domain/annotation.dart';
 import '../output/agentation_format_adapter.dart';
 
 /// Response payload from an HTTP request.
@@ -293,3 +293,4 @@ class AgentSyncClient {
     }
   }
 }
+

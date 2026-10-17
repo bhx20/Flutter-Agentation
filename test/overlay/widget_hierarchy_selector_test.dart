@@ -3,13 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
 import 'package:flutter_agentation/src/core/agentation_state.dart';
-import 'package:flutter_agentation/src/models/hierarchical_inspection_result.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_context.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
-import 'package:flutter_agentation/src/models/widget_inspection_result.dart';
-import 'package:flutter_agentation/src/overlay/annotation_popup.dart';
-import 'package:flutter_agentation/src/overlay/inspection_overlay.dart';
+import 'package:flutter_agentation/src/domain/hierarchical_inspection_result.dart';
+import 'package:flutter_agentation/src/domain/widget_bounds.dart';
+import 'package:flutter_agentation/src/domain/widget_context.dart';
+import 'package:flutter_agentation/src/domain/widget_identity.dart';
+import 'package:flutter_agentation/src/domain/widget_inspection_result.dart';
+import 'package:flutter_agentation/src/ui/overlay/annotation_popup.dart';
+import 'package:flutter_agentation/src/ui/overlay/inspection_overlay.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
 
 void main() {
@@ -147,3 +147,4 @@ void main() {
     });
   });
 }
+

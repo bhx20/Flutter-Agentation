@@ -427,5 +427,144 @@ void main() {
       focusNode.dispose();
       textController.dispose();
     });
+
+    testWidgets('AnnotationDetailCard Enter key triggers Save and Escape cancels editing', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              showToolbar: false,
+              child: const Center(child: Text('Inspectable Card')),
+            ),
+          ),
+        ),
+      );
+
+      final ann = await controller.createAnnotation(
+        comment: 'Initial note',
+        targetResult: const WidgetInspectionResult(
+          identity: WidgetIdentity(id: 'w_detail', widgetType: 'Card'),
+          bounds: WidgetBounds(x: 40, y: 40, width: 100, height: 50),
+          context: WidgetContext.empty(),
+          ancestors: [],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Open detail card
+      controller.viewAnnotation(ann);
+      await tester.pumpAndSettle();
+
+      final detailTextField = find.descendant(
+        of: find.byType(AnnotationDetailCard),
+        matching: find.byType(TextField),
+      );
+      expect(detailTextField, findsOneWidget);
+
+      // Edit text and press Enter
+      await tester.enterText(detailTextField, 'Updated note via Enter');
+      await tester.pump();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+
+      // Card is saved and closed
+      expect(find.byType(AnnotationDetailCard), findsNothing);
+      expect(controller.annotations.first.comment, equals('Updated note via Enter'));
+
+      // Re-open card and test Escape
+      controller.viewAnnotation(controller.annotations.first);
+      await tester.pumpAndSettle();
+      expect(find.byType(AnnotationDetailCard), findsOneWidget);
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.byType(AnnotationDetailCard), findsNothing);
+    });
+
+    testWidgets('Arrow keys nudge active annotation in layout mode', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              showToolbar: false,
+              child: const Center(child: Text('Inspectable Widget')),
+            ),
+          ),
+        ),
+      );
+
+      final ann = await controller.createAnnotation(
+        comment: 'Nudge test',
+        targetResult: const WidgetInspectionResult(
+          identity: WidgetIdentity(id: 'w_nudge', widgetType: 'Container'),
+          bounds: WidgetBounds(x: 100, y: 100, width: 80, height: 80),
+          context: WidgetContext.empty(),
+          ancestors: [],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      controller.openLayoutMode();
+      controller.viewAnnotation(ann);
+      await tester.pumpAndSettle();
+
+      // Ensure text field is unfocused so we test canvas arrow nudging
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+
+      final initialX = controller.activeAnnotation!.bounds.x;
+      final initialY = controller.activeAnnotation!.bounds.y;
+
+      // Nudge right by 1
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(controller.activeAnnotation!.bounds.x, equals(initialX + 1.0));
+
+      // Nudge down by 1
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+      expect(controller.activeAnnotation!.bounds.y, equals(initialY + 1.0));
+
+      // Nudge left with Shift by 20
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+      expect(controller.activeAnnotation!.bounds.x, equals(initialX + 1.0 - 20.0));
+    });
+
+    testWidgets("'S' shortcut triggers annotation submission when canSend is true", (tester) async {
+      bool wasSubmitted = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              showToolbar: true,
+              onSubmit: (output, annotations) async {
+                wasSubmitted = true;
+              },
+              child: const Center(child: Text('Inspectable Widget')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await controller.createAnnotation(comment: 'Submission item');
+      await tester.pumpAndSettle();
+
+      // Press 'S'
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyS);
+      await tester.pumpAndSettle();
+
+      expect(wasSubmitted, isTrue);
+    });
   });
 }
+

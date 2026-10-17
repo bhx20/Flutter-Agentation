@@ -1,6 +1,6 @@
-import 'package:flutter_agentation/src/models/annotation.dart';
-import 'package:flutter_agentation/src/models/widget_bounds.dart';
-import 'package:flutter_agentation/src/models/widget_identity.dart';
+import 'package:flutter_agentation/src/domain/annotation.dart';
+import 'package:flutter_agentation/src/domain/widget_bounds.dart';
+import 'package:flutter_agentation/src/domain/widget_identity.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -88,3 +88,4 @@ void main() {
     });
   });
 }
+

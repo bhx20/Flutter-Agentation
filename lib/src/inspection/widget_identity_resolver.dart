@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import '../models/widget_identity.dart';
+import '../domain/widget_identity.dart';
 
 /// Optional explicit target widget that developers can wrap around widgets
 /// to provide deterministic identity in complex or dynamic applications.
@@ -88,3 +88,4 @@ class WidgetIdentityResolver {
         str.startsWith('[_');
   }
 }
+

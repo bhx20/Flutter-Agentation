@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models/annotation.dart';
-import '../models/toolbar_settings.dart';
-import '../models/widget_inspection_result.dart';
-import '../overlay/highlight_style.dart';
-import '../overlay/inspection_overlay.dart';
-import '../toolbar/agentation_toolbar.dart';
+import '../domain/annotation.dart';
+import '../domain/toolbar_settings.dart';
+import '../domain/widget_inspection_result.dart';
+import '../ui/overlay/highlight_style.dart';
+import '../ui/overlay/inspection_overlay.dart';
+import '../ui/toolbar/agentation_toolbar.dart';
 import 'agentation_controller.dart';
 import 'agentation_keymap.dart';
 import 'agentation_scope.dart';
@@ -195,9 +195,32 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
   AgentationController get _effectiveController =>
       widget.controller ?? (_internalController ??= AgentationController());
 
+  static bool _webFocusErrorProtectionInstalled = false;
+
+  static void _installWebFocusErrorProtection() {
+    if (_webFocusErrorProtectionInstalled) return;
+    _webFocusErrorProtectionInstalled = true;
+    final originalOnError = FlutterError.onError;
+    FlutterError.onError = (FlutterErrorDetails details) {
+      final msg = details.exceptionAsString();
+      final stack = details.stack?.toString() ?? '';
+      if ((msg.contains('didChangeViewFocus') || stack.contains('didChangeViewFocus')) &&
+          msg.contains('RenderBox was not laid out')) {
+        // Suppress known upstream Flutter Web framework race condition during window focus change / hot restart
+        return;
+      }
+      if (originalOnError != null) {
+        originalOnError(details);
+      } else {
+        FlutterError.presentError(details);
+      }
+    };
+  }
+
   @override
   void initState() {
     super.initState();
+    _installWebFocusErrorProtection();
     _configureController();
     if (widget.showToolbar &&
         !_effectiveController.isToolbarMinimized &&
@@ -368,4 +391,5 @@ class _OverlayChildWidget extends StatelessWidget {
     return state.widget.child;
   }
 }
+
 

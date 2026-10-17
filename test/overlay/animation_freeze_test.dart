@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
 import 'package:flutter_agentation/src/core/agentation_state.dart';
-import 'package:flutter_agentation/src/overlay/freeze_overlay.dart';
-import 'package:flutter_agentation/src/toolbar/agentation_toolbar.dart';
+import 'package:flutter_agentation/src/ui/overlay/freeze_overlay.dart';
+import 'package:flutter_agentation/src/ui/toolbar/agentation_toolbar.dart';
 
 void main() {
   group('Animation Freeze Controller (User Story 4)', () {
@@ -149,3 +149,4 @@ class _TestAnimatedWidgetState extends State<_TestAnimatedWidget>
     );
   }
 }
+

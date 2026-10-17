@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 
-import '../models/widget_bounds.dart';
-import '../models/widget_inspection_result.dart';
+import '../domain/widget_bounds.dart';
+import '../domain/widget_inspection_result.dart';
 import 'widget_code_asset_reader.dart';
 import 'widget_code_file_reader.dart';
 import 'widget_source_location.dart';
@@ -167,3 +167,4 @@ class WidgetCodeResolver {
     }
   }
 }
+
