@@ -31,11 +31,35 @@ class ComponentPalette extends StatefulWidget {
 }
 
 class _ComponentPaletteState extends State<ComponentPalette> {
+  final GlobalKey _cardKey = GlobalKey();
+  final ScrollController _scrollController = ScrollController();
   final ValueNotifier<String?> _hoveredTypeNotifier = ValueNotifier<String?>(null);
   final ValueNotifier<bool> _isWireframeActiveNotifier = ValueNotifier<bool>(false);
+  AgentationController? _controller;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller ??= widget.controller ?? AgentationScope.maybeOf(context);
+    _updateFlyoutBounds();
+  }
+
+  void _updateFlyoutBounds() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final renderBox = _cardKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null && renderBox.hasSize) {
+        final origin = renderBox.localToGlobal(Offset.zero);
+        final bounds = Rect.fromLTWH(origin.dx, origin.dy, renderBox.size.width, renderBox.size.height);
+        _controller?.updateFlyoutBounds(bounds);
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _controller?.updateFlyoutBounds(null);
+    _scrollController.dispose();
     _hoveredTypeNotifier.dispose();
     _isWireframeActiveNotifier.dispose();
     super.dispose();
@@ -46,6 +70,7 @@ class _ComponentPaletteState extends State<ComponentPalette> {
 
   @override
   Widget build(BuildContext context) {
+    _updateFlyoutBounds();
     final controller = _ctrl;
 
     return ListenableBuilder(
@@ -62,7 +87,9 @@ class _ComponentPaletteState extends State<ComponentPalette> {
         final borderColor = theme.panelBorderColor;
 
         final screenSize = MediaQuery.sizeOf(context);
-        final isMobile = screenSize.width < 600.0;
+        final isMobile = screenSize.width < 600.0 ||
+            Theme.of(context).platform == TargetPlatform.iOS ||
+            Theme.of(context).platform == TargetPlatform.android;
 
         final cardWidth = isMobile ? math.min(268.0, screenSize.width - 24.0) : 290.0;
         final cardMaxHeight = isMobile ? math.min(340.0, screenSize.height - 140.0) : 460.0;
@@ -74,8 +101,12 @@ class _ComponentPaletteState extends State<ComponentPalette> {
             .where((t) => t.category == 'Blocks')
             .toList();
 
-        return Material(
-          color: Colors.transparent,
+        return Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerSignal: (_) {}, // Absorbs pointer signals to isolate from background page scrolling
+          child: Material(
+            key: _cardKey,
+            color: Colors.transparent,
           child: Container(
             width: cardWidth,
             constraints: BoxConstraints(maxHeight: cardMaxHeight),
@@ -206,48 +237,56 @@ class _ComponentPaletteState extends State<ComponentPalette> {
 
                 // ── Scrollable Items (Elements & Blocks) ──
                 Flexible(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Elements list
-                        for (final item in elements)
-                          _buildDraggableItem(item, isDark, textColor, subtextColor, activeColor),
+                  child: NotificationListener<ScrollNotification>(
+                    onNotification: (notification) => true, // Stop scroll notifications from bubbling to host page
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      primary: false,
+                      physics: const ClampingScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Elements list
+                          for (final item in elements)
+                            _buildDraggableItem(item, isDark, isMobile, textColor, subtextColor, activeColor),
 
-                        const SizedBox(height: 10.0),
+                          const SizedBox(height: 10.0),
 
-                        // Section header: Blocks
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
-                          child: Text(
-                            'Blocks',
-                            style: TextStyle(
-                              color: subtextColor,
-                              fontSize: 11.0,
-                              fontWeight: FontWeight.w600,
+                          // Section header: Blocks
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
+                            child: Text(
+                              'Blocks',
+                              style: TextStyle(
+                                color: subtextColor,
+                                fontSize: 11.0,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 2.0),
+                          const SizedBox(height: 2.0),
 
-                        // Blocks list
-                        for (final item in blocks)
-                          _buildDraggableItem(item, isDark, textColor, subtextColor, activeColor),
-                      ],
+                          // Blocks list
+                          for (final item in blocks)
+                            _buildDraggableItem(item, isDark, isMobile, textColor, subtextColor, activeColor),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 
   Widget _buildDraggableItem(
     SkeletonTemplate item,
     bool isDark,
+    bool isMobile,
     Color textColor,
     Color subtextColor,
     Color activeColor,
@@ -257,12 +296,7 @@ class _ComponentPaletteState extends State<ComponentPalette> {
       builder: (context, hoveredType, _) {
         final isHovered = hoveredType == item.componentType;
 
-        return MouseRegion(
-          onEnter: (_) => _hoveredTypeNotifier.value = item.componentType,
-          onExit: (_) => _hoveredTypeNotifier.value = null,
-          child: Draggable<SkeletonTemplate>(
-        data: item,
-        feedback: Material(
+        final feedback = Material(
           color: Colors.transparent,
           child: Container(
             width: item.defaultWidth,
@@ -284,20 +318,42 @@ class _ComponentPaletteState extends State<ComponentPalette> {
               ),
             ),
           ),
-        ),
-        childWhenDragging: Opacity(
+        );
+
+        final childWhenDragging = Opacity(
           opacity: 0.4,
           child: _buildItemRow(item, textColor, subtextColor, false),
-        ),
-        child: InkWell(
+        );
+
+        final draggableChild = InkWell(
           onTap: () {
             widget.onSelectTemplate(item);
           },
           borderRadius: BorderRadius.circular(8.0),
           child: _buildItemRow(item, textColor, subtextColor, isHovered),
-        ),
-      ),
-    );
+        );
+
+        final draggableWidget = isMobile
+            ? LongPressDraggable<SkeletonTemplate>(
+                data: item,
+                delay: const Duration(milliseconds: 250),
+                hapticFeedbackOnStart: true,
+                feedback: feedback,
+                childWhenDragging: childWhenDragging,
+                child: draggableChild,
+              )
+            : Draggable<SkeletonTemplate>(
+                data: item,
+                feedback: feedback,
+                childWhenDragging: childWhenDragging,
+                child: draggableChild,
+              );
+
+        return MouseRegion(
+          onEnter: (_) => _hoveredTypeNotifier.value = item.componentType,
+          onExit: (_) => _hoveredTypeNotifier.value = null,
+          child: draggableWidget,
+        );
       },
     );
   }
@@ -324,12 +380,16 @@ class _ComponentPaletteState extends State<ComponentPalette> {
             color: isHovered ? Colors.white : subtextColor,
           ),
           const SizedBox(width: 8.0),
-          Text(
-            item.label,
-            style: TextStyle(
-              color: isHovered ? Colors.white : textColor,
-              fontSize: isMobile ? 11.5 : 12.5,
-              fontWeight: FontWeight.w500,
+          Expanded(
+            child: Text(
+              item.label,
+              style: TextStyle(
+                color: isHovered ? Colors.white : textColor,
+                fontSize: isMobile ? 11.5 : 12.5,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
             ),
           ),
         ],

@@ -138,6 +138,86 @@ void main() {
       expect(controller.annotations.length, equals(1));
     });
 
+    testWidgets('ComponentPalette isolates scrolling and does not scroll main screen', (tester) async {
+      final mainScreenController = ScrollController();
+      controller.setLayoutModeOpen(true);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                // Host screen scrollable
+                ListView.builder(
+                  controller: mainScreenController,
+                  itemCount: 100,
+                  itemBuilder: (context, index) => ListTile(title: Text('Host Item $index')),
+                ),
+                // Layout Mode ComponentPalette popup overlay
+                Positioned(
+                  left: 20,
+                  top: 50,
+                  child: AgentationScope(
+                    controller: controller,
+                    child: ComponentPalette(
+                      controller: controller,
+                      onSelectTemplate: (_) {},
+                      onClose: () => controller.closeLayoutMode(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify flyoutBounds is tracked
+      expect(controller.flyoutBounds, isNotNull);
+      expect(controller.flyoutBounds!.width, greaterThan(0));
+
+      // Initial main screen offset is 0.0
+      expect(mainScreenController.offset, equals(0.0));
+
+      // Drag/scroll inside the ComponentPalette list
+      final paletteFinder = find.byType(SingleChildScrollView).last;
+      await tester.drag(paletteFinder, const Offset(0, -300));
+      await tester.pumpAndSettle();
+
+      // Main screen must remain un-scrolled
+      expect(mainScreenController.offset, equals(0.0));
+
+      // Close layout mode
+      controller.closeLayoutMode();
+      await tester.pumpAndSettle();
+
+      expect(controller.flyoutBounds, isNull);
+      mainScreenController.dispose();
+    });
+
+    testWidgets('on mobile, ComponentPalette uses LongPressDraggable so touch swipes scroll and holding drags', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: TargetPlatform.android),
+          home: Scaffold(
+            body: AgentationScope(
+              controller: controller,
+              child: ComponentPalette(
+                controller: controller,
+                onSelectTemplate: (_) {},
+                onClose: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify LongPressDraggable is used for mobile items
+      expect(find.byType(LongPressDraggable<SkeletonTemplate>), findsWidgets);
+    });
+
     test('RearrangeController computes drag offset and produces RearrangeData', () {
       final rearrangeCtrl = RearrangeController(
         initialBounds: const WidgetBounds(x: 50, y: 50, width: 100, height: 30),

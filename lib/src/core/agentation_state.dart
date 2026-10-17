@@ -46,6 +46,7 @@ class AgentationState {
     this.toolbarOffset = Offset.zero,
     this.toolbarBounds,
     this.popupBounds,
+    this.flyoutBounds,
     this.isToolbarMinimized = false,
     this.isFrozen = false,
     this.areCommentsVisible = true,
@@ -79,6 +80,9 @@ class AgentationState {
 
   /// Current bounding box of the active annotation popup on screen.
   final Rect? popupBounds;
+
+  /// Current bounding box of the active flyout panel (Layout Mode palette or Settings panel) on screen.
+  final Rect? flyoutBounds;
 
   /// Whether the floating toolbar is collapsed.
   final bool isToolbarMinimized;
@@ -115,6 +119,7 @@ class AgentationState {
     Offset? toolbarOffset,
     Rect? Function()? toolbarBounds,
     Rect? Function()? popupBounds,
+    Rect? Function()? flyoutBounds,
     bool? isToolbarMinimized,
     bool? isFrozen,
     bool? areCommentsVisible,
@@ -136,6 +141,8 @@ class AgentationState {
           toolbarBounds != null ? toolbarBounds() : this.toolbarBounds,
       popupBounds:
           popupBounds != null ? popupBounds() : this.popupBounds,
+      flyoutBounds:
+          flyoutBounds != null ? flyoutBounds() : this.flyoutBounds,
       isToolbarMinimized: isToolbarMinimized ?? this.isToolbarMinimized,
       isFrozen: isFrozen ?? this.isFrozen,
       areCommentsVisible: areCommentsVisible ?? this.areCommentsVisible,
@@ -157,6 +164,7 @@ class AgentationState {
         other.toolbarOffset == toolbarOffset &&
         other.toolbarBounds == toolbarBounds &&
         other.popupBounds == popupBounds &&
+        other.flyoutBounds == flyoutBounds &&
         other.isToolbarMinimized == isToolbarMinimized &&
         other.isFrozen == isFrozen &&
         other.areCommentsVisible == areCommentsVisible &&
@@ -175,6 +183,7 @@ class AgentationState {
         toolbarOffset,
         toolbarBounds,
         popupBounds,
+        flyoutBounds,
         isToolbarMinimized,
         isFrozen,
         areCommentsVisible,

@@ -17,6 +17,7 @@ import 'semantics_resolver.dart';
 import 'text_resolver.dart';
 import 'widget_identity_resolver.dart';
 import 'widget_path_resolver.dart';
+import 'widget_tree_placement_resolver.dart';
 
 /// The core Flutter Inspection Engine coordinating hit-testing, element resolution,
 /// coordinate bounding, and context extraction.
@@ -32,6 +33,7 @@ class FlutterInspectionEngine {
   final SemanticsResolver semanticsResolver;
   final RouteResolver routeResolver;
   final SourceLocationResolver sourceLocationResolver;
+  final WidgetTreePlacementResolver treePlacementResolver;
 
   /// Optional set of render objects to ignore during hit testing (e.g. inspector overlay canvas).
   Set<RenderObject>? ignoredRenderObjects;
@@ -46,6 +48,7 @@ class FlutterInspectionEngine {
     SemanticsResolver? semanticsResolver,
     RouteResolver? routeResolver,
     SourceLocationResolver? sourceLocationResolver,
+    WidgetTreePlacementResolver? treePlacementResolver,
     this.ignoredRenderObjects,
   })  : hitTestEngine = hitTestEngine ?? HitTestEngine(),
         elementInspector = elementInspector ?? ElementInspector(),
@@ -55,7 +58,14 @@ class FlutterInspectionEngine {
         textResolver = textResolver ?? TextResolver(),
         semanticsResolver = semanticsResolver ?? SemanticsResolver(),
         routeResolver = routeResolver ?? RouteResolver(),
-        sourceLocationResolver = sourceLocationResolver ?? FlutterSourceLocationResolver();
+        sourceLocationResolver = sourceLocationResolver ?? FlutterSourceLocationResolver(),
+        treePlacementResolver = treePlacementResolver ??
+            WidgetTreePlacementResolver(
+              hitTestEngine: hitTestEngine,
+              elementInspector: elementInspector,
+              textResolver: textResolver,
+              pathResolver: pathResolver,
+            );
 
   /// Registry caching weak references to live RenderBoxes for inspected widgets.
   final Map<String, WeakReference<RenderBox>> _renderBoxRegistry = {};
@@ -114,6 +124,25 @@ class FlutterInspectionEngine {
       AgentationLogger.error('Inspection failed at $globalPosition', e, st);
       return const WidgetInspectionResult.unavailable();
     }
+  }
+
+  /// Resolves the precise Flutter widget tree placement (parent container, siblings,
+  /// child index, and relative tree position) at [globalPosition].
+  WidgetTreePlacement resolveTreePlacement(
+    Offset globalPosition, {
+    Element? draggedElement,
+    WidgetIdentity? draggedIdentity,
+    Element? rootElement,
+    RenderObject? rootRenderObject,
+  }) {
+    return treePlacementResolver.resolvePlacement(
+      dropPosition: globalPosition,
+      draggedElement: draggedElement,
+      draggedIdentity: draggedIdentity,
+      rootElement: rootElement,
+      rootRenderObject: rootRenderObject,
+      ignoredRenderObjects: ignoredRenderObjects,
+    );
   }
 
   /// Inspects all candidate layers under [globalPosition], useful for stacked or overlapping widgets.

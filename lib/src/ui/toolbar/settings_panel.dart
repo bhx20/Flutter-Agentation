@@ -24,6 +24,9 @@ class SettingsPanel extends StatefulWidget {
 }
 
 class _SettingsPanelState extends State<SettingsPanel> {
+  final GlobalKey _panelKey = GlobalKey();
+  AgentationController? _controller;
+
   AgentationController get _ctrl =>
       widget.controller ?? AgentationScope.of(context);
 
@@ -34,7 +37,33 @@ class _SettingsPanelState extends State<SettingsPanel> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _controller ??= widget.controller ?? AgentationScope.maybeOf(context);
+    _updateFlyoutBounds();
+  }
+
+  void _updateFlyoutBounds() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final renderBox = _panelKey.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox != null && renderBox.hasSize) {
+        final origin = renderBox.localToGlobal(Offset.zero);
+        final bounds = Rect.fromLTWH(origin.dx, origin.dy, renderBox.size.width, renderBox.size.height);
+        _controller?.updateFlyoutBounds(bounds);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller?.updateFlyoutBounds(null);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    _updateFlyoutBounds();
     final controller = _ctrl;
 
     return ListenableBuilder(
@@ -48,11 +77,15 @@ class _SettingsPanelState extends State<SettingsPanel> {
         final subtextColor = theme.textSecondary;
         final dividerColor = theme.dividerColor;
 
-        return Material(
-          color: Colors.transparent,
-          child: Container(
-            width: 253.0,
-            decoration: BoxDecoration(
+        return Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerSignal: (_) {},
+          child: Material(
+            key: _panelKey,
+            color: Colors.transparent,
+            child: Container(
+              width: 253.0,
+              decoration: BoxDecoration(
               color: theme.panelBackground,
               borderRadius: BorderRadius.circular(16.0),
               border: Border.all(color: theme.panelBorderColor, width: 1.0),
@@ -373,9 +406,10 @@ class _SettingsPanelState extends State<SettingsPanel> {
               ),
             ),
           ),
-        );
-      },
-    );
+        ),
+      );
+    },
+  );
   }
 
   Widget _buildCustomCheckbox({required bool checked, required AgentationThemeData theme}) {

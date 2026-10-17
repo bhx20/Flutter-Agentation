@@ -10,6 +10,7 @@ import '../../core/agentation_state.dart';
 import '../../domain/annotation.dart';
 import '../../domain/drawing_stroke.dart';
 import '../../domain/marker_color.dart';
+import '../../domain/placement_data.dart';
 import '../../domain/widget_bounds.dart';
 import '../../domain/widget_context.dart';
 import '../../domain/widget_identity.dart';
@@ -595,6 +596,8 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     if (_isEventOnToolbar(position)) return true;
     final pBounds = widget.controller.popupBounds;
     if (pBounds != null && pBounds.inflate(8.0).contains(position)) return true;
+    final fBounds = widget.controller.flyoutBounds;
+    if (fBounds != null && fBounds.inflate(8.0).contains(position)) return true;
     return false;
   }
 
@@ -608,12 +611,47 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       final selectedTemplate = _selectedTemplateNotifier.value;
       if (selectedTemplate != null) {
         final scrollPos = _findScrollPositionAt(event.position) ?? _findAnyScrollPosition();
+        final treePlacement = widget.controller.engine.resolveTreePlacement(
+          event.position,
+          rootRenderObject: _hostRenderObject,
+          rootElement: _hostAppKey.currentContext as Element?,
+        );
+
+        final comment = widget.controller.engine.treePlacementResolver.formatComment(
+          action: 'Place',
+          targetLabel: selectedTemplate.label,
+          placement: treePlacement,
+        );
+
+        final placementData = selectedTemplate.toPlacementData();
+        final enrichedPlacement = PlacementData(
+          componentType: placementData.componentType,
+          width: placementData.width,
+          height: placementData.height,
+          text: placementData.text,
+          prompt: placementData.prompt,
+          parentWidget: treePlacement.parentWidget,
+          relativeTarget: treePlacement.relativeTarget,
+          direction: treePlacement.direction,
+          treePlacement: treePlacement.description,
+        );
+
         widget.controller.createPlacementAnnotation(
-          placement: selectedTemplate.toPlacementData(),
+          placement: enrichedPlacement,
           position: event.position,
-          comment: 'Add ${selectedTemplate.label} here',
+          comment: comment,
           isFixed: scrollPos == null,
           scrollY: scrollPos?.pixels,
+          metadata: {
+            'parentWidget': treePlacement.parentWidget,
+            'direction': treePlacement.direction,
+            if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,
+            if (treePlacement.siblingBefore != null) 'siblingBefore': treePlacement.siblingBefore,
+            if (treePlacement.siblingAfter != null) 'siblingAfter': treePlacement.siblingAfter,
+            if (treePlacement.childIndex != null) 'childIndex': treePlacement.childIndex,
+            if (treePlacement.parentBreadcrumb != null) 'parentBreadcrumb': treePlacement.parentBreadcrumb,
+            'treePlacement': treePlacement.description,
+          },
         );
         _selectedTemplateNotifier.value = null;
         return;
@@ -744,19 +782,60 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     final toolMode = widget.controller.toolMode;
 
     if (toolMode == AnnotationToolMode.design && _rearrangeController.isDragging) {
-      final rearrangeData = _rearrangeController.endDrag();
       final target = _activeRearrangeTargetNotifier.value;
       _activeRearrangeTargetNotifier.value = null;
       _activeRearrangeBoundsNotifier.value = null;
-      if (target != null && rearrangeData.distanceMoved > 5.0) {
-        widget.controller.createRearrangeAnnotation(
-          rearrange: rearrangeData,
-          targetIdentity: target.identity,
-          comment:
-              'Move ${target.identity.widgetType} ${rearrangeData.direction ?? "element"}',
-          isFixed: target.context.isFixed,
-          scrollY: target.context.scrollOffset,
+
+      if (target != null) {
+        final treePlacement = widget.controller.engine.resolveTreePlacement(
+          event.position,
+          draggedIdentity: target.identity,
+          rootRenderObject: _hostRenderObject,
+          rootElement: _hostAppKey.currentContext as Element?,
         );
+
+        final rearrangeData = _rearrangeController.endDrag(
+          relativeTarget: treePlacement.relativeTarget,
+          direction: treePlacement.direction,
+          parentWidget: treePlacement.parentWidget,
+          siblingBefore: treePlacement.siblingBefore,
+          siblingAfter: treePlacement.siblingAfter,
+          childIndex: treePlacement.childIndex,
+          totalChildren: treePlacement.totalChildren,
+          treePlacement: treePlacement.description,
+        );
+
+        if (rearrangeData.distanceMoved > 5.0) {
+          final targetName = target.text?.isNotEmpty == true
+              ? "${target.identity.widgetType} ('${target.text}')"
+              : target.identity.widgetType;
+
+          final comment = widget.controller.engine.treePlacementResolver.formatComment(
+            action: 'Move',
+            targetLabel: targetName,
+            placement: treePlacement,
+          );
+
+          widget.controller.createRearrangeAnnotation(
+            rearrange: rearrangeData,
+            targetIdentity: target.identity,
+            comment: comment,
+            isFixed: target.context.isFixed,
+            scrollY: target.context.scrollOffset,
+            metadata: {
+              'parentWidget': treePlacement.parentWidget,
+              'direction': treePlacement.direction,
+              if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,
+              if (treePlacement.siblingBefore != null) 'siblingBefore': treePlacement.siblingBefore,
+              if (treePlacement.siblingAfter != null) 'siblingAfter': treePlacement.siblingAfter,
+              if (treePlacement.childIndex != null) 'childIndex': treePlacement.childIndex,
+              if (treePlacement.parentBreadcrumb != null) 'parentBreadcrumb': treePlacement.parentBreadcrumb,
+              'treePlacement': treePlacement.description,
+            },
+          );
+        }
+      } else {
+        _rearrangeController.endDrag();
       }
       return;
     }
@@ -1389,12 +1468,47 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                 child: DragTarget<SkeletonTemplate>(
                   onAcceptWithDetails: (details) {
                     final scrollPos = _findScrollPositionAt(details.offset) ?? _findAnyScrollPosition();
+                    final treePlacement = widget.controller.engine.resolveTreePlacement(
+                      details.offset,
+                      rootRenderObject: _hostRenderObject,
+                      rootElement: _hostAppKey.currentContext as Element?,
+                    );
+
+                    final comment = widget.controller.engine.treePlacementResolver.formatComment(
+                      action: 'Place',
+                      targetLabel: details.data.label,
+                      placement: treePlacement,
+                    );
+
+                    final placementData = details.data.toPlacementData();
+                    final enrichedPlacement = PlacementData(
+                      componentType: placementData.componentType,
+                      width: placementData.width,
+                      height: placementData.height,
+                      text: placementData.text,
+                      prompt: placementData.prompt,
+                      parentWidget: treePlacement.parentWidget,
+                      relativeTarget: treePlacement.relativeTarget,
+                      direction: treePlacement.direction,
+                      treePlacement: treePlacement.description,
+                    );
+
                     widget.controller.createPlacementAnnotation(
-                      placement: details.data.toPlacementData(),
+                      placement: enrichedPlacement,
                       position: details.offset,
-                      comment: 'Add ${details.data.label} here',
+                      comment: comment,
                       isFixed: scrollPos == null,
                       scrollY: scrollPos?.pixels,
+                      metadata: {
+                        'parentWidget': treePlacement.parentWidget,
+                        'direction': treePlacement.direction,
+                        if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,
+                        if (treePlacement.siblingBefore != null) 'siblingBefore': treePlacement.siblingBefore,
+                        if (treePlacement.siblingAfter != null) 'siblingAfter': treePlacement.siblingAfter,
+                        if (treePlacement.childIndex != null) 'childIndex': treePlacement.childIndex,
+                        if (treePlacement.parentBreadcrumb != null) 'parentBreadcrumb': treePlacement.parentBreadcrumb,
+                        'treePlacement': treePlacement.description,
+                      },
                     );
                   },
                   builder: (context, candidateData, rejectedData) {

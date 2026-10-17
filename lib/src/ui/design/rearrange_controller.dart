@@ -53,6 +53,12 @@ class RearrangeController extends ChangeNotifier {
   RearrangeData endDrag({
     String? relativeTarget,
     String? direction,
+    String? parentWidget,
+    String? siblingBefore,
+    String? siblingAfter,
+    int? childIndex,
+    int? totalChildren,
+    String? treePlacement,
   }) {
     _isDragging = false;
     _dragStart = null;
@@ -65,6 +71,12 @@ class RearrangeController extends ChangeNotifier {
       newBounds: _currentBounds,
       relativeTarget: relativeTarget,
       direction: computedDirection,
+      parentWidget: parentWidget,
+      siblingBefore: siblingBefore,
+      siblingAfter: siblingAfter,
+      childIndex: childIndex,
+      totalChildren: totalChildren,
+      treePlacement: treePlacement,
     );
 
     notifyListeners();

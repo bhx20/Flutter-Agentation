@@ -182,6 +182,9 @@ class AgentationController extends ChangeNotifier {
   /// Current bounding box of the active annotation popup on screen.
   Rect? get popupBounds => _state.popupBounds;
 
+  /// Current bounding box of the active flyout panel (Layout Mode palette or Settings panel) on screen.
+  Rect? get flyoutBounds => _state.flyoutBounds;
+
   /// Whether the floating toolbar is collapsed.
   bool get isToolbarMinimized => _state.isToolbarMinimized;
 
@@ -1040,6 +1043,14 @@ class AgentationController extends ChangeNotifier {
     );
   }
 
+  /// Updates flyout panel (Layout Mode or Settings panel) bounding box on screen.
+  void updateFlyoutBounds(Rect? newBounds) {
+    if (_state.flyoutBounds == newBounds) return;
+    _state = _state.copyWith(
+      flyoutBounds: () => newBounds,
+    );
+  }
+
   /// Sets toolbar minimized state. When minimized/collapsed, inspection is paused/inactive.
   /// When expanded, inspection is activated/enabled.
   void setToolbarMinimized(bool minimized) {
@@ -1057,6 +1068,7 @@ class AgentationController extends ChangeNotifier {
         selectedResult: () => null,
         hoveredResult: () => null,
         activeHierarchy: () => null,
+        flyoutBounds: () => null,
       );
       _multiSelection = [];
       _activeAnnotation = null;
@@ -1097,6 +1109,7 @@ class AgentationController extends ChangeNotifier {
     _state = _state.copyWith(
       isSettingsOpen: open,
       isLayoutModeOpen: open ? false : _state.isLayoutModeOpen,
+      flyoutBounds: open ? null : () => null,
     );
     notifyListeners();
   }
@@ -1117,6 +1130,7 @@ class AgentationController extends ChangeNotifier {
       isLayoutModeOpen: open,
       isSettingsOpen: open ? false : _state.isSettingsOpen,
       toolMode: open ? AnnotationToolMode.design : AnnotationToolMode.pointer,
+      flyoutBounds: open ? null : () => null,
     );
     if (open) {
       clearSelection();

@@ -6,6 +6,7 @@ import '../../core/agentation_scope.dart';
 import '../../core/agentation_state.dart';
 import '../design/component_palette.dart';
 import '../../domain/marker_color.dart';
+import '../../domain/placement_data.dart';
 import '../../theme/agentation_theme.dart';
 import 'agentation_icons.dart';
 import 'settings_panel.dart';
@@ -406,10 +407,40 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                       controller.closeLayoutMode();
                     },
                     onSelectTemplate: (template) {
+                      final dropPos = Offset(screenSize.width / 2, screenSize.height / 2);
+                      final treePlacement = controller.engine.resolveTreePlacement(dropPos);
+                      final comment = controller.engine.treePlacementResolver.formatComment(
+                        action: 'Place',
+                        targetLabel: template.label,
+                        placement: treePlacement,
+                      );
+                      final placementData = template.toPlacementData();
+                      final enrichedPlacement = PlacementData(
+                        componentType: placementData.componentType,
+                        width: placementData.width,
+                        height: placementData.height,
+                        text: placementData.text,
+                        prompt: placementData.prompt,
+                        parentWidget: treePlacement.parentWidget,
+                        relativeTarget: treePlacement.relativeTarget,
+                        direction: treePlacement.direction,
+                        treePlacement: treePlacement.description,
+                      );
+
                       controller.createPlacementAnnotation(
-                        placement: template.toPlacementData(),
-                        position: Offset(screenSize.width / 2, screenSize.height / 2),
-                        comment: 'Add ${template.label} here',
+                        placement: enrichedPlacement,
+                        position: dropPos,
+                        comment: comment,
+                        metadata: {
+                          'parentWidget': treePlacement.parentWidget,
+                          'direction': treePlacement.direction,
+                          if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,
+                          if (treePlacement.siblingBefore != null) 'siblingBefore': treePlacement.siblingBefore,
+                          if (treePlacement.siblingAfter != null) 'siblingAfter': treePlacement.siblingAfter,
+                          if (treePlacement.childIndex != null) 'childIndex': treePlacement.childIndex,
+                          if (treePlacement.parentBreadcrumb != null) 'parentBreadcrumb': treePlacement.parentBreadcrumb,
+                          'treePlacement': treePlacement.description,
+                        },
                       );
                       controller.closeLayoutMode();
                     },
