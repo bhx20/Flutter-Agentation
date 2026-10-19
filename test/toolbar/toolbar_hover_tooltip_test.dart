@@ -1,8 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_agentation/flutter_agentation.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
+import 'package:flutter_agentation/src/domain/marker_color.dart';
+import 'package:flutter_agentation/src/domain/toolbar_settings.dart';
+import 'package:flutter_agentation/src/domain/widget_inspection_result.dart';
+import 'package:flutter_agentation/src/theme/agentation_colors.dart';
+import 'package:flutter_agentation/src/ui/overlay/annotation_marker.dart';
 import 'package:flutter_agentation/src/ui/toolbar/agentation_toolbar.dart';
 
 void main() {
@@ -189,10 +195,18 @@ void main() {
       );
       expect(layoutTooltip.richMessage?.toPlainText(), contains('Layout mode L'));
       expect(layoutTooltip.preferBelow, isFalse);
-      expect(layoutTooltip.verticalOffset, equals(22.0));
+      expect(layoutTooltip.verticalOffset, equals(30.0));
       expect(layoutTooltip.padding, equals(const EdgeInsets.symmetric(horizontal: 7.0, vertical: 8.5)));
       final darkShapeDeco = layoutTooltip.decoration as ShapeDecoration;
       expect(darkShapeDeco.color, equals(const Color(0xFF18181B)));
+
+      // Verify Exit button tooltip has shortcut 'Esc', preferBelow: false, and verticalOffset: 30.0
+      final exitTooltip = tooltips.firstWhere(
+        (t) => (t.richMessage?.toPlainText() ?? '').contains('Exit'),
+      );
+      expect(exitTooltip.richMessage?.toPlainText(), contains('Exit Esc'));
+      expect(exitTooltip.preferBelow, isFalse);
+      expect(exitTooltip.verticalOffset, equals(30.0));
 
       // Switch to light mode and verify tooltip background is white
       controller.updateSettings(controller.settings.copyWith(isDarkMode: false));
@@ -206,8 +220,9 @@ void main() {
       expect(lightShapeDeco.color, equals(Colors.white));
     });
 
-    testWidgets('Minimized toolbar renders vibrant blue badge (#0088FF) anchored top-right with annotation count', (tester) async {
+    testWidgets('Minimized toolbar renders badge with selected marker color anchored top-right without clipping', (tester) async {
       final controller = AgentationController();
+      controller.updateSettings(const ToolbarSettings(markerColorId: 'blue'));
       await controller.createAnnotation(comment: 'Issue 1');
       controller.setToolbarMinimized(true);
 
@@ -230,17 +245,17 @@ void main() {
       // Expand button is rendered
       expect(find.byKey(const ValueKey('toolbar_expand')), findsOneWidget);
 
-      // Badge displays '1' with white text inside vibrant blue container
+      // Badge displays '1' with white text inside selected marker color container
       expect(find.text('1'), findsOneWidget);
       final badgeContainerFinder = find.ancestor(
         of: find.text('1'),
         matching: find.byType(Container),
       ).first;
-      final badgeContainer = tester.widget<Container>(badgeContainerFinder);
-      final badgeDeco = badgeContainer.decoration as BoxDecoration?;
+      var badgeContainer = tester.widget<Container>(badgeContainerFinder);
+      var badgeDeco = badgeContainer.decoration as BoxDecoration?;
       expect(badgeDeco?.color, equals(const Color(0xFF0088FF)));
 
-      // Positioned at top: -4.0, right: -4.0
+      // Positioned at top: -4.0, right: -4.0 OUTSIDE ClipRRect (not clipped by ClipRRect)
       final positionedFinder = find.ancestor(
         of: badgeContainerFinder,
         matching: find.byType(Positioned),
@@ -248,6 +263,264 @@ void main() {
       final positioned = tester.widget<Positioned>(positionedFinder);
       expect(positioned.top, equals(-4.0));
       expect(positioned.right, equals(-4.0));
+      expect(find.ancestor(of: badgeContainerFinder, matching: find.byType(ClipRRect)), findsNothing);
+
+      // Dynamic marker color update updates badge color
+      controller.updateSettings(controller.settings.copyWith(markerColorId: 'rose'));
+      await tester.pumpAndSettle();
+
+      badgeContainer = tester.widget<Container>(badgeContainerFinder);
+      badgeDeco = badgeContainer.decoration as BoxDecoration?;
+      expect(badgeDeco?.color, equals(const Color(0xFFFF383C)));
+    });
+
+    testWidgets('hovering minimized button displays Start Feedback Mode tooltip on left side', (tester) async {
+      final controller = AgentationController();
+      controller.setToolbarMinimized(true);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final expandButton = find.byKey(const ValueKey('toolbar_expand'));
+      expect(expandButton, findsOneWidget);
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await tester.pump();
+
+      await gesture.moveTo(tester.getCenter(expandButton));
+      await tester.pump();
+      // Pump mid-animation: FadeTransition is animating in
+      await tester.pump(const Duration(milliseconds: 90));
+      final fadeFinder = find.ancestor(
+        of: find.text('Start Feedback Mode'),
+        matching: find.byType(FadeTransition),
+      );
+      expect(fadeFinder, findsOneWidget);
+      final midFadeInOpacity = tester.widget<FadeTransition>(fadeFinder).opacity.value;
+      expect(midFadeInOpacity, greaterThan(0.0));
+      expect(midFadeInOpacity, lessThan(1.0));
+
+      await tester.pumpAndSettle();
+
+      // Fully faded in: opacity is 1.0
+      expect(tester.widget<FadeTransition>(fadeFinder).opacity.value, equals(1.0));
+      expect(find.text('Start Feedback Mode'), findsOneWidget);
+
+      // Verify the tooltip is positioned to the left of the expand button
+      final buttonRect = tester.getRect(expandButton);
+      final tooltipTextPos = tester.getTopLeft(find.text('Start Feedback Mode'));
+      expect(tooltipTextPos.dx, lessThan(buttonRect.left));
+
+      // Move mouse away -> fades out
+      await gesture.moveTo(Offset.zero);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      final midFadeOutOpacity = tester.widget<FadeTransition>(fadeFinder).opacity.value;
+      expect(midFadeOutOpacity, lessThan(1.0));
+      expect(midFadeOutOpacity, greaterThan(0.0));
+
+      await tester.pumpAndSettle();
+      expect(find.text('Start Feedback Mode'), findsNothing);
+    });
+
+    testWidgets('tooltips are suppressed for layout mode and settings when their menus are already open', (tester) async {
+      final controller = AgentationController();
+      controller.setToolbarMinimized(false);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Initially both menus closed -> tooltips exist
+      List<Tooltip> tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
+      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Layout mode')), isTrue);
+      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Settings')), isTrue);
+
+      // Open Layout Mode -> layout tooltip is suppressed
+      controller.toggleLayoutMode();
+      await tester.pumpAndSettle();
+      expect(controller.isLayoutModeOpen, isTrue);
+
+      tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
+      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Layout mode')), isFalse);
+      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Exit layout mode')), isFalse);
+
+      // Close Layout Mode -> layout tooltip is restored
+      controller.closeLayoutMode();
+      await tester.pumpAndSettle();
+      tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
+      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Layout mode')), isTrue);
+
+      // Open Settings -> settings tooltip is suppressed
+      controller.toggleSettings();
+      await tester.pumpAndSettle();
+      expect(controller.isSettingsOpen, isTrue);
+
+      tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
+      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Settings')), isFalse);
+
+      // Close Settings -> settings tooltip is restored
+      controller.closeSettings();
+      await tester.pumpAndSettle();
+      tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
+      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Settings')), isTrue);
+    });
+
+    testWidgets('Clear button renders red icon and red background on hover', (tester) async {
+      final controller = AgentationController();
+      await controller.createAnnotation(
+        comment: 'Test annotation',
+        targetResult: const WidgetInspectionResult.unavailable(),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final clearFinder = find.byKey(const ValueKey('toolbar_clear'));
+      expect(clearFinder, findsOneWidget);
+
+      // Mouse enters clear button
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(tester.getCenter(clearFinder));
+      await tester.pumpAndSettle();
+
+      // Check red background
+      final container = tester.widget<AnimatedContainer>(
+        find.descendant(of: clearFinder, matching: find.byType(AnimatedContainer)),
+      );
+      final boxDeco = container.decoration as BoxDecoration;
+      expect(boxDeco.color, equals(AgentationColors.destructive.withValues(alpha: 0.2)));
+
+      // Check red trash icon CustomPaint painter
+      final customPaints = tester.widgetList<CustomPaint>(
+        find.descendant(of: clearFinder, matching: find.byType(CustomPaint)),
+      );
+      expect(customPaints, isNotEmpty);
+      final trashPaint = customPaints.firstWhere(
+        (cp) => cp.painter.runtimeType.toString() == '_TrashIconPainter',
+      );
+      expect((trashPaint.painter as dynamic).color, equals(AgentationColors.destructive));
+    });
+
+    testWidgets('collapsing the toolbar hides markers and expanding shows markers', (tester) async {
+      final controller = AgentationController();
+      await controller.createAnnotation(
+        comment: 'Comment 1',
+        targetResult: const WidgetInspectionResult(
+          identity: WidgetIdentity(id: 'btn1', widgetType: 'ElevatedButton'),
+          bounds: WidgetBounds(x: 40, y: 40, width: 100, height: 40),
+          context: WidgetContext.empty(),
+          ancestors: [],
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              initialToolbarMinimized: false,
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Expanded toolbar: AnnotationMarker is visible
+      expect(find.byType(AnnotationMarker), findsOneWidget);
+
+      // Collapse toolbar: AnnotationMarker is hidden
+      controller.setToolbarMinimized(true);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AnnotationMarker), findsNothing);
+
+      // Expand toolbar again: AnnotationMarker reappears
+      controller.setToolbarMinimized(false);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AnnotationMarker), findsOneWidget);
+    });
+
+    testWidgets('close icon hover decoration matches other toolbar buttons (34x34 circle with padding)', (tester) async {
+      final controller = AgentationController();
+      controller.setToolbarMinimized(false);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final closeFinder = find.byKey(const ValueKey('toolbar_close'));
+      expect(closeFinder, findsOneWidget);
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(tester.getCenter(closeFinder));
+      await tester.pumpAndSettle();
+
+      final container = tester.widget<AnimatedContainer>(
+        find.descendant(of: closeFinder, matching: find.byType(AnimatedContainer)),
+      );
+      expect(container.constraints?.maxWidth ?? (container.constraints?.minWidth), equals(34.0));
+      final boxDeco = container.decoration as BoxDecoration;
+      expect(boxDeco.shape, equals(BoxShape.circle));
+      expect(boxDeco.color, equals(const Color(0x29FFFFFF)));
     });
   });
 }

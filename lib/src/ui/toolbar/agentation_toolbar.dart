@@ -10,6 +10,7 @@ import '../../domain/placement_data.dart';
 import '../../theme/agentation_theme.dart';
 import 'agentation_icons.dart';
 import 'settings_panel.dart';
+import 'toolbar_toggle_icon.dart';
 
 /// Pixel-perfect floating pill toolbar matching Screenshot 1, 2, 3, 4 of Agentation.
 class AgentationToolbar extends StatefulWidget {
@@ -17,6 +18,7 @@ class AgentationToolbar extends StatefulWidget {
     super.key,
     this.controller,
     this.initialAlignment = Alignment.bottomCenter,
+    this.initialMinimized = false,
     this.onOpenSettings,
   });
 
@@ -25,6 +27,9 @@ class AgentationToolbar extends StatefulWidget {
 
   /// Initial screen quadrant alignment (defaults to bottom-center).
   final Alignment initialAlignment;
+
+  /// Whether the toolbar starts in the collapsed/minimized pill state.
+  final bool initialMinimized;
 
   /// Optional callback to open settings.
   final VoidCallback? onOpenSettings;
@@ -74,6 +79,7 @@ class _ToolbarPositionState {
 }
 
 class _AgentationToolbarState extends State<AgentationToolbar> {
+  final GlobalKey _toggleIconKey = GlobalKey();
   final ValueNotifier<_ToolbarPositionState> _positionNotifier =
       ValueNotifier<_ToolbarPositionState>(const _ToolbarPositionState());
   final ValueNotifier<String> _sendStateNotifier = ValueNotifier<String>('idle');
@@ -86,7 +92,9 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         final ctrl = _controller;
-        if (!ctrl.isToolbarMinimized && !ctrl.isInspecting) {
+        if (widget.initialMinimized && !ctrl.isToolbarMinimized) {
+          ctrl.setToolbarMinimized(true);
+        } else if (!ctrl.isToolbarMinimized && !ctrl.isInspecting) {
           ctrl.activate();
         }
       }
@@ -96,8 +104,8 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
   @override
   void dispose() {
     _sendTimer?.cancel();
-    _positionNotifier.dispose();
     _sendStateNotifier.dispose();
+    _positionNotifier.dispose();
     super.dispose();
   }
 
@@ -107,26 +115,10 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
   Future<void> _onCopy(AgentationController controller) async {
     final count = controller.annotations.length;
     if (count == 0) {
-      if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          const SnackBar(
-            content: Text('No annotations to export'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
       return;
     }
 
     await controller.copyFeedback();
-    if (mounted) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(
-          content: Text('Copied $count annotation${count == 1 ? "" : "s"} to clipboard!'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
   }
 
   void _initInsetsIfNeeded(
@@ -301,7 +293,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
 
         final theme = AgentationThemeData.resolve(isDark: isDark);
 
-        final double expandedWidth = controller.canSend ? 336.0 : 296.0;
+        const double expandedWidth = 296.0;
         final toolbarWidth = isMinimized ? 44.0 : expandedWidth;
         const double toolbarHeight = 44.0;
 
@@ -339,23 +331,19 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
         final double? posLeft;
         final double? posRight;
         final CrossAxisAlignment colAlignment;
-        final Alignment pillAlignment;
 
         if (pos.anchor == ToolbarAnchor.right) {
           posLeft = null;
           posRight = clampedRightInset;
           colAlignment = CrossAxisAlignment.end;
-          pillAlignment = Alignment.centerRight;
         } else if (pos.anchor == ToolbarAnchor.left) {
           posLeft = clampedLeftInset;
           posRight = null;
           colAlignment = CrossAxisAlignment.start;
-          pillAlignment = Alignment.centerLeft;
         } else {
           posLeft = clampedLeftInset;
           posRight = null;
           colAlignment = CrossAxisAlignment.center;
-          pillAlignment = Alignment.center;
         }
 
         final computedX = (posRight != null)
@@ -432,6 +420,9 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                         position: dropPos,
                         comment: comment,
                         metadata: {
+                          'path': treePlacement.parentBreadcrumb != null
+                              ? '${treePlacement.parentBreadcrumb} (${treePlacement.description})'
+                              : treePlacement.description,
                           'parentWidget': treePlacement.parentWidget,
                           'direction': treePlacement.direction,
                           if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,
@@ -457,15 +448,13 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                 child: Material(
                   color: Colors.transparent,
                   child: AnimatedContainer(
-                    duration: isDragging ? Duration.zero : const Duration(milliseconds: 250),
-                    curve: Curves.easeInOut,
+                    duration: isDragging ? Duration.zero : const Duration(milliseconds: 360),
+                    curve: const Cubic(0.19, 1.0, 0.22, 1.0),
                     width: toolbarWidth,
                     height: toolbarHeight,
                     clipBehavior: Clip.none,
-                    alignment: isMinimized ? Alignment.center : pillAlignment,
-                    padding: isMinimized
-                        ? EdgeInsets.zero
-                        : const EdgeInsets.symmetric(horizontal: 5.0, vertical: 5.0),
+                    alignment: Alignment.centerRight,
+                    padding: EdgeInsets.zero,
                     decoration: BoxDecoration(
                       color: theme.toolbarBackground,
                       borderRadius: BorderRadius.circular(22.0),
@@ -475,9 +464,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                       ),
                       boxShadow: theme.toolbarShadows,
                     ),
-                    child: isMinimized
-                        ? _buildMinimizedPill(controller, markerColor, theme)
-                        : _buildExpandedPill(controller, markerColor, theme, pillAlignment),
+                    child: _buildToolbarPill(controller, markerColor, theme, isMinimized, expandedWidth),
                   ),
                 ),
               ),
@@ -488,340 +475,260 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     );
   }
 
-  Widget _buildMinimizedPill(AgentationController controller, Color markerColor, AgentationThemeData theme) {
-    final count = controller.annotations.length;
-    final iconColor = theme.iconColor;
-
-    final button = _ToolbarIconButton(
-      buttonKey: const ValueKey('toolbar_expand'),
-      icon: AgentationIcons.listSparkle(
-        size: 20.0,
-        color: iconColor,
-      ),
-      tooltipLabel: 'Open Agentation',
-      tooltipShortcut: null,
-      buttonSize: 44.0,
-      isActive: false,
-      isEnabled: true,
-      isDark: theme.isDark,
-      theme: theme,
-      onPressed: () => controller.setToolbarMinimized(false),
-    );
-
-    if (count == 0) {
-      return button;
-    }
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        button,
-        Positioned(
-          top: -4.0,
-          right: -4.0,
-          child: IgnorePointer(
-            child: Container(
-              constraints: const BoxConstraints(minWidth: 19.0, minHeight: 19.0),
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              decoration: BoxDecoration(
-                color: theme.accentColor,
-                borderRadius: BorderRadius.circular(10.0),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x33000000),
-                    blurRadius: 3.5,
-                    offset: Offset(0, 1.5),
-                  ),
-                ],
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '$count',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.bold,
-                  height: 1.0,
-                  decoration: TextDecoration.none,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildExpandedPill(
+  Widget _buildToolbarPill(
     AgentationController controller,
     Color markerColor,
     AgentationThemeData theme,
-    Alignment pillAlignment,
+    bool isMinimized,
+    double expandedWidth,
   ) {
     final iconColor = theme.iconColor;
     final dividerColor = theme.dividerColor;
+    final count = controller.annotations.length;
 
     final isPaused = controller.isFrozen;
     final isLayoutOpen = controller.isLayoutModeOpen;
     final isSettingsOpen = controller.isSettingsOpen;
     final isCopied = controller.isCopiedNotifier.value;
-    final isLayoutActive = isLayoutOpen;
     final hasAnnotations = controller.annotations.isNotEmpty;
 
-    final canSend = controller.canSend;
-    final pillWidth = canSend ? 326.0 : 286.0;
+    return SizedBox(
+      height: 44.0,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.centerRight,
+        children: [
+          // ── Clipped Toolbar Interior (Controls & Toggle Button) ──
+          ClipRRect(
+            borderRadius: BorderRadius.circular(22.0),
+            child: SizedBox(
+              height: 44.0,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.centerRight,
+                children: [
+                  // ── 1. Controls Content (Visible when expanded, smoothly scales/fades) ──
+                  Positioned(
+                    right: 44.0,
+              top: 0,
+              bottom: 0,
+              width: expandedWidth - 44.0,
+              child: AnimatedScale(
+                scale: isMinimized ? 0.4 : 1.0,
+                duration: isMinimized
+                    ? const Duration(milliseconds: 360)
+                    : const Duration(milliseconds: 420),
+                curve: const Cubic(0.19, 1.0, 0.22, 1.0),
+                alignment: Alignment.centerRight,
+                child: AnimatedOpacity(
+                  opacity: isMinimized ? 0.0 : 1.0,
+                  duration: isMinimized
+                      ? const Duration(milliseconds: 140)
+                      : const Duration(milliseconds: 240),
+                  curve: Curves.easeOut,
+                  child: IgnorePointer(
+                    ignoring: isMinimized,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 5.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // 1. Play / Pause Animations (|| / ▶) - Screenshot 1 & 2
+                          _ToolbarIconButton(
+                            buttonKey: const ValueKey('toolbar_pause'),
+                            icon: isPaused
+                                ? AgentationIcons.play(size: 22.0, color: theme.warningColor)
+                                : AgentationIcons.pause(size: 22.0, color: iconColor),
+                            tooltipLabel: isPaused ? 'Resume animations' : 'Pause animations',
+                            tooltipShortcut: 'P',
+                            isActive: isPaused,
+                            activeColor: theme.warningColor.withValues(alpha: 0.2),
+                            isEnabled: true,
+                            isDark: theme.isDark,
+                            theme: theme,
+                            onPressed: () => controller.toggleFreeze(),
+                          ),
 
-    return ClipRect(
-      child: OverflowBox(
-        minWidth: pillWidth,
-        maxWidth: pillWidth,
-        alignment: pillAlignment,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // 1. Play / Pause Animations (|| / ▶) - Screenshot 1 & 2
-            _ToolbarIconButton(
-              buttonKey: const ValueKey('toolbar_pause'),
-              icon: isPaused
-                  ? AgentationIcons.play(size: 22.0, color: theme.warningColor)
-                  : AgentationIcons.pause(size: 22.0, color: iconColor),
-              tooltipLabel: isPaused ? 'Resume animations' : 'Pause animations',
-              tooltipShortcut: 'P',
-              isActive: isPaused,
-              activeColor: theme.warningColor.withValues(alpha: 0.2),
-              isEnabled: true,
-              isDark: theme.isDark,
-              theme: theme,
-              onPressed: () {
-                controller.toggleFreeze();
-              },
-            ),
+                          // 2. Layout Mode (split grid/window) - Screenshot 1 & 4
+                          _ToolbarIconButton(
+                            buttonKey: const ValueKey('toolbar_layout'),
+                            icon: AgentationIcons.layout(
+                              size: 22.0,
+                              color: isLayoutOpen ? Colors.white : iconColor,
+                            ),
+                            tooltipLabel: isLayoutOpen ? 'Exit layout mode' : 'Layout mode',
+                            tooltipShortcut: 'L',
+                            showTooltip: !isLayoutOpen,
+                            isActive: isLayoutOpen,
+                            activeColor: theme.primaryColor,
+                            isEnabled: true,
+                            isDark: theme.isDark,
+                            theme: theme,
+                            onPressed: () => controller.toggleLayoutMode(),
+                          ),
 
-            // 2. Layout Mode (split grid/window) - Screenshot 1 & 4
-            _ToolbarIconButton(
-              buttonKey: const ValueKey('toolbar_layout'),
-              icon: AgentationIcons.layout(
-                size: 22.0,
-                color: isLayoutActive ? Colors.white : iconColor,
-              ),
-              tooltipLabel: isLayoutActive ? 'Exit layout mode' : 'Layout mode',
-              tooltipShortcut: 'L',
-              isActive: isLayoutActive,
-              activeColor: theme.primaryColor,
-              isEnabled: true,
-              isDark: theme.isDark,
-              theme: theme,
-              onPressed: () {
-                controller.toggleLayoutMode();
-              },
-            ),
+                          // 3. Comments Visibility Mode (Eye icon)
+                          _ToolbarIconButton(
+                            buttonKey: const ValueKey('toolbar_inspect'),
+                            icon: controller.areCommentsVisible
+                                ? AgentationIcons.eye(size: 22.0, color: iconColor)
+                                : AgentationIcons.eyeOff(size: 22.0, color: theme.iconInactiveColor),
+                            tooltipLabel: controller.areCommentsVisible ? 'Hide markers' : 'Show markers',
+                            tooltipShortcut: 'H',
+                            isActive: false,
+                            activeColor: Colors.transparent,
+                            isEnabled: hasAnnotations && controller.toolMode != AnnotationToolMode.design,
+                            isDark: theme.isDark,
+                            theme: theme,
+                            onPressed: () => controller.toggleCommentsVisibility(),
+                          ),
 
-            // 3. Comments Visibility Mode (Eye icon) - Toggle show/hide comments on the page
-            _ToolbarIconButton(
-              buttonKey: const ValueKey('toolbar_inspect'),
-              icon: controller.areCommentsVisible
-                  ? AgentationIcons.eye(
-                      size: 22.0,
-                      color: iconColor,
-                    )
-                  : AgentationIcons.eyeOff(
-                      size: 22.0,
-                      color: theme.iconInactiveColor,
+                          // 4. Copy (Overlapping rectangles) - Screenshot 1
+                          _ToolbarIconButton(
+                            buttonKey: const ValueKey('toolbar_copy'),
+                            icon: isCopied
+                                ? AgentationIcons.check(size: 22.0, color: theme.successColor)
+                                : AgentationIcons.copy(size: 22.0, color: iconColor),
+                            tooltipLabel: isCopied ? 'Copied!' : 'Copy feedback',
+                            tooltipShortcut: 'C',
+                            isActive: isCopied,
+                            activeColor: theme.successColor.withValues(alpha: 0.15),
+                            isEnabled: hasAnnotations,
+                            isDark: theme.isDark,
+                            theme: theme,
+                            onPressed: () => _onCopy(controller),
+                          ),
+
+                          // 5. Delete / Trash (Trash can) - Screenshot 1
+                          _ToolbarIconButton(
+                            buttonKey: const ValueKey('toolbar_clear'),
+                            icon: AgentationIcons.trash(size: 22.0, color: iconColor),
+                            hoverIcon: AgentationIcons.trash(size: 22.0, color: theme.destructiveColor),
+                            tooltipLabel: 'Clear all',
+                            tooltipShortcut: 'X',
+                            isActive: false,
+                            activeColor: Colors.transparent,
+                            isEnabled: hasAnnotations,
+                            isDanger: true,
+                            isDark: theme.isDark,
+                            theme: theme,
+                            onPressed: () => controller.clearAnnotations(),
+                          ),
+
+                          // 6. Settings (Cog wheel) - Screenshot 1 & 3
+                          _ToolbarIconButton(
+                            buttonKey: const ValueKey('toolbar_settings'),
+                            icon: AgentationIcons.gear(
+                              size: 22.0,
+                              color: isSettingsOpen
+                                  ? (theme.isDark ? Colors.white : theme.textPrimary)
+                                  : iconColor,
+                            ),
+                            tooltipLabel: 'Settings',
+                            tooltipShortcut: null,
+                            showTooltip: !isSettingsOpen,
+                            isActive: isSettingsOpen,
+                            activeColor: theme.isDark ? const Color(0xFF333333) : const Color(0xFFE2E2E2),
+                            isEnabled: true,
+                            isDark: theme.isDark,
+                            theme: theme,
+                            onPressed: () {
+                              widget.onOpenSettings?.call();
+                              controller.toggleSettings();
+                            },
+                          ),
+
+                          // Vertical divider line (Screenshot 1)
+                          Container(
+                            width: 1.0,
+                            height: 16.0,
+                            color: dividerColor,
+                            margin: const EdgeInsets.symmetric(horizontal: 2.0),
+                          ),
+                        ],
+                      ),
                     ),
-              tooltipLabel: controller.areCommentsVisible ? 'Hide markers' : 'Show markers',
-              tooltipShortcut: 'H',
-              isActive: false,
-              activeColor: Colors.transparent,
-              isEnabled: hasAnnotations && controller.toolMode != AnnotationToolMode.design,
-              isDark: theme.isDark,
-              theme: theme,
-              onPressed: () {
-                controller.toggleCommentsVisibility();
-              },
-            ),
-
-            // 4. Copy (Overlapping rectangles) - Screenshot 1
-            _ToolbarIconButton(
-              buttonKey: const ValueKey('toolbar_copy'),
-              icon: isCopied
-                  ? AgentationIcons.check(size: 22.0, color: theme.successColor)
-                  : AgentationIcons.copy(size: 22.0, color: iconColor),
-              tooltipLabel: isCopied ? 'Copied!' : 'Copy feedback',
-              tooltipShortcut: 'C',
-              isActive: isCopied,
-              activeColor: theme.successColor.withValues(alpha: 0.15),
-              isEnabled: hasAnnotations,
-              isDark: theme.isDark,
-              theme: theme,
-              onPressed: () => _onCopy(controller),
-            ),
-
-            // Send button (visible when canSend is true) - matches upstream Agentation
-            if (canSend)
-              _buildSendButton(controller, iconColor, theme),
-
-            // 5. Delete / Trash (Trash can) - Screenshot 1
-            _ToolbarIconButton(
-              buttonKey: const ValueKey('toolbar_clear'),
-              icon: AgentationIcons.trash(size: 22.0, color: iconColor),
-              tooltipLabel: 'Clear all',
-              tooltipShortcut: 'X',
-              isActive: false,
-              activeColor: Colors.transparent,
-              isEnabled: hasAnnotations,
-              isDanger: true,
-              isDark: theme.isDark,
-              theme: theme,
-              onPressed: () {
-                controller.clearAnnotations();
-              },
-            ),
-
-            // 6. Settings (Cog wheel) - Screenshot 1 & 3
-            _ToolbarIconButton(
-              buttonKey: const ValueKey('toolbar_settings'),
-              icon: AgentationIcons.gear(
-                size: 22.0,
-                color: isSettingsOpen ? Colors.white : iconColor,
+                  ),
+                ),
               ),
-              tooltipLabel: 'Settings',
-              tooltipShortcut: null,
-              isActive: isSettingsOpen,
-              activeColor: theme.isDark ? const Color(0xFF333333) : const Color(0xFFE2E2E2),
-              isEnabled: true,
-              isDark: theme.isDark,
-              theme: theme,
-              onPressed: () {
-                widget.onOpenSettings?.call();
-                controller.toggleSettings();
-              },
             ),
 
-            // Vertical divider line (Screenshot 1)
-            Container(
-              width: 1.0,
-              height: 16.0,
-              color: dividerColor,
-              margin: const EdgeInsets.symmetric(horizontal: 2.0),
-            ),
-
-            // 7. Close / Minimize (X) - Screenshot 1
-            _ToolbarIconButton(
-              buttonKey: const ValueKey('toolbar_close'),
-              icon: AgentationIcons.close(size: 20.0, color: iconColor),
-              tooltipLabel: 'Exit',
-              tooltipShortcut: 'Esc',
-              isActive: false,
-              activeColor: Colors.transparent,
-              isEnabled: true,
-              isDark: theme.isDark,
-              theme: theme,
-              onPressed: () {
-                controller.closeSettings();
-                controller.closeLayoutMode();
-                controller.setToolbarMinimized(true);
-              },
+            // ── 2. Persistent Right End-Cap Toggle Button ──
+            Positioned(
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 44.0,
+              child: _ToolbarIconButton(
+                buttonKey: ValueKey(isMinimized ? 'toolbar_expand' : 'toolbar_close'),
+                icon: ToolbarToggleIcon(
+                  key: _toggleIconKey,
+                  active: !isMinimized,
+                  size: 20.0,
+                  color: iconColor,
+                ),
+                tooltipLabel: isMinimized ? 'Start Feedback Mode' : 'Exit',
+                tooltipShortcut: isMinimized ? null : 'Esc',
+                tooltipOnLeft: isMinimized,
+                buttonSize: 34.0,
+                showHoverBg: !isMinimized,
+                isActive: false,
+                isEnabled: true,
+                isDark: theme.isDark,
+                theme: theme,
+                onPressed: () {
+                  if (isMinimized) {
+                    controller.setToolbarMinimized(false);
+                  } else {
+                    controller.closeSettings();
+                    controller.closeLayoutMode();
+                    controller.setToolbarMinimized(true);
+                  }
+                },
+              ),
             ),
           ],
         ),
       ),
-    );
-  }
+    ),
 
-  Widget _buildSendButton(AgentationController controller, Color iconColor, AgentationThemeData theme) {
-    return ValueListenableBuilder<String>(
-      valueListenable: _sendStateNotifier,
-      builder: (context, sendState, _) {
-        final count = controller.annotations.length;
-        final isSending = sendState == 'sending';
-        final isSent = sendState == 'sent';
-        final isFailed = sendState == 'failed';
-        final isEnabled = count > 0 && !isSending;
-
-        final Widget iconWidget;
-        if (isSending) {
-          iconWidget = SizedBox(
-            width: 16.0,
-            height: 16.0,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.0,
-              valueColor: AlwaysStoppedAnimation<Color>(iconColor),
-            ),
-          );
-        } else if (isSent) {
-          iconWidget = AgentationIcons.check(size: 22.0, color: theme.successColor);
-        } else if (isFailed) {
-          iconWidget = Icon(Icons.error_outline_rounded, size: 22.0, color: theme.destructiveColor);
-        } else {
-          iconWidget = AgentationIcons.send(size: 22.0, color: iconColor);
-        }
-
-        final stackIcon = Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-            iconWidget,
-            if (!isSending && !isSent && !isFailed && count > 0)
-              Positioned(
-                top: -4.0,
-                right: -6.0,
+          // ── 3. Notification Badge (Anchored to Minimized Toggle Button - OUTSIDE ClipRRect!) ──
+          if (count > 0 && isMinimized)
+            Positioned(
+              top: -4.0,
+              right: -4.0,
+              child: IgnorePointer(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
+                  constraints: const BoxConstraints(minWidth: 18.0, minHeight: 18.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
                   decoration: BoxDecoration(
-                    color: theme.accentColor,
-                    borderRadius: BorderRadius.circular(8.0),
+                    color: markerColor,
+                    borderRadius: BorderRadius.circular(9.0),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x33000000),
+                        blurRadius: 3.0,
+                        offset: Offset(0, 1.0),
+                      ),
+                    ],
                   ),
-                  constraints: const BoxConstraints(minWidth: 14.0, minHeight: 14.0),
+                  alignment: Alignment.center,
                   child: Text(
                     '$count',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 9.0,
+                      fontSize: 10.0,
                       fontWeight: FontWeight.bold,
+                      height: 1.0,
+                      decoration: TextDecoration.none,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ),
               ),
-          ],
-        );
-
-        return _ToolbarIconButton(
-          buttonKey: const ValueKey('toolbar_send'),
-          icon: stackIcon,
-          tooltipLabel: 'Send Annotations',
-          tooltipShortcut: 'S',
-          isActive: isSent,
-          activeColor: theme.successColor.withValues(alpha: 0.15),
-          isEnabled: isEnabled,
-          isDark: theme.isDark,
-          theme: theme,
-          onPressed: () async {
-            final messenger = ScaffoldMessenger.maybeOf(context);
-            _sendStateNotifier.value = 'sending';
-            final success = await controller.submitAnnotations();
-            _sendStateNotifier.value = success ? 'sent' : 'failed';
-            messenger?.showSnackBar(
-              SnackBar(
-                content: Text(
-                  success
-                      ? 'Sent annotations to agent'
-                      : 'Failed to send annotations',
-                ),
-                duration: const Duration(seconds: 2),
-              ),
-            );
-            _sendTimer?.cancel();
-            _sendTimer = Timer(const Duration(milliseconds: 2000), () {
-              if (mounted) {
-                _sendStateNotifier.value = 'idle';
-              }
-            });
-          },
-        );
-      },
+            ),
+        ],
+      ),
     );
   }
 }
@@ -831,6 +738,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
 class _ToolbarIconButton extends StatefulWidget {
   final Key? buttonKey;
   final Widget icon;
+  final Widget? hoverIcon;
   final String tooltipLabel;
   final String? tooltipShortcut;
   final bool isActive;
@@ -839,6 +747,9 @@ class _ToolbarIconButton extends StatefulWidget {
   final bool isDanger;
   final bool isDark;
   final double buttonSize;
+  final bool tooltipOnLeft;
+  final bool showHoverBg;
+  final bool showTooltip;
   final VoidCallback? onPressed;
 
   final AgentationThemeData? theme;
@@ -846,6 +757,7 @@ class _ToolbarIconButton extends StatefulWidget {
   const _ToolbarIconButton({
     this.buttonKey,
     required this.icon,
+    this.hoverIcon,
     required this.tooltipLabel,
     this.tooltipShortcut,
     this.isActive = false,
@@ -855,6 +767,9 @@ class _ToolbarIconButton extends StatefulWidget {
     this.isDark = true,
     this.theme,
     this.buttonSize = 34.0,
+    this.showHoverBg = true,
+    this.tooltipOnLeft = false,
+    this.showTooltip = true,
     this.onPressed,
   });
 
@@ -862,12 +777,163 @@ class _ToolbarIconButton extends StatefulWidget {
   State<_ToolbarIconButton> createState() => _ToolbarIconButtonState();
 }
 
-class _ToolbarIconButtonState extends State<_ToolbarIconButton> {
+class _ToolbarIconButtonState extends State<_ToolbarIconButton>
+    with SingleTickerProviderStateMixin {
   final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isPressed = ValueNotifier<bool>(false);
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  AnimationController? _tooltipFadeController;
+
+  void _hideLeftTooltip({bool immediate = false}) {
+    if (_overlayEntry == null) return;
+    if (immediate || !mounted || _tooltipFadeController == null) {
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+      _tooltipFadeController?.value = 0.0;
+      return;
+    }
+
+    _tooltipFadeController!.reverse().then((_) {
+      if (mounted && (_tooltipFadeController?.status == AnimationStatus.dismissed)) {
+        _overlayEntry?.remove();
+        _overlayEntry = null;
+      }
+    });
+  }
+
+  void _showLeftTooltip() {
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+
+    if (_tooltipFadeController == null) {
+      _tooltipFadeController = AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 180),
+      );
+    }
+
+    if (_overlayEntry == null) {
+      final theme = widget.theme ?? AgentationThemeData.resolve(isDark: widget.isDark);
+      final isDark = theme.isDark;
+      final tooltipBgColor = isDark ? const Color(0xFF18181B) : Colors.white;
+      final tooltipTextColor = isDark ? Colors.white : theme.textPrimary;
+      final tooltipShortcutColor = theme.textMuted;
+
+      _overlayEntry = OverlayEntry(
+        builder: (context) {
+          return Positioned(
+            width: 0,
+            height: 0,
+            child: CompositedTransformFollower(
+              link: _layerLink,
+              targetAnchor: Alignment.centerLeft,
+              followerAnchor: Alignment.centerRight,
+              offset: const Offset(-8.0, 0),
+              child: IgnorePointer(
+                child: OverflowBox(
+                  maxWidth: 320,
+                  maxHeight: 60,
+                  alignment: Alignment.centerRight,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: FadeTransition(
+                      opacity: CurvedAnimation(
+                        parent: _tooltipFadeController!,
+                        curve: Curves.easeOut,
+                        reverseCurve: Curves.easeIn,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
+                        decoration: ShapeDecoration(
+                          color: tooltipBgColor,
+                          shape: _TooltipBeakBorder(
+                            borderRadius: 8.0,
+                            beakWidth: 9.0,
+                            beakHeight: 5.0,
+                            beakDirection: TooltipBeakDirection.right,
+                            borderColor: isDark ? null : theme.borderTranslucentColor,
+                            borderWidth: isDark ? 0.0 : 0.75,
+                          ),
+                          shadows: isDark
+                              ? const [
+                                  BoxShadow(
+                                    color: Color(0x66000000),
+                                    blurRadius: 8.0,
+                                    offset: Offset(0, 3),
+                                  ),
+                                ]
+                              : const [
+                                  BoxShadow(
+                                    color: Color(0x14000000),
+                                    blurRadius: 8.0,
+                                    offset: Offset(0, 2),
+                                  ),
+                                  BoxShadow(
+                                    color: Color(0x0F000000),
+                                    blurRadius: 16.0,
+                                    offset: Offset(0, 4),
+                                  ),
+                                  BoxShadow(
+                                    color: Color(0x0A000000),
+                                    blurRadius: 1.0,
+                                    spreadRadius: 0.5,
+                                  ),
+                                ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.tooltipLabel,
+                              style: TextStyle(
+                                color: tooltipTextColor,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.normal,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                            if (widget.tooltipShortcut != null) ...[
+                              const SizedBox(width: 4.0),
+                              Text(
+                                widget.tooltipShortcut!,
+                                style: TextStyle(
+                                  color: tooltipShortcutColor,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w500,
+                                  decoration: TextDecoration.none,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+      overlay.insert(_overlayEntry!);
+    }
+
+    _tooltipFadeController?.forward();
+  }
+
+  @override
+  void didUpdateWidget(_ToolbarIconButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.isEnabled || !widget.tooltipOnLeft || !widget.showTooltip) {
+      _hideLeftTooltip(immediate: true);
+    }
+  }
 
   @override
   void dispose() {
+    _hideLeftTooltip(immediate: true);
+    _tooltipFadeController?.dispose();
     _isHovered.dispose();
     _isPressed.dispose();
     super.dispose();
@@ -884,18 +950,32 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton> {
     Widget result = MouseRegion(
       cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
       onEnter: (_) {
-        if (isEnabled) _isHovered.value = true;
+        if (isEnabled) {
+          _isHovered.value = true;
+          if (widget.tooltipOnLeft) _showLeftTooltip();
+        }
       },
       onExit: (_) {
         _isHovered.value = false;
+        if (widget.tooltipOnLeft) _hideLeftTooltip();
       },
       child: GestureDetector(
         key: widget.buttonKey,
         behavior: HitTestBehavior.opaque,
-        onTapDown: isEnabled ? (_) => _isPressed.value = true : null,
+        onTapDown: isEnabled
+            ? (_) {
+                if (widget.tooltipOnLeft) _hideLeftTooltip();
+                _isPressed.value = true;
+              }
+            : null,
         onTapUp: isEnabled ? (_) => _isPressed.value = false : null,
         onTapCancel: isEnabled ? () => _isPressed.value = false : null,
-        onTap: isEnabled ? widget.onPressed : null,
+        onTap: isEnabled
+            ? () {
+                if (widget.tooltipOnLeft) _hideLeftTooltip();
+                widget.onPressed?.call();
+              }
+            : null,
         child: ListenableBuilder(
           listenable: Listenable.merge([_isHovered, _isPressed]),
           builder: (context, _) {
@@ -905,7 +985,7 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton> {
             final Color bgColor;
             if (isActive) {
               bgColor = widget.activeColor;
-            } else if (isEnabled && hovered) {
+            } else if (isEnabled && hovered && widget.showHoverBg) {
               if (widget.isDanger) {
                 bgColor = theme.destructiveColor.withValues(alpha: 0.2);
               } else {
@@ -913,6 +993,19 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton> {
               }
             } else {
               bgColor = Colors.transparent;
+            }
+
+            final Widget currentIcon;
+            if (isEnabled && hovered) {
+              if (widget.hoverIcon != null) {
+                currentIcon = widget.hoverIcon!;
+              } else if (widget.isDanger) {
+                currentIcon = AgentationIcons.trash(size: 22.0, color: theme.destructiveColor);
+              } else {
+                currentIcon = widget.icon;
+              }
+            } else {
+              currentIcon = widget.icon;
             }
 
             Widget buttonContent = AnimatedContainer(
@@ -927,7 +1020,7 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton> {
               ),
               child: Opacity(
                 opacity: opacity,
-                child: widget.icon,
+                child: currentIcon,
               ),
             );
 
@@ -938,14 +1031,24 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton> {
               );
             }
 
-            return buttonContent;
+            return Center(child: buttonContent);
           },
         ),
       ),
     );
 
-    if (!isEnabled) {
+    if (!isEnabled || !widget.showTooltip) {
       return result;
+    }
+
+    if (widget.tooltipOnLeft) {
+      return CompositedTransformTarget(
+        link: _layerLink,
+        child: Semantics(
+          label: widget.tooltipLabel,
+          child: result,
+        ),
+      );
     }
 
     final tooltipBgColor = isDark ? const Color(0xFF18181B) : Colors.white;
@@ -954,7 +1057,7 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton> {
 
     return Tooltip(
       preferBelow: false,
-      verticalOffset: 22.0,
+      verticalOffset: 30.0,
       waitDuration: const Duration(milliseconds: 150),
       showDuration: Duration.zero,
       padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 8.5),
@@ -1023,13 +1126,16 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton> {
   }
 }
 
-/// Downward pointing triangular beak shape border for tooltip bubbles.
+enum TooltipBeakDirection { down, right }
+
+/// Triangular beak shape border for tooltip bubbles.
 class _TooltipBeakBorder extends ShapeBorder {
   final double borderRadius;
   final double beakWidth;
   final double beakHeight;
   final Color? borderColor;
   final double borderWidth;
+  final TooltipBeakDirection beakDirection;
 
   const _TooltipBeakBorder({
     this.borderRadius = 8.0,
@@ -1037,10 +1143,13 @@ class _TooltipBeakBorder extends ShapeBorder {
     this.beakHeight = 5.0,
     this.borderColor,
     this.borderWidth = 0.0,
+    this.beakDirection = TooltipBeakDirection.down,
   });
 
   @override
-  EdgeInsetsGeometry get dimensions => EdgeInsets.only(bottom: beakHeight);
+  EdgeInsetsGeometry get dimensions => beakDirection == TooltipBeakDirection.right
+      ? EdgeInsets.only(right: beakHeight)
+      : EdgeInsets.only(bottom: beakHeight);
 
   @override
   Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
@@ -1048,6 +1157,28 @@ class _TooltipBeakBorder extends ShapeBorder {
 
   @override
   Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
+    if (beakDirection == TooltipBeakDirection.right) {
+      final w = rect.width - beakHeight;
+      final h = rect.height;
+      final path = Path()
+        ..addRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(rect.left, rect.top, w, h),
+            Radius.circular(borderRadius),
+          ),
+        );
+
+      final centerY = rect.center.dy;
+      final beakLeft = rect.left + w - 0.5;
+      final beakPath = Path()
+        ..moveTo(beakLeft, centerY - beakWidth / 2)
+        ..lineTo(beakLeft + beakHeight + 0.5, centerY)
+        ..lineTo(beakLeft, centerY + beakWidth / 2)
+        ..close();
+
+      return Path.combine(PathOperation.union, path, beakPath);
+    }
+
     final w = rect.width;
     final h = rect.height - beakHeight;
     final path = Path()

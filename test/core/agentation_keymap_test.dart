@@ -229,6 +229,7 @@ void main() {
             body: FlutterAgentation(
               controller: controller,
               showToolbar: true,
+              initialToolbarMinimized: false,
               child: const Center(child: Text('Inspectable Widget')),
             ),
           ),
@@ -268,6 +269,7 @@ void main() {
             body: FlutterAgentation(
               controller: controller,
               showToolbar: true,
+              initialToolbarMinimized: false,
               child: const Center(child: Text('Inspectable Widget')),
             ),
           ),
@@ -300,6 +302,7 @@ void main() {
             body: FlutterAgentation(
               controller: controller,
               showToolbar: true,
+              initialToolbarMinimized: false,
               child: const Center(child: Text('Inspectable Widget')),
             ),
           ),
@@ -360,6 +363,7 @@ void main() {
             body: FlutterAgentation(
               controller: controller,
               showToolbar: true,
+              initialToolbarMinimized: false,
               child: const Center(child: Text('Inspectable Widget')),
             ),
           ),
@@ -546,6 +550,7 @@ void main() {
             body: FlutterAgentation(
               controller: controller,
               showToolbar: true,
+              initialToolbarMinimized: false,
               onSubmit: (output, annotations) async {
                 wasSubmitted = true;
               },

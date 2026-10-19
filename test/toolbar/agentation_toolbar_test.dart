@@ -424,11 +424,7 @@ void main() {
         ),
       );
 
-      expect(controller.isToolbarMinimized, isFalse);
-
-      // Minimize the toolbar
-      await tester.tap(find.byKey(const ValueKey('toolbar_close')));
-      await tester.pumpAndSettle();
+      // Minimized by default: inspection is inactive
       expect(controller.isToolbarMinimized, isTrue);
       expect(controller.isInspecting, isFalse);
 
@@ -453,6 +449,7 @@ void main() {
           home: Scaffold(
             body: FlutterAgentation(
               controller: controller,
+              initialToolbarMinimized: false,
               child: const Center(
                 child: Text('Main Screen'),
               ),
@@ -494,6 +491,7 @@ void main() {
           home: Scaffold(
             body: FlutterAgentation(
               controller: controller,
+              initialToolbarMinimized: false,
               child: const SizedBox.expand(),
             ),
           ),

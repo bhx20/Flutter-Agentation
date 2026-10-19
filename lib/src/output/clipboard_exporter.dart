@@ -49,6 +49,12 @@ class ClipboardExporter {
     bool prettyJson = true,
     String? pathname,
     String? appName,
+    Size? viewport,
+    String? platform,
+    double? devicePixelRatio,
+    String? url,
+    String? userAgent,
+    DateTime? timestamp,
   }) {
     switch (format) {
       case ExportFormat.feedback:
@@ -67,6 +73,12 @@ class ClipboardExporter {
           detailLevel: detailLevel,
           pathname: pathname,
           appName: appName,
+          viewport: viewport,
+          platform: platform,
+          devicePixelRatio: devicePixelRatio,
+          url: url,
+          userAgent: userAgent,
+          timestamp: timestamp,
         );
       case ExportFormat.json:
         return jsonEncoder.encodeAll(annotations, pretty: prettyJson);
@@ -97,6 +109,12 @@ class ClipboardExporter {
     bool prettyJson = true,
     String? pathname,
     String? appName,
+    Size? viewport,
+    String? platform,
+    double? devicePixelRatio,
+    String? url,
+    String? userAgent,
+    DateTime? timestamp,
   }) async {
     if (annotations.isEmpty) {
       return null;
@@ -109,6 +127,12 @@ class ClipboardExporter {
       prettyJson: prettyJson,
       pathname: pathname,
       appName: appName,
+      viewport: viewport,
+      platform: platform,
+      devicePixelRatio: devicePixelRatio,
+      url: url,
+      userAgent: userAgent,
+      timestamp: timestamp,
     );
 
     try {

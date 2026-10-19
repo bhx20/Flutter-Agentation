@@ -135,7 +135,7 @@ void main() {
       await tester.tap(copyButtonFinder);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Copied 1 annotation to clipboard!'), findsNothing);
+      expect(controller.isCopiedNotifier.value, isFalse);
 
       // Add an annotation and tap again
       await controller.createAnnotation(comment: 'Make header bold');
@@ -143,9 +143,9 @@ void main() {
 
       await tester.tap(copyButtonFinder);
       await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Copied 1 annotation to clipboard!'), findsOneWidget);
+      expect(controller.isCopiedNotifier.value, isTrue);
       await tester.pump(const Duration(milliseconds: 2000));
     });
   });

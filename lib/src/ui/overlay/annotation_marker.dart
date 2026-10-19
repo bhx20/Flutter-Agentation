@@ -136,10 +136,6 @@ class _AnnotationMarkerState extends State<AnnotationMarker> {
                   decoration: BoxDecoration(
                     color: baseColor,
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      width: 1.5,
-                    ),
                     boxShadow: [
                       BoxShadow(
                         color: baseColor.withValues(alpha: 0.4),
@@ -358,7 +354,7 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final bounds = widget.boundsOverride ?? widget.annotation.bounds;
-    const cardWidth = 320.0;
+    final cardWidth = math.min(280.0, screenSize.width - 24.0);
     final isDark = widget.isDark;
     final theme = AgentationThemeData.resolve(isDark: isDark);
     final active = widget.accentColor ?? theme.accentColor;
@@ -425,12 +421,12 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
         child: Material(
           color: Colors.transparent,
           elevation: 16.0,
-          borderRadius: BorderRadius.circular(14.0),
+          borderRadius: BorderRadius.circular(16.0),
           child: Container(
-            padding: const EdgeInsets.all(14.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
             decoration: BoxDecoration(
               color: cardBg,
-              borderRadius: BorderRadius.circular(14.0),
+              borderRadius: BorderRadius.circular(16.0),
               border: Border.all(
                 color: theme.borderTranslucentColor,
                 width: 1.0,
@@ -441,32 +437,40 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header: draggable titlebar "> list item"
-                GestureDetector(
-                  behavior: HitTestBehavior.translucent,
-                  onPanUpdate: (details) {
-                    _dragOffsetNotifier.value += details.delta;
+                // Header: draggable titlebar with widget type only
+                Builder(
+                  builder: (context) {
+                    final widgetType = widget.annotation.targetWidget.widgetType;
+                    return GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onPanUpdate: (details) {
+                        _dragOffsetNotifier.value += details.delta;
+                      },
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 15.0,
+                            color: subtextColor,
+                          ),
+                          const SizedBox(width: 2.0),
+                          Expanded(
+                            child: Text(
+                              formatWidgetLabel(widgetType),
+                              style: TextStyle(
+                                color: subtextColor,
+                                fontStyle: FontStyle.italic,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                decoration: TextDecoration.none,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
                   },
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.chevron_right_rounded,
-                        size: 15.0,
-                        color: subtextColor,
-                      ),
-                      const SizedBox(width: 2.0),
-                      Text(
-                        formatWidgetLabel(widget.annotation.targetWidget.widgetType),
-                        style: TextStyle(
-                          color: subtextColor,
-                          fontStyle: FontStyle.italic,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.normal,
-                          decoration: TextDecoration.none,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
                 const SizedBox(height: 10.0),
 
@@ -475,7 +479,7 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
                   Container(
                     decoration: BoxDecoration(
                       color: theme.inputBackground,
-                      borderRadius: BorderRadius.circular(10.0),
+                      borderRadius: BorderRadius.circular(8.0),
                       border: Border.all(
                         color: active,
                         width: 1.5,
@@ -514,7 +518,7 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
                           fontWeight: FontWeight.w400,
                         ),
                         decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
                           border: InputBorder.none,
                           isDense: true,
                         ),
@@ -640,20 +644,10 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     // Delete
-                    Tooltip(
-                      message: 'Delete',
-                      child: InkWell(
-                        key: const ValueKey('agentation_card_delete_button'),
-                        onTap: widget.onDelete,
-                        borderRadius: BorderRadius.circular(6.0),
-                        child: Padding(
-                          padding: const EdgeInsets.all(5.0),
-                          child: AgentationIcons.trash(
-                            size: 21.5,
-                            color: subtextColor,
-                          ),
-                        ),
-                      ),
+                    _CardDeleteIconButton(
+                      onDelete: widget.onDelete,
+                      defaultColor: subtextColor,
+                      hoverColor: AgentationColors.destructive,
                     ),
 
                     // Cancel & Save
@@ -711,6 +705,61 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CardDeleteIconButton extends StatefulWidget {
+  const _CardDeleteIconButton({
+    required this.onDelete,
+    required this.defaultColor,
+    required this.hoverColor,
+  });
+
+  final VoidCallback onDelete;
+  final Color defaultColor;
+  final Color hoverColor;
+
+  @override
+  State<_CardDeleteIconButton> createState() => _CardDeleteIconButtonState();
+}
+
+class _CardDeleteIconButtonState extends State<_CardDeleteIconButton> {
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Delete',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => _isHovered.value = true,
+        onExit: (_) => _isHovered.value = false,
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _isHovered,
+          builder: (context, isHovered, _) {
+            return InkWell(
+              key: const ValueKey('agentation_card_delete_button'),
+              onTap: widget.onDelete,
+              borderRadius: BorderRadius.circular(6.0),
+              hoverColor: widget.hoverColor.withValues(alpha: 0.15),
+              child: Padding(
+                padding: const EdgeInsets.all(5.0),
+                child: AgentationIcons.trash(
+                  size: 21.5,
+                  color: isHovered ? widget.hoverColor : widget.defaultColor,
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

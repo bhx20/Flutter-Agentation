@@ -12,7 +12,9 @@ class AgentationFormatAdapter {
   /// Converts a single Flutter [Annotation] to an Agentation-compatible map.
   Map<String, dynamic> adapt(Annotation annotation) {
     final path = annotation.metadata['path'] as String? ??
+        annotation.metadata['parentBreadcrumb'] as String? ??
         annotation.metadata['widgetPath'] as String? ??
+        annotation.placement?.treePlacement ??
         annotation.targetWidget.widgetType;
 
     return {

@@ -16,6 +16,7 @@ void main() {
           home: FlutterAgentation(
             controller: controller,
             showToolbar: true,
+            initialToolbarMinimized: false,
             child: Scaffold(
               body: Column(
                 children: [
@@ -87,6 +88,7 @@ void main() {
           home: FlutterAgentation(
             controller: controller,
             showToolbar: true,
+            initialToolbarMinimized: false,
             child: Scaffold(
               body: Center(
                 child: Container(

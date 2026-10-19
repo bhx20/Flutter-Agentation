@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_agentation/src/core/flutter_agentation.dart';
 import 'package:flutter_agentation/src/inspection/widget_path_resolver.dart';
 import '../helpers/inspection_test_harness.dart';
 
@@ -35,6 +36,42 @@ void main() {
       final ancestors = resolver.resolveAncestors(element);
       expect(ancestors.isNotEmpty, isTrue);
       expect(ancestors.last, 'Container');
+    });
+
+    testWidgets('omits Agentation internal wrappers and halts at FreezeOverlay host boundary', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: FlutterAgentation(
+            child: Scaffold(
+              body: Column(
+                children: [
+                  ElevatedButton(
+                    key: const ValueKey('test_btn'),
+                    onPressed: () {},
+                    child: const Text('Click'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final btnFinder = find.byKey(const ValueKey('test_btn'));
+      final element = tester.element(btnFinder);
+
+      final ancestors = resolver.resolveAncestors(element);
+      final pathString = resolver.resolvePathString(element);
+
+      // Must not contain any Agentation overlay or freeze wrapper widgets
+      expect(ancestors, isNot(contains('FlutterAgentation')));
+      expect(ancestors, isNot(contains('InspectionOverlay')));
+      expect(ancestors, isNot(contains('FreezeOverlay')));
+      expect(ancestors, isNot(contains('AgentationShortcuts')));
+      expect(ancestors, isNot(contains('SnapshotWidget')));
+
+      // Must cleanly contain host application hierarchy
+      expect(pathString, contains('Scaffold > Column > ElevatedButton'));
     });
   });
 }

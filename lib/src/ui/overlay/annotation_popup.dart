@@ -23,6 +23,10 @@ class AnnotationPopup extends StatefulWidget {
     super.key,
     required this.result,
     required this.onClose,
+    this.initialComment = '',
+    this.onDelete,
+    this.onSave,
+    this.submitLabel,
     this.initialIntent = AnnotationIntent.suggestion,
     this.initialSeverity = AnnotationSeverity.suggestion,
     this.showHierarchy = false,
@@ -31,6 +35,19 @@ class AnnotationPopup extends StatefulWidget {
     this.initialCodeExpanded = false,
     this.accentColor,
   });
+
+  /// Optional initial comment text (e.g. when editing an existing annotation).
+  final String initialComment;
+
+  /// Optional callback invoked when the delete button is clicked.
+  /// The trash/delete icon is ONLY shown when this callback is provided (edit mode).
+  final VoidCallback? onDelete;
+
+  /// Optional custom callback invoked when saving/submitting.
+  final FutureOr<void> Function(String comment)? onSave;
+
+  /// Optional custom label for the primary action button.
+  final String? submitLabel;
 
   /// The inspected target widget snapshot.
   final WidgetInspectionResult result;
@@ -96,9 +113,15 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
   void initState() {
     super.initState();
     _isCodeExpandedNotifier = ValueNotifier<bool>(widget.initialCodeExpanded);
-    _commentController = TextEditingController();
+    _commentController = TextEditingController(text: widget.initialComment);
+    if (widget.initialComment.isNotEmpty) {
+      _commentController.selection = TextSelection.fromPosition(
+        TextPosition(offset: widget.initialComment.length),
+      );
+    }
     _focusNode = FocusNode();
     _selectedIntentNotifier = ValueNotifier<AnnotationIntent>(widget.initialIntent);
+    _hasTextNotifier.value = widget.initialComment.trim().isNotEmpty;
     _commentController.addListener(() {
       final hasText = _commentController.text.trim().isNotEmpty;
       if (_hasTextNotifier.value != hasText) {
@@ -192,12 +215,16 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
     final controller = AgentationScope.of(context);
 
     try {
-      await controller.createAnnotation(
-        comment: comment,
-        intent: _selectedIntentNotifier.value,
-        severity: widget.initialSeverity,
-        targetResult: widget.result,
-      );
+      if (widget.onSave != null) {
+        await widget.onSave!(comment);
+      } else {
+        await controller.createAnnotation(
+          comment: comment,
+          intent: _selectedIntentNotifier.value,
+          severity: widget.initialSeverity,
+          targetResult: widget.result,
+        );
+      }
       widget.onClose();
     } finally {
       if (mounted) {
@@ -259,12 +286,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
     // 3. User configured marker color from settings panel
     if (controller != null) {
       final colorId = controller.settings.markerColorId;
-      if (colorId != 'indigo') {
-        return MarkerColor.findById(colorId).color;
-      }
-      // If colorId is default 'indigo', default element feedback in agentation-main
-      // uses vibrant Blue so it is not a fixed purple box
-      return AgentationColors.accent;
+      return MarkerColor.findById(colorId).color;
     }
 
     return AgentationColors.accent;
@@ -280,11 +302,9 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
     final bounds = widget.result.bounds;
     final isMobile = screenSize.width < 600.0;
 
-    // Responsive card width: adapts gracefully from mobile screens up to 320px
-    final cardWidth = isMobile
-        ? math.min(320.0, screenSize.width - 24.0)
-        : math.min(320.0, math.max(260.0, screenSize.width - 24.0));
-    final estimatedCardHeight = _isCodeExpandedNotifier.value ? 210.0 : 105.0;
+    // Exact card width matching agentation-main (280px, clamped to screen - 24px)
+    final cardWidth = math.min(280.0, screenSize.width - 24.0);
+    final estimatedCardHeight = _isCodeExpandedNotifier.value ? 210.0 : 95.0;
 
     final controller = AgentationScope.maybeOf(context);
     final isDark = controller?.settings.isDarkMode ?? true;
@@ -425,12 +445,12 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                 key: _cardKey,
                 color: Colors.transparent,
                 elevation: 16.0,
-                borderRadius: BorderRadius.circular(14.0),
+                borderRadius: BorderRadius.circular(16.0),
                 child: Container(
-                padding: const EdgeInsets.all(14.0),
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                 decoration: BoxDecoration(
                   color: cardBg,
-                  borderRadius: BorderRadius.circular(14.0),
+                  borderRadius: BorderRadius.circular(16.0),
                   border: Border.all(color: borderColor, width: 1.0),
                   boxShadow: theme.cardShadows,
                 ),
@@ -728,7 +748,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                       return Container(
                         decoration: BoxDecoration(
                           color: inputBg,
-                          borderRadius: BorderRadius.circular(10.0),
+                          borderRadius: BorderRadius.circular(8.0),
                           border: Border.all(
                             color: activeColor,
                             width: 1.5,
@@ -775,7 +795,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                             ),
                             cursorColor: activeColor,
                             decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
                               isDense: true,
                               hintText: placeholder,
                               hintStyle: TextStyle(
@@ -823,24 +843,17 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
 
                   // ── Bottom Actions Row: Cancel & Add/Save ──
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: widget.onDelete != null
+                        ? MainAxisAlignment.spaceBetween
+                        : MainAxisAlignment.end,
                     children: [
-                      // Delete (Trash icon)
-                      Tooltip(
-                        message: 'Delete',
-                        child: InkWell(
-                          key: const ValueKey('agentation_card_delete_button'),
-                          onTap: widget.onClose,
-                          borderRadius: BorderRadius.circular(6.0),
-                          child: Padding(
-                            padding: const EdgeInsets.all(5.0),
-                            child: AgentationIcons.trash(
-                              size: 21.5,
-                              color: subtextColor,
-                            ),
-                          ),
+                      // Delete (Trash icon) - only shown when editing an annotation
+                      if (widget.onDelete != null)
+                        _CardDeleteIconButton(
+                          onDelete: widget.onDelete!,
+                          defaultColor: subtextColor,
+                          hoverColor: AgentationColors.destructive,
                         ),
-                      ),
 
                       // Cancel & Add/Save
                       Row(
@@ -896,7 +909,8 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                         ),
                                       )
                                     : Text(
-                                        isArea ? 'Save' : 'Add',
+                                        widget.submitLabel ??
+                                            (isArea || widget.onDelete != null ? 'Save' : 'Add'),
                                         style: const TextStyle(
                                           fontSize: 13.0,
                                           fontWeight: FontWeight.normal,
@@ -1039,4 +1053,60 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
     return TextSpan(children: spans);
   }
 }
+
+class _CardDeleteIconButton extends StatefulWidget {
+  const _CardDeleteIconButton({
+    required this.onDelete,
+    required this.defaultColor,
+    required this.hoverColor,
+  });
+
+  final VoidCallback onDelete;
+  final Color defaultColor;
+  final Color hoverColor;
+
+  @override
+  State<_CardDeleteIconButton> createState() => _CardDeleteIconButtonState();
+}
+
+class _CardDeleteIconButtonState extends State<_CardDeleteIconButton> {
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Delete',
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => _isHovered.value = true,
+        onExit: (_) => _isHovered.value = false,
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _isHovered,
+          builder: (context, isHovered, _) {
+            return InkWell(
+              key: const ValueKey('agentation_card_delete_button'),
+              onTap: widget.onDelete,
+              borderRadius: BorderRadius.circular(6.0),
+              hoverColor: widget.hoverColor.withValues(alpha: 0.15),
+              child: Padding(
+                padding: const EdgeInsets.all(5.0),
+                child: AgentationIcons.trash(
+                  size: 21.5,
+                  color: isHovered ? widget.hoverColor : widget.defaultColor,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 

@@ -217,6 +217,39 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Controls how much detail is included in the copied output'), findsNothing);
     });
+
+    testWidgets('cycles output detail level and updates 4-dot vertical indicator', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AgentationScope(
+              controller: controller,
+              child: SettingsPanel(onClose: () {}),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Initially standard (index 1)
+      final standardTextFinder = find.text('Standard');
+      expect(standardTextFinder, findsOneWidget);
+      final textWidget = tester.widget<Text>(standardTextFinder);
+      expect(textWidget.style?.fontWeight, equals(FontWeight.normal));
+
+      // Tap on the detail level button to cycle: Standard (1) -> Detailed (2) -> Forensic (3) -> Compact (0)
+      await tester.tap(find.text('Standard'));
+      await tester.pumpAndSettle();
+      expect(find.text('Detailed'), findsOneWidget);
+
+      await tester.tap(find.text('Detailed'));
+      await tester.pumpAndSettle();
+      expect(find.text('Forensic'), findsOneWidget);
+
+      await tester.tap(find.text('Forensic'));
+      await tester.pumpAndSettle();
+      expect(find.text('Compact'), findsOneWidget);
+    });
   });
 }
 

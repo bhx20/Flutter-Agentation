@@ -25,6 +25,7 @@ import 'annotation_marker.dart';
 import 'annotation_popup.dart';
 import 'freeze_overlay.dart';
 import 'highlight_style.dart';
+import '../../theme/agentation_colors.dart';
 import 'widget_highlight.dart';
 
 /// Overlay widget managing gesture interception, pointer inspection, and multi-mode presentation.
@@ -643,6 +644,9 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
           isFixed: scrollPos == null,
           scrollY: scrollPos?.pixels,
           metadata: {
+            'path': treePlacement.parentBreadcrumb != null
+                ? '${treePlacement.parentBreadcrumb} (${treePlacement.description})'
+                : treePlacement.description,
             'parentWidget': treePlacement.parentWidget,
             'direction': treePlacement.direction,
             if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,
@@ -846,6 +850,17 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
       if (completed != null) {
         final scrollPos = _findScrollPositionAt(Offset(completed.x, completed.y)) ?? _findAnyScrollPosition();
+        final centerPos = Offset(completed.x + completed.width / 2, completed.y + completed.height / 2);
+        final underlying = widget.controller.engine.inspectAt(
+          centerPos,
+          rootRenderObject: _hostRenderObject,
+          rootElement: _hostAppKey.currentContext as Element?,
+        );
+
+        final String? areaPath = underlying.isAvailable && underlying.pathString.isNotEmpty
+            ? 'Area in ${underlying.pathString}'
+            : null;
+
         final areaResult = WidgetInspectionResult(
           identity: WidgetIdentity(
             id: 'area_${DateTime.now().millisecondsSinceEpoch}',
@@ -857,7 +872,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
             scrollOffset: scrollPos?.pixels,
             scrollAxis: scrollPos?.axis.name,
           ),
-          ancestors: const [],
+          ancestors: underlying.isAvailable ? underlying.ancestors : const [],
+          metadata: {
+            if (areaPath != null) 'path': areaPath,
+          },
+          sourceLocation: underlying.isAvailable ? underlying.sourceLocation : null,
         );
         widget.controller.selectResult(areaResult);
         widget.onWidgetSelected?.call(areaResult);
@@ -917,6 +936,17 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
       if (completed != null && completed.width > 20.0 && completed.height > 20.0) {
         final scrollPos = _findScrollPositionAt(Offset(completed.x, completed.y)) ?? _findAnyScrollPosition();
+        final centerPos = Offset(completed.x + completed.width / 2, completed.y + completed.height / 2);
+        final underlying = widget.controller.engine.inspectAt(
+          centerPos,
+          rootRenderObject: _hostRenderObject,
+          rootElement: _hostAppKey.currentContext as Element?,
+        );
+
+        final String? areaPath = underlying.isAvailable && underlying.pathString.isNotEmpty
+            ? 'Area in ${underlying.pathString}'
+            : null;
+
         final areaResult = WidgetInspectionResult(
           identity: WidgetIdentity(
             id: 'area_${DateTime.now().millisecondsSinceEpoch}',
@@ -928,7 +958,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
             scrollOffset: scrollPos?.pixels,
             scrollAxis: scrollPos?.axis.name,
           ),
-          ancestors: const [],
+          ancestors: underlying.isAvailable ? underlying.ancestors : const [],
+          metadata: {
+            if (areaPath != null) 'path': areaPath,
+          },
+          sourceLocation: underlying.isAvailable ? underlying.sourceLocation : null,
         );
         widget.controller.selectResult(areaResult);
         widget.onWidgetSelected?.call(areaResult);
@@ -1052,14 +1086,15 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
         final markerColor = MarkerColor.findById(settings.markerColorId).color;
 
         final effectiveHighlightStyle =
-            widget.highlightStyle.strokeColor == const Color(0xFF6366F1)
+            (widget.highlightStyle.strokeColor == const Color(0xFF6366F1) ||
+                    widget.highlightStyle.strokeColor == AgentationColors.platformBlue)
                 ? HighlightStyle(
                     strokeColor: markerColor,
-                    fillColor: Colors.transparent,
+                    fillColor: markerColor.withValues(alpha: 0.05),
                     strokeWidth: widget.highlightStyle.strokeWidth,
                     borderRadius: widget.highlightStyle.borderRadius,
                     hoverStrokeColor: markerColor.withValues(alpha: 0.6),
-                    hoverFillColor: markerColor.withValues(alpha: 0.08),
+                    hoverFillColor: markerColor.withValues(alpha: 0.04),
                     badgeBackgroundColor: const Color(0xFF000000),
                     badgeTextColor: const Color(0xFFFFFFFF),
                   )
@@ -1312,7 +1347,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                       ),
 
                     // Numbered spatial annotation markers, hover preview tooltip, and edit dialog
-                    if (widget.controller.areCommentsVisible)
+                    if (widget.controller.shouldShowMarkers)
                       ValueListenableBuilder<String?>(
                         valueListenable: _hoveredAnnotationIdNotifier,
                         builder: (context, hoveredId, _) {
@@ -1337,9 +1372,9 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                       child: IgnorePointer(
                                         child: Container(
                                           decoration: BoxDecoration(
-                                            color: const Color(0xFF0088FF).withValues(alpha: 0.05),
+                                            color: markerColor.withValues(alpha: 0.05),
                                             border: Border.all(
-                                              color: const Color(0xFF0088FF).withValues(alpha: 0.75),
+                                              color: markerColor.withValues(alpha: 0.75),
                                               width: 1.5,
                                             ),
                                             borderRadius: BorderRadius.circular(4.0),
@@ -1360,7 +1395,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                       ann.isMultiSelect;
                                   final effectiveMarkerAccent = isArea
                                       ? const Color(0xFF34C759)
-                                      : const Color(0xFF0088FF);
+                                      : markerColor;
                                   final isHovered = hoveredId == ann.id;
 
                                   return AnnotationMarker(
@@ -1423,7 +1458,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                             active.isMultiSelect;
                         final effectiveCardAccent = isActiveArea
                             ? const Color(0xFF34C759)
-                            : const Color(0xFF0088FF);
+                            : markerColor;
                         return AnnotationDetailCard(
                           key: ValueKey('agentation_card_${active.id}'),
                           index: widget.controller.annotations.indexOf(active) + 1,
@@ -1500,6 +1535,9 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                       isFixed: scrollPos == null,
                       scrollY: scrollPos?.pixels,
                       metadata: {
+                        'path': treePlacement.parentBreadcrumb != null
+                            ? '${treePlacement.parentBreadcrumb} (${treePlacement.description})'
+                            : treePlacement.description,
                         'parentWidget': treePlacement.parentWidget,
                         'direction': treePlacement.direction,
                         if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,

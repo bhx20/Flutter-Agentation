@@ -11,8 +11,17 @@ class WidgetPathResolver {
 
     while (current != null) {
       final typeName = current.widget.runtimeType.toString();
+      // Halt traversal if we reach the outer boundary of the host app inside Agentation
+      if (typeName == 'FreezeOverlay' ||
+          typeName == 'InspectionOverlay' ||
+          typeName == 'FlutterAgentation') {
+        break;
+      }
+
       if (!_shouldOmitFromBreadcrumbs(typeName)) {
-        ancestors.add(typeName);
+        if (ancestors.isEmpty || ancestors.last != typeName) {
+          ancestors.add(typeName);
+        }
       }
 
       Element? parent;
@@ -40,6 +49,11 @@ class WidgetPathResolver {
   /// from human-readable breadcrumbs.
   static bool _shouldOmitFromBreadcrumbs(String name) {
     if (name.startsWith('_')) return true;
+    if (name.startsWith('Agentation')) return true;
+    if (name == 'FlutterAgentation') return true;
+    if (name.startsWith('Inspection')) return true;
+    if (name.startsWith('Freeze')) return true;
+    if (name.startsWith('Snapshot')) return true;
     if (name.startsWith('NotificationListener')) return true;
     if (name.startsWith('ValueListenableBuilder')) return true;
     if (name.startsWith('Animated')) return true;
@@ -51,6 +65,14 @@ class WidgetPathResolver {
     if (name.endsWith('Observer')) return true;
 
     const omitted = {
+      'SnapshotWidget',
+      'FreezeOverlay',
+      'InspectionOverlay',
+      'FlutterAgentation',
+      'AgentationShortcuts',
+      'AgentationScope',
+      'AgentationToolbar',
+      'AgentationThemeProvider',
       'RepaintBoundary',
       'CustomPaint',
       'FractionalTranslation',

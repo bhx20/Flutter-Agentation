@@ -5,6 +5,7 @@ import 'package:flutter_agentation/src/domain/widget_bounds.dart';
 import 'package:flutter_agentation/src/domain/widget_context.dart';
 import 'package:flutter_agentation/src/domain/widget_identity.dart';
 import 'package:flutter_agentation/src/domain/widget_inspection_result.dart';
+import 'package:flutter_agentation/src/domain/marker_color.dart';
 import 'package:flutter_agentation/src/ui/overlay/annotation_popup.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -290,8 +291,8 @@ void main() {
       final positioned = tester.widget<Positioned>(
         find.ancestor(of: mouseRegionFinder, matching: find.byType(Positioned)).first,
       );
-      // On 320 width screen, card width is 320 - 24 = 296, centered at (320 - 296)/2 = 12.0
-      expect(positioned.left, equals(12.0));
+      // On 320 width screen, card width is 280, centered at (320 - 280)/2 = 20.0
+      expect(positioned.left, equals(20.0));
 
       // Verify comment box is compact on mobile (minLines: 1)
       final textField = tester.widget<TextField>(find.byType(TextField));
@@ -408,7 +409,8 @@ void main() {
       await tester.pumpAndSettle();
 
       var dynamicAddButton = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
-      expect(dynamicAddButton.style?.backgroundColor?.resolve({}), equals(const Color(0xFF0088FF)));
+      final expectedColor = MarkerColor.findById(controller.settings.markerColorId).color;
+      expect(dynamicAddButton.style?.backgroundColor?.resolve({}), equals(expectedColor));
 
       // 3. Intent Selector: tapping Change, Bug, Suggestion dynamically updates colors
       await tester.pumpWidget(
@@ -455,6 +457,47 @@ void main() {
 
       dynamicAddButton = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
       expect(dynamicAddButton.style?.backgroundColor?.resolve({}), equals(const Color(0xFF34C759)));
+    });
+
+    testWidgets('delete icon is hidden by default in add comment mode', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnnotationPopup(
+              result: dummyResult,
+              onClose: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('agentation_card_delete_button')), findsNothing);
+      expect(find.text('Add'), findsOneWidget);
+    });
+
+    testWidgets('delete icon is shown in edit comment mode when onDelete is provided', (tester) async {
+      bool deleted = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnnotationPopup(
+              result: dummyResult,
+              initialComment: 'Existing comment to edit',
+              onDelete: () => deleted = true,
+              onClose: () {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('agentation_card_delete_button')), findsOneWidget);
+      expect(find.text('Save'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('agentation_card_delete_button')));
+      await tester.pumpAndSettle();
+      expect(deleted, isTrue);
     });
   });
 }

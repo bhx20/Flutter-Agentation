@@ -164,6 +164,11 @@ class AgentationController extends ChangeNotifier {
   /// Whether comments and annotation pins are displayed on the page.
   bool get areCommentsVisible => _state.areCommentsVisible;
 
+  /// Whether markers and comments should currently be displayed on the overlay.
+  /// Exactly matches React Agentation: markers are shown only when toolbar is active (not minimized/collapsed)
+  /// and comments are set to visible.
+  bool get shouldShowMarkers => !_state.isToolbarMinimized && _state.areCommentsVisible;
+
   /// Currently selected inspection result.
   WidgetInspectionResult? get selectedResult => _state.selectedResult;
 
@@ -404,10 +409,11 @@ class AgentationController extends ChangeNotifier {
 
   /// Activates inspection mode, optionally freezing animations atomically.
   void activate({bool freeze = false}) {
-    if (_state.mode == InspectionMode.inspecting && (!freeze || _state.isFrozen)) return;
+    if (_state.mode == InspectionMode.inspecting && !_state.isToolbarMinimized && (!freeze || _state.isFrozen)) return;
     AgentationLogger.debug('Inspection mode activated (freeze: $freeze)');
     _state = _state.copyWith(
       mode: InspectionMode.inspecting,
+      isToolbarMinimized: false,
       isFrozen: freeze ? true : _state.isFrozen,
     );
     notifyListeners();
@@ -419,6 +425,7 @@ class AgentationController extends ChangeNotifier {
     AgentationLogger.debug('Inspection mode deactivated (unfreeze: $unfreeze)');
     _state = _state.copyWith(
       mode: InspectionMode.inactive,
+      isToolbarMinimized: true,
       isFrozen: unfreeze ? false : _state.isFrozen,
       selectedResult: () => null,
       hoveredResult: () => null,
@@ -607,7 +614,16 @@ class AgentationController extends ChangeNotifier {
       scrollX: resolvedScrollX,
       tapPosition: resolvedTapPosition,
       metadata: {
-        if (result?.pathString != null) 'path': result!.pathString,
+        if (result?.metadata['path'] != null)
+          'path': result!.metadata['path']
+        else if (result?.pathString != null)
+          'path': result!.pathString,
+        if (result?.pathString != null)
+          'fullPath': result!.pathString,
+        if (result?.ancestors != null && result!.ancestors.isNotEmpty)
+          'flutterComponents': result.ancestors.join(' > '),
+        if (result?.context.semanticsLabel != null)
+          'accessibility': result!.context.semanticsLabel,
         ...metadata,
       },
     );
@@ -650,6 +666,16 @@ class AgentationController extends ChangeNotifier {
       height: placement.height,
     );
 
+    final resolvedPath = metadata['path'] as String? ??
+        (metadata['parentBreadcrumb'] != null
+            ? (metadata['treePlacement'] != null
+                ? '${metadata['parentBreadcrumb']} (${metadata['treePlacement']})'
+                : metadata['parentBreadcrumb'] as String)
+            : (placement.treePlacement ??
+                (placement.parentWidget != null
+                    ? '${placement.parentWidget}${placement.direction != null ? ' (${placement.direction})' : ''}'
+                    : null)));
+
     return createAnnotation(
       comment: comment,
       kind: AnnotationKind.placement,
@@ -665,10 +691,13 @@ class AgentationController extends ChangeNotifier {
         ),
         bounds: bounds,
         context: const WidgetContext.empty(),
-        ancestors: const [],
+        ancestors: resolvedPath != null ? [resolvedPath] : const [],
       ),
       elementBoundingBoxes: [bounds],
-      metadata: metadata,
+      metadata: {
+        if (resolvedPath != null) 'path': resolvedPath,
+        ...metadata,
+      },
     );
   }
 

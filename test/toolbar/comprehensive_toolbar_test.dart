@@ -76,17 +76,18 @@ void main() {
     });
 
     testWidgets('OutputDetailButton renders active level and advances on tap', (tester) async {
-      OutputDetailLevel active = OutputDetailLevel.standard;
+      final active = ValueNotifier<OutputDetailLevel>(OutputDetailLevel.standard);
 
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: StatefulBuilder(
-              builder: (context, setState) {
+            body: ValueListenableBuilder<OutputDetailLevel>(
+              valueListenable: active,
+              builder: (context, currentLevel, _) {
                 return OutputDetailButton(
-                  detailLevel: active,
+                  detailLevel: currentLevel,
                   onChanged: (next) {
-                    setState(() => active = next);
+                    active.value = next;
                   },
                 );
               },
@@ -99,17 +100,17 @@ void main() {
 
       await tester.tap(find.byType(OutputDetailButton));
       await tester.pumpAndSettle();
-      expect(active, equals(OutputDetailLevel.detailed));
+      expect(active.value, equals(OutputDetailLevel.detailed));
       expect(find.text('Detailed'), findsOneWidget);
 
       await tester.tap(find.byType(OutputDetailButton));
       await tester.pumpAndSettle();
-      expect(active, equals(OutputDetailLevel.forensic));
+      expect(active.value, equals(OutputDetailLevel.forensic));
       expect(find.text('Forensic'), findsOneWidget);
 
       await tester.tap(find.byType(OutputDetailButton));
       await tester.pumpAndSettle();
-      expect(active, equals(OutputDetailLevel.compact));
+      expect(active.value, equals(OutputDetailLevel.compact));
       expect(find.text('Compact'), findsOneWidget);
     });
 

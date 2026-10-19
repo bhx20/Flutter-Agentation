@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'toolbar_toggle_icon.dart';
 
 /// Pixel-perfect vector icons matching the official Agentation design system.
 class AgentationIcons {
@@ -113,6 +114,20 @@ class AgentationIcons {
     return CustomPaint(
       size: Size(size, size),
       painter: _ListSparkleIconPainter(color: color),
+    );
+  }
+
+  /// Interactive morphing toggle icon between launcher listSparkle (active=false)
+  /// and close '✕' (active=true), matching ToolbarToggleIcon from agentation-main.
+  static Widget toggleIcon({
+    required bool active,
+    double size = 20.0,
+    Color color = Colors.white,
+  }) {
+    return ToolbarToggleIcon(
+      active: active,
+      size: size,
+      color: color,
     );
   }
 

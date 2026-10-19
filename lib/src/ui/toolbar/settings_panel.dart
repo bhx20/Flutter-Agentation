@@ -137,19 +137,10 @@ class _SettingsPanelState extends State<SettingsPanel> {
                             ),
                           ),
                         ),
-                        InkWell(
+                        _ThemeToggleButton(
                           key: const ValueKey('theme_toggle_button'),
-                          onTap: controller.toggleTheme,
-                          borderRadius: BorderRadius.circular(14.0),
-                          child: SizedBox(
-                            width: 28.0,
-                            height: 28.0,
-                            child: Center(
-                              child: isDark
-                                  ? AgentationIcons.sun(size: 16.0, color: subtextColor)
-                                  : AgentationIcons.moon(size: 16.0, color: subtextColor),
-                            ),
-                          ),
+                          isDark: isDark,
+                          onToggle: controller.toggleTheme,
                         ),
                       ],
                     ),
@@ -192,19 +183,56 @@ class _SettingsPanelState extends State<SettingsPanel> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  _getDetailLabel(settings.outputDetail),
-                                  style: TextStyle(
-                                    color: textColor,
-                                    fontSize: 13.0,
-                                    fontWeight: FontWeight.w700,
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 200),
+                                  switchInCurve: Curves.easeOut,
+                                  switchOutCurve: Curves.easeOut,
+                                  layoutBuilder: (currentChild, previousChildren) {
+                                    return Stack(
+                                      alignment: Alignment.centerLeft,
+                                      children: <Widget>[
+                                        ...previousChildren,
+                                        if (currentChild != null) currentChild,
+                                      ],
+                                    );
+                                  },
+                                  transitionBuilder: (child, animation) {
+                                    final isIncoming = (child.key as ValueKey<OutputDetailLevel>?)?.value ==
+                                        settings.outputDetail;
+                                    if (!isIncoming) {
+                                      // Existing text cuts out immediately as next text slides in,
+                                      // matching React mounting a new span with animation: cycleTextIn 0.2s
+                                      return const SizedBox.shrink();
+                                    }
+                                    final slideAnimation = Tween<Offset>(
+                                      begin: const Offset(0.0, -0.4),
+                                      end: Offset.zero,
+                                    ).animate(animation);
+                                    return FadeTransition(
+                                      opacity: animation,
+                                      child: SlideTransition(
+                                        position: slideAnimation,
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: Text(
+                                    _getDetailLabel(settings.outputDetail),
+                                    key: ValueKey(settings.outputDetail),
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 13.0,
+                                      fontWeight: FontWeight.normal,
+                                    ),
                                   ),
                                 ),
-                                const SizedBox(width: 2.0),
-                                Icon(
-                                  Icons.more_vert,
-                                  size: 14.0,
-                                  color: subtextColor,
+                                const SizedBox(width: 6.0),
+                                _DetailLevelIndicator(
+                                  currentLevel: settings.outputDetail,
+                                  activeColor: textColor,
+                                  inactiveColor: isDark
+                                      ? Colors.white.withValues(alpha: 0.25)
+                                      : textColor.withValues(alpha: 0.25),
                                 ),
                               ],
                             ),
@@ -598,5 +626,161 @@ class _AgentationSwitch extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A 4-dot vertical indicator showing the active [OutputDetailLevel].
+///
+/// Each dot represents one level (Compact, Standard, Detailed, Forensic) from top to bottom.
+/// The dot corresponding to the active level is highlighted with [activeColor], while
+/// inactive dots use [inactiveColor].
+class _DetailLevelIndicator extends StatelessWidget {
+  const _DetailLevelIndicator({
+    required this.currentLevel,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  final OutputDetailLevel currentLevel;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  @override
+  Widget build(BuildContext context) {
+    const levels = OutputDetailLevel.values;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(levels.length, (index) {
+        final isActive = levels[index] == currentLevel;
+        final dotSize = isActive ? 3.0 : 2.0;
+        return Padding(
+          padding: EdgeInsets.only(bottom: index < levels.length - 1 ? 2.5 : 0.0),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            width: dotSize,
+            height: dotSize,
+            decoration: BoxDecoration(
+              color: isActive ? activeColor : inactiveColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+/// A theme toggle button matching the exact dimensions, hover effects, and
+/// rotation/scale entrance animation from the reference Agentation codebase:
+/// - Size: 22x22, border-radius: 6px
+/// - Hover background: rgba(255, 255, 255, 0.1) in dark, rgba(0, 0, 0, 0.06) in light
+/// - Normal icon color: rgba(255, 255, 255, 0.4) in dark, rgba(0, 0, 0, 0.4) in light
+/// - Hover icon color: rgba(255, 255, 255, 0.8) in dark, rgba(0, 0, 0, 0.7) in light
+/// - Animation: 0.35s scale(0.8) rotate(-30deg) to scale(1) rotate(0deg)
+class _ThemeToggleButton extends StatefulWidget {
+  const _ThemeToggleButton({
+    super.key,
+    required this.isDark,
+    required this.onToggle,
+  });
+
+  final bool isDark;
+  final VoidCallback onToggle;
+
+  @override
+  State<_ThemeToggleButton> createState() => _ThemeToggleButtonState();
+}
+
+class _ThemeToggleButtonState extends State<_ThemeToggleButton> {
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final normalColor = widget.isDark
+        ? const Color.fromRGBO(255, 255, 255, 0.4)
+        : const Color.fromRGBO(0, 0, 0, 0.4);
+    final hoverColor = widget.isDark
+        ? const Color.fromRGBO(255, 255, 255, 0.8)
+        : const Color.fromRGBO(0, 0, 0, 0.7);
+
+    final hoverBg = widget.isDark
+        ? const Color.fromRGBO(255, 255, 255, 0.1)
+        : const Color.fromRGBO(0, 0, 0, 0.06);
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => _isHovered.value = true,
+      onExit: (_) => _isHovered.value = false,
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _isHovered,
+        builder: (context, isHovered, _) {
+          final backgroundColor = isHovered ? hoverBg : Colors.transparent;
+          final iconColor = isHovered ? hoverColor : normalColor;
+
+          return GestureDetector(
+            onTap: widget.onToggle,
+            behavior: HitTestBehavior.opaque,
+            child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.ease,
+          width: 22.0,
+          height: 22.0,
+          decoration: BoxDecoration(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(6.0),
+          ),
+          child: Center(
+            child: SizedBox(
+              width: 20.0,
+              height: 20.0,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                switchInCurve: const Cubic(0.34, 1.56, 0.64, 1.0),
+                switchOutCurve: Curves.easeOut,
+                transitionBuilder: (child, animation) {
+                  final isIncoming = (child.key as ValueKey<bool>?)?.value == widget.isDark;
+                  if (!isIncoming) {
+                    return const SizedBox.shrink();
+                  }
+                  final scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(animation);
+                  final rotateAnimation = Tween<double>(begin: -30.0 * 3.141592653589793 / 180.0, end: 0.0)
+                      .animate(animation);
+                  return FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(
+                      scale: scaleAnimation,
+                      child: AnimatedBuilder(
+                        animation: rotateAnimation,
+                        builder: (context, c) => Transform.rotate(
+                          angle: rotateAnimation.value,
+                          child: c,
+                        ),
+                        child: child,
+                      ),
+                    ),
+                  );
+                },
+                child: Center(
+                  key: ValueKey(widget.isDark),
+                  child: widget.isDark
+                      ? AgentationIcons.sun(size: 16.0, color: iconColor)
+                      : AgentationIcons.moon(size: 16.0, color: iconColor),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  ),
+);
+}
 }
 

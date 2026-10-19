@@ -160,6 +160,37 @@ class Annotation {
   /// Exact tap coordinates relative to the screen when created.
   final Offset? tapPosition;
 
+  /// Full hierarchical DOM or widget path (forensic detail).
+  String? get fullPath =>
+      metadata['fullPath'] as String? ??
+      metadata['fullDomPath'] as String? ??
+      metadata['fullWidgetPath'] as String? ??
+      metadata['path'] as String?;
+
+  /// CSS classes or widget styling classification tags.
+  String? get cssClasses =>
+      metadata['cssClasses'] as String? ?? metadata['classes'] as String?;
+
+  /// Formatted computed styles or widget layout properties.
+  String? get computedStyles =>
+      metadata['computedStyles'] as String? ?? metadata['properties'] as String?;
+
+  /// Accessibility or Semantics description.
+  String? get accessibility =>
+      metadata['accessibility'] as String? ??
+      metadata['semanticsLabel'] as String?;
+
+  /// Sibling and nearby element references.
+  String? get nearbyElements => metadata['nearbyElements'] as String?;
+
+  /// Nearby text context extracted from widget or area.
+  String? get nearbyText => text ?? metadata['nearbyText'] as String?;
+
+  /// Component hierarchy string (Flutter or React).
+  String? get flutterComponents =>
+      metadata['flutterComponents'] as String? ??
+      metadata['reactComponents'] as String?;
+
   /// Converts this annotation into a [FeedbackTarget] model for prompt output formatting.
   FeedbackTarget toFeedbackTarget() {
     return FeedbackTarget(

@@ -46,6 +46,8 @@ class FlutterAgentation extends StatefulWidget {
     this.initialDetailLevel,
     this.copyFormat,
     this.showToolbar = true,
+    this.initialToolbarMinimized = true,
+    this.initialCollapsed,
     this.initialToolbarAlignment = Alignment.bottomRight,
     this.highlightStyle = const HighlightStyle(),
     this.onWidgetSelected,
@@ -89,6 +91,8 @@ class FlutterAgentation extends StatefulWidget {
     OutputDetailLevel? initialDetailLevel,
     CopyFormat? copyFormat,
     bool showToolbar = true,
+    bool initialToolbarMinimized = true,
+    bool? initialCollapsed,
     Alignment initialToolbarAlignment = Alignment.bottomRight,
     HighlightStyle highlightStyle = const HighlightStyle(),
     void Function(WidgetInspectionResult result)? onWidgetSelected,
@@ -114,6 +118,8 @@ class FlutterAgentation extends StatefulWidget {
         initialDetailLevel: initialDetailLevel,
         copyFormat: copyFormat,
         showToolbar: showToolbar,
+        initialToolbarMinimized: initialToolbarMinimized,
+        initialCollapsed: initialCollapsed,
         initialToolbarAlignment: initialToolbarAlignment,
         highlightStyle: highlightStyle,
         onWidgetSelected: onWidgetSelected,
@@ -179,6 +185,12 @@ class FlutterAgentation extends StatefulWidget {
   /// Whether to display the floating on-screen toolbar.
   final bool showToolbar;
 
+  /// Whether the floating toolbar starts minimized.
+  final bool initialToolbarMinimized;
+
+  /// Deprecated alias for [initialToolbarMinimized].
+  final bool? initialCollapsed;
+
   /// Initial screen quadrant alignment for the floating toolbar.
   final Alignment initialToolbarAlignment;
 
@@ -222,7 +234,10 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
     super.initState();
     _installWebFocusErrorProtection();
     _configureController();
-    if (widget.showToolbar &&
+    final shouldMinimize = widget.initialCollapsed ?? widget.initialToolbarMinimized;
+    if (widget.showToolbar && shouldMinimize && !_effectiveController.isInspecting) {
+      _effectiveController.setToolbarMinimized(true);
+    } else if (widget.showToolbar &&
         !_effectiveController.isToolbarMinimized &&
         !_effectiveController.isInspecting) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
