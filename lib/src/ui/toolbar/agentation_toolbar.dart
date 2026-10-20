@@ -364,6 +364,9 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
             : (posLeft ?? (screenSize.width - effectiveWidth) / 2.0);
         final computedY = screenSize.height - clampedBottomInset - toolbarHeight;
         final bool isNearTop = computedY < (safePadding.top + 70.0);
+        final double spaceAbove = computedY - safePadding.top;
+        final double spaceBelow = screenSize.height - (computedY + toolbarHeight) - safePadding.bottom;
+        final bool openBelow = spaceAbove < 380.0 && spaceBelow > spaceAbove;
 
         final currentBounds = Rect.fromLTWH(
           computedX,
@@ -379,109 +382,121 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
           });
         }
 
+        Widget? floatingPanel;
+        if (!isMinimized && isSettingsOpen) {
+          floatingPanel = Container(
+            margin: EdgeInsets.only(
+              bottom: openBelow ? 0.0 : 8.0,
+              top: openBelow ? 8.0 : 0.0,
+            ),
+            child: SettingsPanel(
+              onClose: () {
+                controller.closeSettings();
+              },
+              controller: controller,
+            ),
+          );
+        } else if (!isMinimized && isLayoutModeOpen) {
+          floatingPanel = Container(
+            margin: EdgeInsets.only(
+              bottom: openBelow ? 0.0 : 8.0,
+              top: openBelow ? 8.0 : 0.0,
+            ),
+            child: ComponentPalette(
+              controller: controller,
+              onClose: () {
+                controller.closeLayoutMode();
+              },
+              onSelectTemplate: (template) {
+                final dropPos = Offset(screenSize.width / 2, screenSize.height / 2);
+                final treePlacement = controller.engine.resolveTreePlacement(dropPos);
+                final comment = controller.engine.treePlacementResolver.formatComment(
+                  action: 'Place',
+                  targetLabel: template.label,
+                  placement: treePlacement,
+                );
+                final placementData = template.toPlacementData();
+                final enrichedPlacement = PlacementData(
+                  componentType: placementData.componentType,
+                  width: placementData.width,
+                  height: placementData.height,
+                  text: placementData.text,
+                  prompt: placementData.prompt,
+                  parentWidget: treePlacement.parentWidget,
+                  relativeTarget: treePlacement.relativeTarget,
+                  direction: treePlacement.direction,
+                  treePlacement: treePlacement.description,
+                );
+
+                controller.createPlacementAnnotation(
+                  placement: enrichedPlacement,
+                  position: dropPos,
+                  comment: comment,
+                  metadata: {
+                    'path': treePlacement.parentBreadcrumb != null
+                        ? '${treePlacement.parentBreadcrumb} (${treePlacement.description})'
+                        : treePlacement.description,
+                    'parentWidget': treePlacement.parentWidget,
+                    'direction': treePlacement.direction,
+                    if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,
+                    if (treePlacement.siblingBefore != null) 'siblingBefore': treePlacement.siblingBefore,
+                    if (treePlacement.siblingAfter != null) 'siblingAfter': treePlacement.siblingAfter,
+                    if (treePlacement.childIndex != null) 'childIndex': treePlacement.childIndex,
+                    if (treePlacement.parentBreadcrumb != null) 'parentBreadcrumb': treePlacement.parentBreadcrumb,
+                    'treePlacement': treePlacement.description,
+                  },
+                );
+                controller.closeLayoutMode();
+              },
+            ),
+          );
+        }
+
+        final pillContainer = GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onPanStart: _onPanStart,
+          onPanUpdate: (details) => _onPanUpdate(details, screenSize, safePadding, toolbarWidth, toolbarHeight),
+          onPanEnd: _onPanEnd,
+          onPanCancel: _onPanCancel,
+          child: Material(
+            color: Colors.transparent,
+            child: AnimatedContainer(
+              duration: isDragging ? Duration.zero : const Duration(milliseconds: 360),
+              curve: const Cubic(0.19, 1.0, 0.22, 1.0),
+              width: toolbarWidth,
+              height: toolbarHeight,
+              clipBehavior: Clip.none,
+              alignment: Alignment.centerRight,
+              padding: EdgeInsets.zero,
+              decoration: BoxDecoration(
+                color: theme.toolbarBackground,
+                borderRadius: BorderRadius.circular(22.0),
+                border: Border.all(
+                  color: theme.borderColor,
+                  width: 1.0,
+                ),
+                boxShadow: theme.toolbarShadows,
+              ),
+              child: _buildToolbarPill(controller, markerColor, theme, isMinimized, expandedWidth, isNearTop),
+            ),
+          ),
+        );
+
         return AnimatedPositioned(
+          key: ValueKey(openBelow ? 'toolbar_pos_top' : 'toolbar_pos_bottom'),
           duration: (isDragging || pos.justChangedAnchor) ? Duration.zero : const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
           left: posLeft,
           right: posRight,
-          bottom: clampedBottomInset,
+          top: openBelow ? computedY : null,
+          bottom: openBelow ? null : clampedBottomInset,
           child: Column(
             crossAxisAlignment: colAlignment,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ── Floating Panel: Settings or Layout Mode (Screenshots 3 & 4) ──
-              if (!isMinimized && isSettingsOpen)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8.0),
-                  child: SettingsPanel(
-                    onClose: () {
-                      controller.closeSettings();
-                    },
-                    controller: controller,
-                  ),
-                )
-              else if (!isMinimized && isLayoutModeOpen)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 8.0),
-                  child: ComponentPalette(
-                    controller: controller,
-                    onClose: () {
-                      controller.closeLayoutMode();
-                    },
-                    onSelectTemplate: (template) {
-                      final dropPos = Offset(screenSize.width / 2, screenSize.height / 2);
-                      final treePlacement = controller.engine.resolveTreePlacement(dropPos);
-                      final comment = controller.engine.treePlacementResolver.formatComment(
-                        action: 'Place',
-                        targetLabel: template.label,
-                        placement: treePlacement,
-                      );
-                      final placementData = template.toPlacementData();
-                      final enrichedPlacement = PlacementData(
-                        componentType: placementData.componentType,
-                        width: placementData.width,
-                        height: placementData.height,
-                        text: placementData.text,
-                        prompt: placementData.prompt,
-                        parentWidget: treePlacement.parentWidget,
-                        relativeTarget: treePlacement.relativeTarget,
-                        direction: treePlacement.direction,
-                        treePlacement: treePlacement.description,
-                      );
-
-                      controller.createPlacementAnnotation(
-                        placement: enrichedPlacement,
-                        position: dropPos,
-                        comment: comment,
-                        metadata: {
-                          'path': treePlacement.parentBreadcrumb != null
-                              ? '${treePlacement.parentBreadcrumb} (${treePlacement.description})'
-                              : treePlacement.description,
-                          'parentWidget': treePlacement.parentWidget,
-                          'direction': treePlacement.direction,
-                          if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,
-                          if (treePlacement.siblingBefore != null) 'siblingBefore': treePlacement.siblingBefore,
-                          if (treePlacement.siblingAfter != null) 'siblingAfter': treePlacement.siblingAfter,
-                          if (treePlacement.childIndex != null) 'childIndex': treePlacement.childIndex,
-                          if (treePlacement.parentBreadcrumb != null) 'parentBreadcrumb': treePlacement.parentBreadcrumb,
-                          'treePlacement': treePlacement.description,
-                        },
-                      );
-                      controller.closeLayoutMode();
-                    },
-                  ),
-                ),
-
-              // ── Pill Toolbar Container (Screenshot 1) ──
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onPanStart: _onPanStart,
-                onPanUpdate: (details) => _onPanUpdate(details, screenSize, safePadding, toolbarWidth, toolbarHeight),
-                onPanEnd: _onPanEnd,
-                onPanCancel: _onPanCancel,
-                child: Material(
-                  color: Colors.transparent,
-                  child: AnimatedContainer(
-                    duration: isDragging ? Duration.zero : const Duration(milliseconds: 360),
-                    curve: const Cubic(0.19, 1.0, 0.22, 1.0),
-                    width: toolbarWidth,
-                    height: toolbarHeight,
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.centerRight,
-                    padding: EdgeInsets.zero,
-                    decoration: BoxDecoration(
-                      color: theme.toolbarBackground,
-                      borderRadius: BorderRadius.circular(22.0),
-                      border: Border.all(
-                        color: theme.borderColor,
-                        width: 1.0,
-                      ),
-                      boxShadow: theme.toolbarShadows,
-                    ),
-                    child: _buildToolbarPill(controller, markerColor, theme, isMinimized, expandedWidth, isNearTop),
-                  ),
-                ),
-              ),
+              if (!openBelow && floatingPanel != null) floatingPanel,
+              pillContainer,
+              if (openBelow && floatingPanel != null) floatingPanel,
             ],
           ),
         );
@@ -566,14 +581,14 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                             onPressed: () => controller.toggleFreeze(),
                           ),
 
-                          // 2. Layout Mode (split grid/window) - Screenshot 1 & 4
+                          // 2. Component Mode
                           _ToolbarIconButton(
                             buttonKey: const ValueKey('toolbar_layout'),
-                            icon: AgentationIcons.layout(
+                            icon: AgentationIcons.component(
                               size: 22.0,
                               color: isLayoutOpen ? Colors.white : iconColor,
                             ),
-                            tooltipLabel: isLayoutOpen ? 'Exit layout mode' : 'Layout mode',
+                            tooltipLabel: isLayoutOpen ? 'Exit component' : 'Component',
                             tooltipShortcut: 'L',
                             showTooltip: !isLayoutOpen,
                             isActive: isLayoutOpen,

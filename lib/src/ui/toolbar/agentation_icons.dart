@@ -6,6 +6,14 @@ import 'toolbar_toggle_icon.dart';
 class AgentationIcons {
   const AgentationIcons._();
 
+  /// Component icon (four modular component blocks / widgets).
+  static Widget component({double size = 20.0, Color color = Colors.white}) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _ComponentIconPainter(color: color),
+    );
+  }
+
   /// Layout Mode icon (split window / grid).
   static Widget layout({double size = 20.0, Color color = Colors.white}) {
     return CustomPaint(
@@ -147,6 +155,53 @@ class AgentationIcons {
       painter: _SunIconPainter(color: color),
     );
   }
+}
+
+class _ComponentIconPainter extends CustomPainter {
+  const _ComponentIconPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final strokePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final scale = size.width / 24.0;
+    canvas.save();
+    canvas.scale(scale);
+
+    const radius = Radius.circular(2.0);
+    // 4 modular component tiles in a 2x2 grid
+    // Top-left tile
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(const Rect.fromLTWH(3.5, 3.5, 7.0, 7.0), radius),
+      strokePaint,
+    );
+    // Top-right tile
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(const Rect.fromLTWH(13.5, 3.5, 7.0, 7.0), radius),
+      strokePaint,
+    );
+    // Bottom-left tile
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(const Rect.fromLTWH(3.5, 13.5, 7.0, 7.0), radius),
+      strokePaint,
+    );
+    // Bottom-right tile
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(const Rect.fromLTWH(13.5, 13.5, 7.0, 7.0), radius),
+      strokePaint,
+    );
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_ComponentIconPainter oldDelegate) => oldDelegate.color != color;
 }
 
 class _LayoutIconPainter extends CustomPainter {

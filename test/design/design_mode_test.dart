@@ -236,6 +236,72 @@ void main() {
       expect(data.direction, equals('after'));
       expect(data.relativeTarget, equals('Navigation'));
     });
+
+    testWidgets('ComponentPalette displays Component header, subtitle, removes wireframe, and close button has hover decoration', (tester) async {
+      bool closed = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AgentationScope(
+              controller: controller,
+              child: ComponentPalette(
+                controller: controller,
+                onSelectTemplate: (_) {},
+                onClose: () {
+                  closed = true;
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Header is "Component"
+      expect(find.text('Component'), findsOneWidget);
+      // Subtitle is "Drag the component to the page"
+      expect(find.text('Drag the component to the page'), findsOneWidget);
+      // "Wireframe New Page" is removed
+      expect(find.text('Wireframe New Page'), findsNothing);
+
+      // Verify close icon and hover interaction
+      final closeIconFinder = find.byIcon(Icons.close);
+      expect(closeIconFinder, findsOneWidget);
+
+      final closeGestureFinder = find.ancestor(
+        of: closeIconFinder,
+        matching: find.byType(GestureDetector),
+      ).first;
+
+      final animatedContainerFinder = find.descendant(
+        of: closeGestureFinder,
+        matching: find.byType(AnimatedContainer),
+      );
+      expect(animatedContainerFinder, findsOneWidget);
+
+      final initialContainer = tester.widget<AnimatedContainer>(animatedContainerFinder);
+      final initialBg = (initialContainer.decoration as BoxDecoration).color;
+      expect(initialBg, equals(Colors.transparent));
+
+      // Hover over close button
+      final mouseGesture = await tester.createGesture(kind: ui.PointerDeviceKind.mouse);
+      await mouseGesture.addPointer(location: Offset.zero);
+      await mouseGesture.moveTo(tester.getCenter(closeIconFinder));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 160));
+
+      final hoveredContainer = tester.widget<AnimatedContainer>(animatedContainerFinder);
+      final hoveredBg = (hoveredContainer.decoration as BoxDecoration).color;
+      expect(hoveredBg, isNot(equals(Colors.transparent)));
+
+      // Tap close button
+      await tester.tap(closeIconFinder);
+      await tester.pumpAndSettle();
+      expect(closed, isTrue);
+
+      await mouseGesture.removePointer();
+    });
   });
 }
 

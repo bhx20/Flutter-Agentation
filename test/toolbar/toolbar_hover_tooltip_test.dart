@@ -181,15 +181,15 @@ void main() {
       final tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
       expect(tooltips, isNotEmpty);
 
-      // Verify Layout mode tooltip has shortcut 'L' and compact/tall padding
-      final layoutTooltip = tooltips.firstWhere(
-        (t) => (t.richMessage?.toPlainText() ?? '').contains('Layout mode'),
+      // Verify Component tooltip has shortcut 'L' and compact/tall padding
+      final componentTooltip = tooltips.firstWhere(
+        (t) => (t.richMessage?.toPlainText() ?? '').contains('Component'),
       );
-      expect(layoutTooltip.richMessage?.toPlainText(), contains('Layout mode L'));
-      expect(layoutTooltip.preferBelow, isFalse);
-      expect(layoutTooltip.verticalOffset, equals(30.0));
-      expect(layoutTooltip.padding, equals(const EdgeInsets.symmetric(horizontal: 7.0, vertical: 8.5)));
-      final darkShapeDeco = layoutTooltip.decoration as ShapeDecoration;
+      expect(componentTooltip.richMessage?.toPlainText(), contains('Component L'));
+      expect(componentTooltip.preferBelow, isFalse);
+      expect(componentTooltip.verticalOffset, equals(30.0));
+      expect(componentTooltip.padding, equals(const EdgeInsets.symmetric(horizontal: 7.0, vertical: 8.5)));
+      final darkShapeDeco = componentTooltip.decoration as ShapeDecoration;
       expect(darkShapeDeco.color, equals(const Color(0xFF18181B)));
 
       // Verify Exit button tooltip has shortcut 'Esc', preferBelow: false, and verticalOffset: 30.0
@@ -205,10 +205,10 @@ void main() {
       await tester.pumpAndSettle();
 
       final lightTooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
-      final lightLayoutTooltip = lightTooltips.firstWhere(
-        (t) => (t.richMessage?.toPlainText() ?? '').contains('Layout mode'),
+      final lightComponentTooltip = lightTooltips.firstWhere(
+        (t) => (t.richMessage?.toPlainText() ?? '').contains('Component'),
       );
-      final lightShapeDeco = lightLayoutTooltip.decoration as ShapeDecoration;
+      final lightShapeDeco = lightComponentTooltip.decoration as ShapeDecoration;
       expect(lightShapeDeco.color, equals(Colors.white));
     });
 
@@ -352,23 +352,23 @@ void main() {
 
       // Initially both menus closed -> tooltips exist
       List<Tooltip> tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
-      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Layout mode')), isTrue);
+      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Component')), isTrue);
       expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Settings')), isTrue);
 
-      // Open Layout Mode -> layout tooltip is suppressed
+      // Open Component Mode -> component tooltip is suppressed
       controller.toggleLayoutMode();
       await tester.pumpAndSettle();
       expect(controller.isLayoutModeOpen, isTrue);
 
       tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
-      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Layout mode')), isFalse);
-      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Exit layout mode')), isFalse);
+      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Component')), isFalse);
+      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Exit component')), isFalse);
 
-      // Close Layout Mode -> layout tooltip is restored
+      // Close Component Mode -> component tooltip is restored
       controller.closeLayoutMode();
       await tester.pumpAndSettle();
       tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
-      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Layout mode')), isTrue);
+      expect(tooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Component')), isTrue);
 
       // Open Settings -> settings tooltip is suppressed
       controller.toggleSettings();

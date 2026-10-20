@@ -5,6 +5,8 @@ import 'package:flutter_agentation/src/core/agentation_scope.dart';
 import 'package:flutter_agentation/src/core/package_version.dart';
 import 'package:flutter_agentation/src/domain/marker_color.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
+import 'package:flutter_agentation/src/ui/design/component_palette.dart';
+import 'package:flutter_agentation/src/ui/toolbar/agentation_toolbar.dart';
 import 'package:flutter_agentation/src/ui/toolbar/settings_panel.dart';
 
 void main() {
@@ -276,6 +278,115 @@ void main() {
       expect(controller.settings.hideUntilRestart, isTrue);
       expect(controller.isToolbarHidden, isTrue);
       expect(controller.isToolbarMinimized, isTrue);
+    });
+
+    testWidgets('when toolbar is near top, opening settings positions SettingsPanel below toolbar', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(
+                    initialAlignment: Alignment.topCenter,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final pillFinder = find.byKey(const ValueKey('toolbar_close'));
+      expect(pillFinder, findsOneWidget);
+      final initialPillTop = tester.getTopLeft(pillFinder).dy;
+      final initialPillBottom = tester.getBottomLeft(pillFinder).dy;
+
+      // Open settings
+      await tester.tap(find.byKey(const ValueKey('toolbar_settings')));
+      await tester.pumpAndSettle();
+
+      final panelFinder = find.byType(SettingsPanel);
+      expect(panelFinder, findsOneWidget);
+
+      final panelTop = tester.getTopLeft(panelFinder).dy;
+      final currentPillTop = tester.getTopLeft(pillFinder).dy;
+
+      // Toolbar pill does not shift vertically
+      expect(currentPillTop, closeTo(initialPillTop, 1.0));
+
+      // Settings panel is positioned BELOW the toolbar pill
+      expect(panelTop, greaterThanOrEqualTo(initialPillBottom));
+    });
+
+    testWidgets('when toolbar is near top, opening layout mode positions ComponentPalette below toolbar', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(
+                    initialAlignment: Alignment.topRight,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final pillFinder = find.byKey(const ValueKey('toolbar_close'));
+      final initialPillBottom = tester.getBottomLeft(pillFinder).dy;
+
+      // Open layout mode
+      await tester.tap(find.byKey(const ValueKey('toolbar_layout')));
+      await tester.pumpAndSettle();
+
+      final paletteFinder = find.byType(ComponentPalette);
+      expect(paletteFinder, findsOneWidget);
+
+      final paletteTop = tester.getTopLeft(paletteFinder).dy;
+      // Palette is positioned BELOW the toolbar pill
+      expect(paletteTop, greaterThanOrEqualTo(initialPillBottom));
+    });
+
+    testWidgets('when toolbar is near bottom, opening settings positions SettingsPanel above toolbar', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(
+                    initialAlignment: Alignment.bottomCenter,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final pillFinder = find.byKey(const ValueKey('toolbar_close'));
+      final pillTop = tester.getTopLeft(pillFinder).dy;
+
+      // Open settings
+      await tester.tap(find.byKey(const ValueKey('toolbar_settings')));
+      await tester.pumpAndSettle();
+
+      final panelFinder = find.byType(SettingsPanel);
+      expect(panelFinder, findsOneWidget);
+
+      final panelBottom = tester.getBottomLeft(panelFinder).dy;
+      // Settings panel is positioned ABOVE the toolbar pill
+      expect(panelBottom, lessThanOrEqualTo(pillTop));
     });
   });
 }

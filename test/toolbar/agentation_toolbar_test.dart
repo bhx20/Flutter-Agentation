@@ -230,15 +230,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(controller.isLayoutModeOpen, isTrue);
-      expect(find.text('Layout Mode'), findsOneWidget);
-      expect(find.text('Wireframe New Page'), findsOneWidget);
+      expect(find.text('Component'), findsOneWidget);
+      expect(find.text('Drag the component to the page'), findsOneWidget);
 
       // Tap layout mode button again to close -> popup closes and button de-highlights
       await tester.tap(find.byKey(const ValueKey('toolbar_layout')));
       await tester.pumpAndSettle();
 
       expect(controller.isLayoutModeOpen, isFalse);
-      expect(find.text('Layout Mode'), findsNothing);
+      expect(find.text('Component'), findsNothing);
     });
 
     testWidgets('toggling settings opens Settings panel (Screenshot 3)', (tester) async {
