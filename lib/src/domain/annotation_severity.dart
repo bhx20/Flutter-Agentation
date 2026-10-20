@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/agentation_colors.dart';
 
 /// Indicates the urgency, priority, or impact level of an annotation.
 enum AnnotationSeverity {
@@ -32,15 +33,15 @@ enum AnnotationSeverity {
   Color get color {
     switch (this) {
       case AnnotationSeverity.low:
-        return const Color(0xFF64748B); // Slate
+        return AgentationColors.lightTextSlate;
       case AnnotationSeverity.suggestion:
-        return const Color(0xFF3B82F6); // Blue
+        return AgentationColors.blue500;
       case AnnotationSeverity.medium:
-        return const Color(0xFFEAB308); // Yellow
+        return AgentationColors.yellow500;
       case AnnotationSeverity.high:
-        return const Color(0xFFF97316); // Orange
+        return AgentationColors.orange;
       case AnnotationSeverity.critical:
-        return const Color(0xFFEF4444); // Red
+        return AgentationColors.red500;
     }
   }
 }

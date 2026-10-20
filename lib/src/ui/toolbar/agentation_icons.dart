@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/agentation_colors.dart';
 import 'toolbar_toggle_icon.dart';
 
 /// Pixel-perfect vector icons matching the official Agentation design system.
@@ -54,7 +55,7 @@ class AgentationIcons {
   }
 
   /// Checkmark icon (for successful copy).
-  static Widget check({double size = 20.0, Color color = const Color(0xFF34C759)}) {
+  static Widget check({double size = 20.0, Color color = AgentationColors.success}) {
     return CustomPaint(
       size: Size(size, size),
       painter: _CheckIconPainter(color: color),
@@ -86,7 +87,7 @@ class AgentationIcons {
   }
 
   /// Help question mark icon '?' in a circle.
-  static Widget help({double size = 14.0, Color color = const Color(0xFF8E8E93)}) {
+  static Widget help({double size = 14.0, Color color = AgentationColors.darkTextMuted}) {
     return CustomPaint(
       size: Size(size, size),
       painter: _HelpIconPainter(color: color),

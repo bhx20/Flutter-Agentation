@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import '../theme/agentation_colors.dart';
 
 /// Curated marker color options matching Agentation brand styling (Screenshot 3).
 @immutable
@@ -19,13 +20,13 @@ class MarkerColor {
   final Color color;
 
   static const List<MarkerColor> values = [
-    MarkerColor(id: 'purple', label: 'Purple', color: Color(0xFF6366F1)),
-    MarkerColor(id: 'blue', label: 'Blue', color: Color(0xFF0088FF)),
-    MarkerColor(id: 'cyan', label: 'Cyan', color: Color(0xFF00C3D0)),
-    MarkerColor(id: 'emerald', label: 'Emerald', color: Color(0xFF34C759)),
-    MarkerColor(id: 'amber', label: 'Amber', color: Color(0xFFFFCC00)),
-    MarkerColor(id: 'orange', label: 'Orange', color: Color(0xFFFF8D28)),
-    MarkerColor(id: 'rose', label: 'Rose', color: Color(0xFFFF383C)),
+    MarkerColor(id: 'purple', label: 'Purple', color: AgentationColors.indigo),
+    MarkerColor(id: 'blue', label: 'Blue', color: AgentationColors.accent),
+    MarkerColor(id: 'cyan', label: 'Cyan', color: AgentationColors.cyan),
+    MarkerColor(id: 'emerald', label: 'Emerald', color: AgentationColors.success),
+    MarkerColor(id: 'amber', label: 'Amber', color: AgentationColors.amber),
+    MarkerColor(id: 'orange', label: 'Orange', color: AgentationColors.warningAmber),
+    MarkerColor(id: 'rose', label: 'Rose', color: AgentationColors.destructive),
   ];
 
   /// Finds a color by ID, falling back to 'blue'.

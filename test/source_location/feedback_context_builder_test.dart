@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/src/source_location/feedback_context_builder.dart';
 import 'package:flutter_agentation/src/source_location/feedback_target.dart';
@@ -124,6 +125,88 @@ Comment: Change border color.''';
 
     test('empty list returns empty string', () {
       expect(builder.buildMultiple([]), equals(''));
+    });
+
+    test('builds single feedback item with platform and screen size', () {
+      const target = FeedbackTarget(
+        widgetName: 'LoginButton',
+        source: WidgetSourceLocation(
+          fileName: 'login_page.dart',
+          filePath: 'lib/features/auth/login_page.dart',
+          line: 87,
+        ),
+      );
+
+      final output = builder.build(
+        target,
+        'Increase button height',
+        platform: 'Windows',
+        screenSize: const Size(1920, 1080),
+      );
+
+      const expected = '''[Flutter UI Feedback]
+Platform: Windows
+Screen Size: 1920×1080
+Widget: LoginButton
+File: login_page.dart
+Location: lib/features/auth/login_page.dart
+Line: 87
+Comment: Increase button height''';
+
+      expect(output, equals(expected));
+    });
+
+    test('builds multiple feedback items with platform and screen size', () {
+      final items = [
+        (
+          target: const FeedbackTarget(
+            widgetName: 'LoginButton',
+            source: WidgetSourceLocation(
+              fileName: 'login_page.dart',
+              filePath: 'lib/features/auth/login_page.dart',
+              line: 87,
+            ),
+          ),
+          comment: 'Increase button height',
+        ),
+        (
+          target: const FeedbackTarget(
+            widgetName: 'EmailField',
+            source: WidgetSourceLocation(
+              fileName: 'login_page.dart',
+              filePath: 'lib/features/auth/login_page.dart',
+              line: 63,
+            ),
+          ),
+          comment: 'Add spacing',
+        ),
+      ];
+
+      final output = builder.buildMultiple(
+        items,
+        platform: 'Android',
+        screenSize: const Size(412, 915),
+      );
+
+      const expected = '''[Flutter UI Feedback]
+Platform: Android
+Screen Size: 412×915
+
+1.
+Widget: LoginButton
+File: login_page.dart
+Location: lib/features/auth/login_page.dart
+Line: 87
+Comment: Increase button height
+
+2.
+Widget: EmailField
+File: login_page.dart
+Location: lib/features/auth/login_page.dart
+Line: 63
+Comment: Add spacing''';
+
+      expect(output, equals(expected));
     });
   });
 }

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,8 +30,8 @@ String formatWidgetLabel(String widgetType) {
 
 /// Numbered circular visual badge rendered on the overlay over an annotated widget.
 ///
-/// When hovered, smoothly transforms from the sequential index number to an edit
-/// pencil icon (matching upstream Agentation and Screenshot 1).
+/// Features scale-up entrance and scale-down exit animations with staggered delays
+/// (matching upstream Agentation and Screenshot 1), and hover transitions.
 class AnnotationMarker extends StatefulWidget {
   const AnnotationMarker({
     super.key,
@@ -42,6 +43,10 @@ class AnnotationMarker extends StatefulWidget {
     this.onHoverChanged,
     this.accentColor,
     this.boundsOverride,
+    this.isExiting = false,
+    this.layerIndex = 0,
+    this.layerSize = 1,
+    this.animateEntrance = true,
   });
 
   /// The 1-based sequential display number (1, 2, 3...).
@@ -68,15 +73,100 @@ class AnnotationMarker extends StatefulWidget {
   /// Optional live bounding box override when dynamic scrolling reprojection is active.
   final WidgetBounds? boundsOverride;
 
+  /// Whether this marker is currently animating its exit before unmounting.
+  final bool isExiting;
+
+  /// 0-based index of this marker in the visible layer, for stagger animation delay.
+  final int layerIndex;
+
+  /// Total count of markers in this layer, for calculating reverse stagger delays.
+  final int layerSize;
+
+  /// Whether to animate entrance when mounted.
+  final bool animateEntrance;
+
   @override
   State<AnnotationMarker> createState() => _AnnotationMarkerState();
 }
 
-class _AnnotationMarkerState extends State<AnnotationMarker> {
+class _AnnotationMarkerState extends State<AnnotationMarker>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+  Timer? _staggerTimer;
   final ValueNotifier<bool> _localHoverNotifier = ValueNotifier<bool>(false);
 
   @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      value: widget.animateEntrance ? 0.0 : 1.0,
+    );
+
+    if (widget.animateEntrance && !widget.isExiting) {
+      _startEntranceAnimation();
+    }
+  }
+
+  void _startEntranceAnimation() {
+    _staggerTimer?.cancel();
+    final delayMs = widget.layerIndex * 20;
+    if (delayMs > 0) {
+      _staggerTimer = Timer(Duration(milliseconds: delayMs), () {
+        if (mounted && !widget.isExiting) {
+          _animController.animateTo(
+            1.0,
+            duration: const Duration(milliseconds: 250),
+            curve: const Cubic(0.22, 1.0, 0.36, 1.0),
+          );
+        }
+      });
+    } else {
+      _animController.animateTo(
+        1.0,
+        duration: const Duration(milliseconds: 250),
+        curve: const Cubic(0.22, 1.0, 0.36, 1.0),
+      );
+    }
+  }
+
+  void _startExitAnimation() {
+    _staggerTimer?.cancel();
+    final reverseIndex = math.max(0, widget.layerSize - 1 - widget.layerIndex);
+    final delayMs = reverseIndex * 20;
+    if (delayMs > 0) {
+      _staggerTimer = Timer(Duration(milliseconds: delayMs), () {
+        if (mounted && widget.isExiting) {
+          _animController.animateTo(
+            0.0,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+          );
+        }
+      });
+    } else {
+      _animController.animateTo(
+        0.0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
+  @override
+  void didUpdateWidget(AnnotationMarker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isExiting && !oldWidget.isExiting) {
+      _startExitAnimation();
+    } else if (!widget.isExiting && oldWidget.isExiting) {
+      _startEntranceAnimation();
+    }
+  }
+
+  @override
   void dispose() {
+    _staggerTimer?.cancel();
+    _animController.dispose();
     _localHoverNotifier.dispose();
     super.dispose();
   }
@@ -103,66 +193,87 @@ class _AnnotationMarkerState extends State<AnnotationMarker> {
     return Positioned(
       left: left,
       top: top,
-      child: MouseRegion(
-        onEnter: (_) {
-          _localHoverNotifier.value = true;
-          widget.onHoverChanged?.call(true);
-        },
-        onExit: (_) {
-          _localHoverNotifier.value = false;
-          widget.onHoverChanged?.call(false);
-        },
-        cursor: SystemMouseCursors.click,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            key: ValueKey('annotation_marker_${widget.index}'),
-            onTap: widget.onTap,
-            canRequestFocus: true,
-            autofocus: widget.isSelected,
-            borderRadius: BorderRadius.circular(14.0),
-            child: ValueListenableBuilder<bool>(
-              valueListenable: _localHoverNotifier,
-              builder: (context, localHover, _) {
-                final effectiveHover = widget.isHovered || localHover;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 140),
-                  transform: effectiveHover
-                      ? Matrix4.diagonal3Values(1.1, 1.1, 1.0)
-                      : Matrix4.identity(),
-                  transformAlignment: Alignment.center,
-                  width: 24.0,
-                  height: 24.0,
-                  decoration: BoxDecoration(
-                    color: baseColor,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: baseColor.withValues(alpha: 0.4),
-                        blurRadius: 6.0,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: effectiveHover
-                        ? const Icon(
-                            Icons.edit,
-                            size: 13.0,
-                            color: Colors.white,
-                          )
-                        : Text(
-                            '${widget.index}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11.0,
-                              fontWeight: FontWeight.bold,
-                              decoration: TextDecoration.none,
-                            ),
+      child: IgnorePointer(
+        ignoring: widget.isExiting,
+        child: AnimatedBuilder(
+          animation: _animController,
+          builder: (context, child) {
+            final scale = 0.3 + 0.7 * _animController.value;
+            final opacity = _animController.value.clamp(0.0, 1.0);
+            return Transform.scale(
+              key: const ValueKey('annotation_marker_scale_transform'),
+              scale: scale,
+              alignment: Alignment.center,
+              child: Opacity(
+                opacity: opacity,
+                child: child,
+              ),
+            );
+          },
+          child: MouseRegion(
+            onEnter: (_) {
+              if (widget.isExiting) return;
+              _localHoverNotifier.value = true;
+              widget.onHoverChanged?.call(true);
+            },
+            onExit: (_) {
+              if (widget.isExiting) return;
+              _localHoverNotifier.value = false;
+              widget.onHoverChanged?.call(false);
+            },
+            cursor: widget.isExiting ? SystemMouseCursors.basic : SystemMouseCursors.click,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                key: ValueKey('annotation_marker_${widget.index}'),
+                onTap: widget.isExiting ? null : widget.onTap,
+                canRequestFocus: !widget.isExiting,
+                autofocus: widget.isSelected && !widget.isExiting,
+                borderRadius: BorderRadius.circular(14.0),
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _localHoverNotifier,
+                  builder: (context, localHover, _) {
+                    final effectiveHover = !widget.isExiting && (widget.isHovered || localHover);
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 140),
+                      transform: effectiveHover
+                          ? Matrix4.diagonal3Values(1.1, 1.1, 1.0)
+                          : Matrix4.identity(),
+                      transformAlignment: Alignment.center,
+                      width: 24.0,
+                      height: 24.0,
+                      decoration: BoxDecoration(
+                        color: baseColor,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: baseColor.withValues(alpha: 0.4),
+                            blurRadius: 6.0,
+                            offset: const Offset(0, 2),
                           ),
-                  ),
-                );
-              },
+                        ],
+                      ),
+                      child: Center(
+                        child: effectiveHover
+                            ? const Icon(
+                                Icons.edit,
+                                size: 13.0,
+                                color: Colors.white,
+                              )
+                            : Text(
+                                '${widget.index}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11.0,
+                                  fontWeight: FontWeight.bold,
+                                  decoration: TextDecoration.none,
+                                ),
+                              ),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
         ),
@@ -739,6 +850,7 @@ class _CardDeleteIconButtonState extends State<_CardDeleteIconButton> {
   Widget build(BuildContext context) {
     return Tooltip(
       message: 'Delete',
+      triggerMode: TooltipTriggerMode.manual,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => _isHovered.value = true,

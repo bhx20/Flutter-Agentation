@@ -7,6 +7,7 @@ import '../../core/agentation_state.dart';
 import '../design/component_palette.dart';
 import '../../domain/marker_color.dart';
 import '../../domain/placement_data.dart';
+import '../../theme/agentation_colors.dart';
 import '../../theme/agentation_theme.dart';
 import 'agentation_icons.dart';
 import 'settings_panel.dart';
@@ -275,6 +276,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     final controller = _controller;
     final screenSize = MediaQuery.of(context).size;
     final safePadding = MediaQuery.paddingOf(context);
+    controller.updateScreenSize(screenSize);
 
     return ListenableBuilder(
       listenable: Listenable.merge([
@@ -284,6 +286,17 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
         _sendStateNotifier,
       ]),
       builder: (context, _) {
+        if (controller.settings.hideUntilRestart) {
+          if (_controller.toolbarBounds != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                _controller.updateToolbarBounds(null);
+              }
+            });
+          }
+          return const SizedBox.shrink();
+        }
+
         final isSettingsOpen = controller.isSettingsOpen;
         final isLayoutModeOpen = controller.isLayoutModeOpen;
 
@@ -350,6 +363,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
             ? (screenSize.width - posRight - effectiveWidth)
             : (posLeft ?? (screenSize.width - effectiveWidth) / 2.0);
         final computedY = screenSize.height - clampedBottomInset - toolbarHeight;
+        final bool isNearTop = computedY < (safePadding.top + 70.0);
 
         final currentBounds = Rect.fromLTWH(
           computedX,
@@ -464,7 +478,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                       ),
                       boxShadow: theme.toolbarShadows,
                     ),
-                    child: _buildToolbarPill(controller, markerColor, theme, isMinimized, expandedWidth),
+                    child: _buildToolbarPill(controller, markerColor, theme, isMinimized, expandedWidth, isNearTop),
                   ),
                 ),
               ),
@@ -481,6 +495,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     AgentationThemeData theme,
     bool isMinimized,
     double expandedWidth,
+    bool isNearTop,
   ) {
     final iconColor = theme.iconColor;
     final dividerColor = theme.dividerColor;
@@ -545,6 +560,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                             isActive: isPaused,
                             activeColor: theme.warningColor.withValues(alpha: 0.2),
                             isEnabled: true,
+                            preferBelow: isNearTop,
                             isDark: theme.isDark,
                             theme: theme,
                             onPressed: () => controller.toggleFreeze(),
@@ -563,6 +579,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                             isActive: isLayoutOpen,
                             activeColor: theme.primaryColor,
                             isEnabled: true,
+                            preferBelow: isNearTop,
                             isDark: theme.isDark,
                             theme: theme,
                             onPressed: () => controller.toggleLayoutMode(),
@@ -579,6 +596,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                             isActive: false,
                             activeColor: Colors.transparent,
                             isEnabled: hasAnnotations && controller.toolMode != AnnotationToolMode.design,
+                            preferBelow: isNearTop,
                             isDark: theme.isDark,
                             theme: theme,
                             onPressed: () => controller.toggleCommentsVisibility(),
@@ -590,11 +608,12 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                             icon: isCopied
                                 ? AgentationIcons.check(size: 22.0, color: theme.successColor)
                                 : AgentationIcons.copy(size: 22.0, color: iconColor),
-                            tooltipLabel: isCopied ? 'Copied!' : 'Copy feedback',
+                            tooltipLabel: 'Copy feedback',
                             tooltipShortcut: 'C',
                             isActive: isCopied,
                             activeColor: theme.successColor.withValues(alpha: 0.15),
                             isEnabled: hasAnnotations,
+                            preferBelow: isNearTop,
                             isDark: theme.isDark,
                             theme: theme,
                             onPressed: () => _onCopy(controller),
@@ -611,6 +630,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                             activeColor: Colors.transparent,
                             isEnabled: hasAnnotations,
                             isDanger: true,
+                            preferBelow: isNearTop,
                             isDark: theme.isDark,
                             theme: theme,
                             onPressed: () => controller.clearAnnotations(),
@@ -629,8 +649,9 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                             tooltipShortcut: null,
                             showTooltip: !isSettingsOpen,
                             isActive: isSettingsOpen,
-                            activeColor: theme.isDark ? const Color(0xFF333333) : const Color(0xFFE2E2E2),
+                            activeColor: theme.isDark ? AgentationColors.darkNeutral : AgentationColors.lightBorderLight,
                             isEnabled: true,
+                            preferBelow: isNearTop,
                             isDark: theme.isDark,
                             theme: theme,
                             onPressed: () {
@@ -671,6 +692,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                 tooltipLabel: isMinimized ? 'Start Feedback Mode' : 'Exit',
                 tooltipShortcut: isMinimized ? null : 'Esc',
                 tooltipOnLeft: isMinimized,
+                preferBelow: isNearTop,
                 buttonSize: 34.0,
                 showHoverBg: !isMinimized,
                 isActive: false,
@@ -707,7 +729,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                     borderRadius: BorderRadius.circular(9.0),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x33000000),
+                        color: AgentationColors.shadowHeavy,
                         blurRadius: 3.0,
                         offset: Offset(0, 1.0),
                       ),
@@ -750,6 +772,7 @@ class _ToolbarIconButton extends StatefulWidget {
   final bool tooltipOnLeft;
   final bool showHoverBg;
   final bool showTooltip;
+  final bool preferBelow;
   final VoidCallback? onPressed;
 
   final AgentationThemeData? theme;
@@ -770,6 +793,7 @@ class _ToolbarIconButton extends StatefulWidget {
     this.showHoverBg = true,
     this.tooltipOnLeft = false,
     this.showTooltip = true,
+    this.preferBelow = false,
     this.onPressed,
   });
 
@@ -777,15 +801,17 @@ class _ToolbarIconButton extends StatefulWidget {
   State<_ToolbarIconButton> createState() => _ToolbarIconButtonState();
 }
 
+enum _TooltipPlacement { left, right, top, bottom }
+
 class _ToolbarIconButtonState extends State<_ToolbarIconButton>
     with SingleTickerProviderStateMixin {
   final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isPressed = ValueNotifier<bool>(false);
-  final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
   AnimationController? _tooltipFadeController;
+  bool _suppressTooltipUntilMouseLeave = false;
 
-  void _hideLeftTooltip({bool immediate = false}) {
+  void _hideTooltip({bool immediate = false}) {
     if (_overlayEntry == null) return;
     if (immediate || !mounted || _tooltipFadeController == null) {
       _overlayEntry?.remove();
@@ -802,123 +828,252 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
     });
   }
 
-  void _showLeftTooltip() {
+  void _showTooltip() {
+    if (!mounted || !widget.isEnabled || !widget.showTooltip || _suppressTooltipUntilMouseLeave) return;
     final overlay = Overlay.maybeOf(context);
     if (overlay == null) return;
+
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null || !renderBox.hasSize) return;
+    final buttonRect = renderBox.localToGlobal(Offset.zero) & renderBox.size;
+
+    final screenSize = MediaQuery.sizeOf(context);
+    final safePadding = MediaQuery.paddingOf(context);
+
+    final safeLeft = safePadding.left + 8.0;
+    final safeRight = screenSize.width - safePadding.right - 8.0;
+    final safeTop = safePadding.top + 8.0;
+    final safeBottom = screenSize.height - safePadding.bottom - 8.0;
+
+    final theme = widget.theme ?? AgentationThemeData.resolve(isDark: widget.isDark);
+    final isDark = theme.isDark;
+    final tooltipBgColor = isDark ? AgentationColors.darkTooltipBg : Colors.white;
+    final tooltipTextColor = isDark ? Colors.white : theme.textPrimary;
+    final tooltipShortcutColor = theme.textMuted;
+
+    final textSpan = TextSpan(
+      children: [
+        TextSpan(
+          text: widget.tooltipLabel,
+          style: TextStyle(
+            color: tooltipTextColor,
+            fontSize: 11.5,
+            fontWeight: FontWeight.normal,
+            decoration: TextDecoration.none,
+          ),
+        ),
+        if (widget.tooltipShortcut != null) ...[
+          const TextSpan(text: ' '),
+          TextSpan(
+            text: widget.tooltipShortcut!,
+            style: TextStyle(
+              color: tooltipShortcutColor,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w500,
+              decoration: TextDecoration.none,
+            ),
+          ),
+        ],
+      ],
+    );
+
+    final tp = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+    )..layout();
+
+    final contentWidth = tp.width + 20.0;
+    final contentHeight = math.max(tp.height + 14.0, 28.0);
+    const beakHeight = 5.0;
+    const beakWidth = 9.0;
+    const borderRadius = 8.0;
+    const gap = 8.0;
+
+    final spaceLeft = buttonRect.left - safeLeft;
+    final spaceRight = safeRight - buttonRect.right;
+    final spaceTop = buttonRect.top - safeTop;
+    final spaceBottom = safeBottom - buttonRect.bottom;
+
+    final reqHorizontal = contentWidth + beakHeight + gap;
+    final reqVertical = contentHeight + beakHeight + gap;
+
+    final canGoLeft = spaceLeft >= reqHorizontal;
+    final canGoRight = spaceRight >= reqHorizontal;
+    final canGoBottom = spaceBottom >= reqVertical;
+    final canGoTop = spaceTop >= reqVertical;
+
+    // Preferred side is left (when tooltipOnLeft is true).
+    // If satisfied pixels are not available on the left, adaptively flip to right, bottom, or top.
+    final _TooltipPlacement placement;
+    if (canGoLeft) {
+      placement = _TooltipPlacement.left;
+    } else if (canGoRight) {
+      placement = _TooltipPlacement.right;
+    } else if (canGoBottom) {
+      placement = _TooltipPlacement.bottom;
+    } else if (canGoTop) {
+      placement = _TooltipPlacement.top;
+    } else {
+      placement = spaceRight >= spaceLeft ? _TooltipPlacement.right : _TooltipPlacement.left;
+    }
+
+    final double tooltipLeft;
+    final double tooltipTop;
+    final TooltipBeakDirection beakDirection;
+    final double beakOffset;
+
+    switch (placement) {
+      case _TooltipPlacement.left:
+        beakDirection = TooltipBeakDirection.right;
+        final totalW = contentWidth + beakHeight;
+        final totalH = contentHeight;
+        final idealLeft = buttonRect.left - gap - totalW;
+        tooltipLeft = idealLeft.clamp(safeLeft, math.max(safeLeft, safeRight - totalW));
+        final idealTop = buttonRect.center.dy - totalH / 2.0;
+        tooltipTop = idealTop.clamp(safeTop, math.max(safeTop, safeBottom - totalH));
+        final minBeakY = borderRadius + beakWidth / 2.0;
+        final maxBeakY = math.max(minBeakY, totalH - borderRadius - beakWidth / 2.0);
+        beakOffset = (buttonRect.center.dy - tooltipTop).clamp(minBeakY, maxBeakY);
+        break;
+
+      case _TooltipPlacement.right:
+        beakDirection = TooltipBeakDirection.left;
+        final totalW = contentWidth + beakHeight;
+        final totalH = contentHeight;
+        final idealLeft = buttonRect.right + gap;
+        tooltipLeft = idealLeft.clamp(safeLeft, math.max(safeLeft, safeRight - totalW));
+        final idealTop = buttonRect.center.dy - totalH / 2.0;
+        tooltipTop = idealTop.clamp(safeTop, math.max(safeTop, safeBottom - totalH));
+        final minBeakY = borderRadius + beakWidth / 2.0;
+        final maxBeakY = math.max(minBeakY, totalH - borderRadius - beakWidth / 2.0);
+        beakOffset = (buttonRect.center.dy - tooltipTop).clamp(minBeakY, maxBeakY);
+        break;
+
+      case _TooltipPlacement.top:
+        beakDirection = TooltipBeakDirection.down;
+        final totalW = contentWidth;
+        final totalH = contentHeight + beakHeight;
+        final idealTop = buttonRect.top - gap - totalH;
+        tooltipTop = idealTop.clamp(safeTop, math.max(safeTop, safeBottom - totalH));
+        final idealLeft = buttonRect.center.dx - totalW / 2.0;
+        tooltipLeft = idealLeft.clamp(safeLeft, math.max(safeLeft, safeRight - totalW));
+        final minBeakX = borderRadius + beakWidth / 2.0;
+        final maxBeakX = math.max(minBeakX, totalW - borderRadius - beakWidth / 2.0);
+        beakOffset = (buttonRect.center.dx - tooltipLeft).clamp(minBeakX, maxBeakX);
+        break;
+
+      case _TooltipPlacement.bottom:
+        beakDirection = TooltipBeakDirection.up;
+        final totalW = contentWidth;
+        final totalH = contentHeight + beakHeight;
+        final idealTop = buttonRect.bottom + gap;
+        tooltipTop = idealTop.clamp(safeTop, math.max(safeTop, safeBottom - totalH));
+        final idealLeft = buttonRect.center.dx - totalW / 2.0;
+        tooltipLeft = idealLeft.clamp(safeLeft, math.max(safeLeft, safeRight - totalW));
+        final minBeakX = borderRadius + beakWidth / 2.0;
+        final maxBeakX = math.max(minBeakX, totalW - borderRadius - beakWidth / 2.0);
+        beakOffset = (buttonRect.center.dx - tooltipLeft).clamp(minBeakX, maxBeakX);
+        break;
+    }
 
     if (_tooltipFadeController == null) {
       _tooltipFadeController = AnimationController(
         vsync: this,
         duration: const Duration(milliseconds: 180),
       );
+    } else {
+      _tooltipFadeController!.value = 0.0;
     }
 
-    if (_overlayEntry == null) {
-      final theme = widget.theme ?? AgentationThemeData.resolve(isDark: widget.isDark);
-      final isDark = theme.isDark;
-      final tooltipBgColor = isDark ? const Color(0xFF18181B) : Colors.white;
-      final tooltipTextColor = isDark ? Colors.white : theme.textPrimary;
-      final tooltipShortcutColor = theme.textMuted;
-
-      _overlayEntry = OverlayEntry(
-        builder: (context) {
-          return Positioned(
-            width: 0,
-            height: 0,
-            child: CompositedTransformFollower(
-              link: _layerLink,
-              targetAnchor: Alignment.centerLeft,
-              followerAnchor: Alignment.centerRight,
-              offset: const Offset(-8.0, 0),
-              child: IgnorePointer(
-                child: OverflowBox(
-                  maxWidth: 320,
-                  maxHeight: 60,
-                  alignment: Alignment.centerRight,
-                  child: Material(
-                    color: Colors.transparent,
-                    child: FadeTransition(
-                      opacity: CurvedAnimation(
-                        parent: _tooltipFadeController!,
-                        curve: Curves.easeOut,
-                        reverseCurve: Curves.easeIn,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
-                        decoration: ShapeDecoration(
-                          color: tooltipBgColor,
-                          shape: _TooltipBeakBorder(
-                            borderRadius: 8.0,
-                            beakWidth: 9.0,
-                            beakHeight: 5.0,
-                            beakDirection: TooltipBeakDirection.right,
-                            borderColor: isDark ? null : theme.borderTranslucentColor,
-                            borderWidth: isDark ? 0.0 : 0.75,
-                          ),
-                          shadows: isDark
-                              ? const [
-                                  BoxShadow(
-                                    color: Color(0x66000000),
-                                    blurRadius: 8.0,
-                                    offset: Offset(0, 3),
-                                  ),
-                                ]
-                              : const [
-                                  BoxShadow(
-                                    color: Color(0x14000000),
-                                    blurRadius: 8.0,
-                                    offset: Offset(0, 2),
-                                  ),
-                                  BoxShadow(
-                                    color: Color(0x0F000000),
-                                    blurRadius: 16.0,
-                                    offset: Offset(0, 4),
-                                  ),
-                                  BoxShadow(
-                                    color: Color(0x0A000000),
-                                    blurRadius: 1.0,
-                                    spreadRadius: 0.5,
-                                  ),
-                                ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              widget.tooltipLabel,
-                              style: TextStyle(
-                                color: tooltipTextColor,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.normal,
-                                decoration: TextDecoration.none,
-                              ),
-                            ),
-                            if (widget.tooltipShortcut != null) ...[
-                              const SizedBox(width: 4.0),
-                              Text(
-                                widget.tooltipShortcut!,
-                                style: TextStyle(
-                                  color: tooltipShortcutColor,
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w500,
-                                  decoration: TextDecoration.none,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
+    _overlayEntry?.remove();
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return Positioned(
+          left: tooltipLeft,
+          top: tooltipTop,
+          child: IgnorePointer(
+            child: Material(
+              color: Colors.transparent,
+              child: FadeTransition(
+                opacity: CurvedAnimation(
+                  parent: _tooltipFadeController!,
+                  curve: Curves.easeOut,
+                  reverseCurve: Curves.easeIn,
+                ),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
+                  decoration: ShapeDecoration(
+                    color: tooltipBgColor,
+                    shape: _TooltipBeakBorder(
+                      borderRadius: borderRadius,
+                      beakWidth: beakWidth,
+                      beakHeight: beakHeight,
+                      beakDirection: beakDirection,
+                      beakOffset: beakOffset,
+                      borderColor: isDark ? null : theme.borderTranslucentColor,
+                      borderWidth: isDark ? 0.0 : 0.75,
                     ),
+                    shadows: isDark
+                        ? const [
+                            BoxShadow(
+                              color: AgentationColors.shadowDark,
+                              blurRadius: 8.0,
+                              offset: Offset(0, 3),
+                            ),
+                          ]
+                        : const [
+                            BoxShadow(
+                              color: AgentationColors.shadowToolbarMedium,
+                              blurRadius: 8.0,
+                              offset: Offset(0, 2),
+                            ),
+                            BoxShadow(
+                              color: AgentationColors.shadowToolbarLight,
+                              blurRadius: 16.0,
+                              offset: Offset(0, 4),
+                            ),
+                            BoxShadow(
+                              color: AgentationColors.shadowSubtle,
+                              blurRadius: 1.0,
+                              spreadRadius: 0.5,
+                            ),
+                          ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.tooltipLabel,
+                        style: TextStyle(
+                          color: tooltipTextColor,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.normal,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                      if (widget.tooltipShortcut != null) ...[
+                        const SizedBox(width: 4.0),
+                        Text(
+                          widget.tooltipShortcut!,
+                          style: TextStyle(
+                            color: tooltipShortcutColor,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               ),
             ),
-          );
-        },
-      );
-      overlay.insert(_overlayEntry!);
-    }
-
+          ),
+        );
+      },
+    );
+    overlay.insert(_overlayEntry!);
     _tooltipFadeController?.forward();
   }
 
@@ -926,13 +1081,13 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
   void didUpdateWidget(_ToolbarIconButton oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!widget.isEnabled || !widget.tooltipOnLeft || !widget.showTooltip) {
-      _hideLeftTooltip(immediate: true);
+      _hideTooltip(immediate: true);
     }
   }
 
   @override
   void dispose() {
-    _hideLeftTooltip(immediate: true);
+    _hideTooltip(immediate: true);
     _tooltipFadeController?.dispose();
     _isHovered.dispose();
     _isPressed.dispose();
@@ -952,19 +1107,24 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
       onEnter: (_) {
         if (isEnabled) {
           _isHovered.value = true;
-          if (widget.tooltipOnLeft) _showLeftTooltip();
+          if (widget.tooltipOnLeft && widget.showTooltip && !_suppressTooltipUntilMouseLeave) _showTooltip();
         }
       },
       onExit: (_) {
         _isHovered.value = false;
-        if (widget.tooltipOnLeft) _hideLeftTooltip();
+        if (_suppressTooltipUntilMouseLeave) {
+          setState(() {
+            _suppressTooltipUntilMouseLeave = false;
+          });
+        }
+        if (widget.tooltipOnLeft) _hideTooltip();
       },
       child: GestureDetector(
         key: widget.buttonKey,
         behavior: HitTestBehavior.opaque,
         onTapDown: isEnabled
             ? (_) {
-                if (widget.tooltipOnLeft) _hideLeftTooltip();
+                if (widget.tooltipOnLeft) _hideTooltip(immediate: true);
                 _isPressed.value = true;
               }
             : null,
@@ -972,7 +1132,10 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
         onTapCancel: isEnabled ? () => _isPressed.value = false : null,
         onTap: isEnabled
             ? () {
-                if (widget.tooltipOnLeft) _hideLeftTooltip();
+                if (widget.tooltipOnLeft) _hideTooltip(immediate: true);
+                setState(() {
+                  _suppressTooltipUntilMouseLeave = true;
+                });
                 widget.onPressed?.call();
               }
             : null,
@@ -989,7 +1152,7 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
               if (widget.isDanger) {
                 bgColor = theme.destructiveColor.withValues(alpha: 0.2);
               } else {
-                bgColor = isDark ? const Color(0x29FFFFFF) : const Color(0x14000000);
+                bgColor = isDark ? AgentationColors.darkPressedBg : AgentationColors.lightPressedBg;
               }
             } else {
               bgColor = Colors.transparent;
@@ -1037,26 +1200,26 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
       ),
     );
 
-    if (!isEnabled || !widget.showTooltip) {
+    if (!isEnabled || !widget.showTooltip || _suppressTooltipUntilMouseLeave) {
       return result;
     }
 
     if (widget.tooltipOnLeft) {
-      return CompositedTransformTarget(
-        link: _layerLink,
-        child: Semantics(
-          label: widget.tooltipLabel,
-          child: result,
-        ),
+      return Semantics(
+        label: widget.tooltipLabel,
+        child: result,
       );
     }
 
-    final tooltipBgColor = isDark ? const Color(0xFF18181B) : Colors.white;
+    final tooltipBgColor = isDark ? AgentationColors.darkTooltipBg : Colors.white;
     final tooltipTextColor = isDark ? Colors.white : theme.textPrimary;
     final tooltipShortcutColor = theme.textMuted;
 
+    final preferBelow = widget.preferBelow;
+
     return Tooltip(
-      preferBelow: false,
+      triggerMode: TooltipTriggerMode.manual,
+      preferBelow: preferBelow,
       verticalOffset: 30.0,
       waitDuration: const Duration(milliseconds: 150),
       showDuration: Duration.zero,
@@ -1092,30 +1255,31 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
           borderRadius: 8.0,
           beakWidth: 9.0,
           beakHeight: 5.0,
+          beakDirection: preferBelow ? TooltipBeakDirection.up : TooltipBeakDirection.down,
           borderColor: isDark ? null : theme.borderTranslucentColor,
           borderWidth: isDark ? 0.0 : 0.75,
         ),
         shadows: isDark
             ? const [
                 BoxShadow(
-                  color: Color(0x66000000),
+                  color: AgentationColors.shadowDark,
                   blurRadius: 8.0,
                   offset: Offset(0, 3),
                 ),
               ]
             : const [
                 BoxShadow(
-                  color: Color(0x14000000),
+                  color: AgentationColors.shadowToolbarMedium,
                   blurRadius: 8.0,
                   offset: Offset(0, 2),
                 ),
                 BoxShadow(
-                  color: Color(0x0F000000),
+                  color: AgentationColors.shadowToolbarLight,
                   blurRadius: 16.0,
                   offset: Offset(0, 4),
                 ),
                 BoxShadow(
-                  color: Color(0x0A000000),
+                  color: AgentationColors.shadowSubtle,
                   blurRadius: 1.0,
                   spreadRadius: 0.5,
                 ),
@@ -1126,7 +1290,7 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
   }
 }
 
-enum TooltipBeakDirection { down, right }
+enum TooltipBeakDirection { down, up, left, right }
 
 /// Triangular beak shape border for tooltip bubbles.
 class _TooltipBeakBorder extends ShapeBorder {
@@ -1136,6 +1300,7 @@ class _TooltipBeakBorder extends ShapeBorder {
   final Color? borderColor;
   final double borderWidth;
   final TooltipBeakDirection beakDirection;
+  final double? beakOffset;
 
   const _TooltipBeakBorder({
     this.borderRadius = 8.0,
@@ -1144,12 +1309,22 @@ class _TooltipBeakBorder extends ShapeBorder {
     this.borderColor,
     this.borderWidth = 0.0,
     this.beakDirection = TooltipBeakDirection.down,
+    this.beakOffset,
   });
 
   @override
-  EdgeInsetsGeometry get dimensions => beakDirection == TooltipBeakDirection.right
-      ? EdgeInsets.only(right: beakHeight)
-      : EdgeInsets.only(bottom: beakHeight);
+  EdgeInsetsGeometry get dimensions {
+    switch (beakDirection) {
+      case TooltipBeakDirection.down:
+        return EdgeInsets.only(bottom: beakHeight);
+      case TooltipBeakDirection.up:
+        return EdgeInsets.only(top: beakHeight);
+      case TooltipBeakDirection.right:
+        return EdgeInsets.only(right: beakHeight);
+      case TooltipBeakDirection.left:
+        return EdgeInsets.only(left: beakHeight);
+    }
+  }
 
   @override
   Path getInnerPath(Rect rect, {TextDirection? textDirection}) =>
@@ -1157,47 +1332,115 @@ class _TooltipBeakBorder extends ShapeBorder {
 
   @override
   Path getOuterPath(Rect rect, {TextDirection? textDirection}) {
-    if (beakDirection == TooltipBeakDirection.right) {
-      final w = rect.width - beakHeight;
-      final h = rect.height;
-      final path = Path()
-        ..addRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromLTWH(rect.left, rect.top, w, h),
-            Radius.circular(borderRadius),
-          ),
-        );
+    switch (beakDirection) {
+      case TooltipBeakDirection.right: {
+        final w = rect.width - beakHeight;
+        final h = rect.height;
+        final path = Path()
+          ..addRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(rect.left, rect.top, w, h),
+              Radius.circular(borderRadius),
+            ),
+          );
 
-      final centerY = rect.center.dy;
-      final beakLeft = rect.left + w - 0.5;
-      final beakPath = Path()
-        ..moveTo(beakLeft, centerY - beakWidth / 2)
-        ..lineTo(beakLeft + beakHeight + 0.5, centerY)
-        ..lineTo(beakLeft, centerY + beakWidth / 2)
-        ..close();
+        final double centerY = (beakOffset != null)
+            ? (rect.top + beakOffset!).clamp(
+                rect.top + borderRadius + beakWidth / 2.0,
+                math.max(rect.top + borderRadius + beakWidth / 2.0, rect.top + h - borderRadius - beakWidth / 2.0),
+              ).toDouble()
+            : rect.center.dy;
+        final beakLeft = rect.left + w - 0.5;
+        final beakPath = Path()
+          ..moveTo(beakLeft, centerY - beakWidth / 2.0)
+          ..lineTo(beakLeft + beakHeight + 0.5, centerY)
+          ..lineTo(beakLeft, centerY + beakWidth / 2.0)
+          ..close();
 
-      return Path.combine(PathOperation.union, path, beakPath);
+        return Path.combine(PathOperation.union, path, beakPath);
+      }
+
+      case TooltipBeakDirection.left: {
+        final w = rect.width - beakHeight;
+        final h = rect.height;
+        final path = Path()
+          ..addRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(rect.left + beakHeight, rect.top, w, h),
+              Radius.circular(borderRadius),
+            ),
+          );
+
+        final double centerY = (beakOffset != null)
+            ? (rect.top + beakOffset!).clamp(
+                rect.top + borderRadius + beakWidth / 2.0,
+                math.max(rect.top + borderRadius + beakWidth / 2.0, rect.top + h - borderRadius - beakWidth / 2.0),
+              ).toDouble()
+            : rect.center.dy;
+        final beakRight = rect.left + beakHeight + 0.5;
+        final beakPath = Path()
+          ..moveTo(beakRight, centerY - beakWidth / 2.0)
+          ..lineTo(rect.left, centerY)
+          ..lineTo(beakRight, centerY + beakWidth / 2.0)
+          ..close();
+
+        return Path.combine(PathOperation.union, path, beakPath);
+      }
+
+      case TooltipBeakDirection.up: {
+        final w = rect.width;
+        final h = rect.height - beakHeight;
+        final path = Path()
+          ..addRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(rect.left, rect.top + beakHeight, w, h),
+              Radius.circular(borderRadius),
+            ),
+          );
+
+        final double centerX = (beakOffset != null)
+            ? (rect.left + beakOffset!).clamp(
+                rect.left + borderRadius + beakWidth / 2.0,
+                math.max(rect.left + borderRadius + beakWidth / 2.0, rect.left + w - borderRadius - beakWidth / 2.0),
+              ).toDouble()
+            : rect.center.dx;
+        final beakBottom = rect.top + beakHeight + 0.5;
+        final beakPath = Path()
+          ..moveTo(centerX - beakWidth / 2.0, beakBottom)
+          ..lineTo(centerX, rect.top)
+          ..lineTo(centerX + beakWidth / 2.0, beakBottom)
+          ..close();
+
+        return Path.combine(PathOperation.union, path, beakPath);
+      }
+
+      case TooltipBeakDirection.down: {
+        final w = rect.width;
+        final h = rect.height - beakHeight;
+        final path = Path()
+          ..addRRect(
+            RRect.fromRectAndRadius(
+              Rect.fromLTWH(rect.left, rect.top, w, h),
+              Radius.circular(borderRadius),
+            ),
+          );
+
+        final double centerX = (beakOffset != null)
+            ? (rect.left + beakOffset!).clamp(
+                rect.left + borderRadius + beakWidth / 2.0,
+                math.max(rect.left + borderRadius + beakWidth / 2.0, rect.left + w - borderRadius - beakWidth / 2.0),
+              ).toDouble()
+            : rect.center.dx;
+        final beakTop = rect.top + h - 0.5;
+        final beakPath = Path()
+          ..moveTo(centerX - beakWidth / 2.0, beakTop)
+          ..lineTo(centerX, beakTop + beakHeight + 0.5)
+          ..lineTo(centerX + beakWidth / 2.0, beakTop)
+          ..close();
+
+        return Path.combine(PathOperation.union, path, beakPath);
+      }
     }
-
-    final w = rect.width;
-    final h = rect.height - beakHeight;
-    final path = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(rect.left, rect.top, w, h),
-          Radius.circular(borderRadius),
-        ),
-      );
-
-    final centerX = rect.center.dx;
-    final beakTop = rect.top + h - 0.5;
-    final beakPath = Path()
-      ..moveTo(centerX - beakWidth / 2, beakTop)
-      ..lineTo(centerX, beakTop + beakHeight + 0.5)
-      ..lineTo(centerX + beakWidth / 2, beakTop)
-      ..close();
-
-    return Path.combine(PathOperation.union, path, beakPath);
   }
 
   @override

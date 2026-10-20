@@ -1,11 +1,12 @@
 import 'package:flutter/widgets.dart';
+import '../theme/agentation_colors.dart';
 
 /// Represents a freehand drawing stroke captured during sketch mode.
 @immutable
 class DrawingStroke {
   const DrawingStroke({
     required this.points,
-    this.color = const Color(0xFF6366F1),
+    this.color = AgentationColors.indigo,
     this.strokeWidth = 3.0,
   });
 

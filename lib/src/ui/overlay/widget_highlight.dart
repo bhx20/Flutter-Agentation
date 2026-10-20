@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../domain/widget_inspection_result.dart';
+import '../../theme/agentation_colors.dart';
 import 'highlight_style.dart';
 
 /// Visual bounding box and identity badge rendered over an inspected widget.
@@ -75,15 +76,15 @@ class WidgetHighlight extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 3.0),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF000000),
+                    color: AgentationColors.pureBlack,
                     borderRadius: BorderRadius.circular(style.borderRadius + 2.0),
                     border: Border.all(
-                      color: const Color(0xFFFFFFFF),
+                      color: AgentationColors.pureWhite,
                       width: 1.0,
                     ),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x66000000),
+                        color: AgentationColors.shadowDark,
                         blurRadius: 4.0,
                         offset: Offset(0, 2),
                       ),
@@ -95,7 +96,7 @@ class WidgetHighlight extends StatelessWidget {
                       Text(
                         res.identity.widgetType,
                         style: const TextStyle(
-                          color: Color(0xFFFFFFFF),
+                          color: AgentationColors.pureWhite,
                           fontSize: 11.0,
                           fontWeight: FontWeight.w600,
                           decoration: TextDecoration.none,
@@ -107,7 +108,7 @@ class WidgetHighlight extends StatelessWidget {
                         Text(
                           keyString,
                           style: TextStyle(
-                            color: const Color(0xFFFFFFFF).withValues(alpha: 0.8),
+                            color: AgentationColors.pureWhite.withValues(alpha: 0.8),
                             fontSize: 10.0,
                             fontWeight: FontWeight.normal,
                             decoration: TextDecoration.none,

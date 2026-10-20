@@ -263,7 +263,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('toolbar_settings')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Agentation'), findsOneWidget);
+      expect(find.text('Flutter Agentation'), findsOneWidget);
       expect(find.text('v${PackageVersion.current}'), findsOneWidget);
       expect(find.text('Marker Color'), findsOneWidget);
     });

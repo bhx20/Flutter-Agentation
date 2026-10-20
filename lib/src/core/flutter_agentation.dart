@@ -319,18 +319,24 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
   Widget build(BuildContext context) {
     final controller = _effectiveController;
 
-    final body = InspectionOverlay(
-      controller: controller,
-      highlightStyle: widget.highlightStyle,
-      onWidgetSelected: widget.onWidgetSelected,
-      overlayChild: widget.showToolbar
-          ? AgentationToolbar(
-              key: const ValueKey('agentation_floating_toolbar'),
-              controller: controller,
-              initialAlignment: widget.initialToolbarAlignment,
-            )
-          : null,
-      child: widget.child ?? const SizedBox.shrink(),
+    final body = ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final hideUntilRestart = controller.settings.hideUntilRestart;
+        return InspectionOverlay(
+          controller: controller,
+          highlightStyle: widget.highlightStyle,
+          onWidgetSelected: widget.onWidgetSelected,
+          overlayChild: (widget.showToolbar && !hideUntilRestart)
+              ? AgentationToolbar(
+                  key: const ValueKey('agentation_floating_toolbar'),
+                  controller: controller,
+                  initialAlignment: widget.initialToolbarAlignment,
+                )
+              : null,
+          child: widget.child ?? const SizedBox.shrink(),
+        );
+      },
     );
 
     final content = widget.enableKeyboardShortcuts

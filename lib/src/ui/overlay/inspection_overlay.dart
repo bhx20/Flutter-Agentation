@@ -99,6 +99,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   bool _isMarqueeDragging = false;
   ScrollPosition? _dragScrollPosition;
 
+  bool _markersVisible = false;
+  bool _isMarkersExiting = false;
+  bool _lastShouldShowMarkers = false;
+  Timer? _markersExitTimer;
+  List<Annotation> _cachedAnnotationsForExit = [];
+
   bool _isTextWidget(WidgetInspectionResult? res) {
     if (res == null) return false;
     final type = res.identity.widgetType;
@@ -541,7 +547,67 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _lastShouldShowMarkers = widget.controller.shouldShowMarkers;
+    _markersVisible = _lastShouldShowMarkers;
+    _isMarkersExiting = false;
+    widget.controller.addListener(_handleMarkersVisibilityChange);
+  }
+
+  void _handleMarkersVisibilityChange() {
+    final shouldShow = widget.controller.shouldShowMarkers;
+    if (shouldShow == _lastShouldShowMarkers) return;
+    _lastShouldShowMarkers = shouldShow;
+
+    if (shouldShow) {
+      _markersExitTimer?.cancel();
+      if (!_markersVisible || _isMarkersExiting) {
+        setState(() {
+          _markersVisible = true;
+          _isMarkersExiting = false;
+          _cachedAnnotationsForExit = [];
+        });
+      }
+    } else {
+      if (widget.controller.settings.hideUntilRestart) {
+        _markersExitTimer?.cancel();
+        setState(() {
+          _markersVisible = false;
+          _isMarkersExiting = false;
+          _cachedAnnotationsForExit = [];
+        });
+        return;
+      }
+      if (_markersVisible) {
+        _markersExitTimer?.cancel();
+        final currentAnnotations = List<Annotation>.from(widget.controller.annotations);
+        final count = currentAnnotations.length;
+        final maxDelayMs = count > 0 ? (count - 1) * 20 : 0;
+        setState(() {
+          _isMarkersExiting = true;
+          _cachedAnnotationsForExit = currentAnnotations;
+        });
+
+        // 200ms exit animation duration + max delay + 50ms buffer
+        final totalExitMs = 200 + maxDelayMs + 50;
+        _markersExitTimer = Timer(Duration(milliseconds: totalExitMs), () {
+          if (mounted && !_lastShouldShowMarkers) {
+            setState(() {
+              _markersVisible = false;
+              _isMarkersExiting = false;
+              _cachedAnnotationsForExit = [];
+            });
+          }
+        });
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    widget.controller.removeListener(_handleMarkersVisibilityChange);
+    _markersExitTimer?.cancel();
     _hoverThrottleTimer?.cancel();
     _hoverPositionNotifier.dispose();
     _drawingNotifier.dispose();
@@ -558,6 +624,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   @override
   void reassemble() {
     super.reassemble();
+    _markersExitTimer?.cancel();
+    _lastShouldShowMarkers = widget.controller.shouldShowMarkers;
+    _markersVisible = _lastShouldShowMarkers;
+    _isMarkersExiting = false;
+    _cachedAnnotationsForExit = [];
     _hoverThrottleTimer?.cancel();
     _lastHoverPosition = null;
     _lastHoverTime = null;
@@ -578,6 +649,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   @override
   void didUpdateWidget(InspectionOverlay oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_handleMarkersVisibilityChange);
+      widget.controller.addListener(_handleMarkersVisibilityChange);
+      _handleMarkersVisibilityChange();
+    }
     if (widget.controller.toolMode == AnnotationToolMode.design &&
         oldWidget.controller.toolMode != AnnotationToolMode.design) {
       _showComponentPaletteNotifier.value = true;
@@ -874,7 +950,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
           ),
           ancestors: underlying.isAvailable ? underlying.ancestors : const [],
           metadata: {
-            if (areaPath != null) 'path': areaPath,
+            'path': ?areaPath,
           },
           sourceLocation: underlying.isAvailable ? underlying.sourceLocation : null,
         );
@@ -960,7 +1036,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
           ),
           ancestors: underlying.isAvailable ? underlying.ancestors : const [],
           metadata: {
-            if (areaPath != null) 'path': areaPath,
+            'path': ?areaPath,
           },
           sourceLocation: underlying.isAvailable ? underlying.sourceLocation : null,
         );
@@ -1077,16 +1153,23 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
   @override
   Widget build(BuildContext context) {
+    final currentScreenSize = MediaQuery.maybeSizeOf(context);
+    if (currentScreenSize != null) {
+      widget.controller.updateScreenSize(currentScreenSize);
+    }
+
     return ListenableBuilder(
       listenable: widget.controller,
       builder: (context, _) {
-        final isInspecting = widget.controller.isInspecting && !widget.controller.isToolbarMinimized;
-        final toolMode = widget.controller.toolMode;
         final settings = widget.controller.settings;
+        final isInspecting = !settings.hideUntilRestart &&
+            widget.controller.isInspecting &&
+            !widget.controller.isToolbarMinimized;
+        final toolMode = widget.controller.toolMode;
         final markerColor = MarkerColor.findById(settings.markerColorId).color;
 
         final effectiveHighlightStyle =
-            (widget.highlightStyle.strokeColor == const Color(0xFF6366F1) ||
+            (widget.highlightStyle.strokeColor == AgentationColors.indigo ||
                     widget.highlightStyle.strokeColor == AgentationColors.platformBlue)
                 ? HighlightStyle(
                     strokeColor: markerColor,
@@ -1095,8 +1178,8 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                     borderRadius: widget.highlightStyle.borderRadius,
                     hoverStrokeColor: markerColor.withValues(alpha: 0.6),
                     hoverFillColor: markerColor.withValues(alpha: 0.04),
-                    badgeBackgroundColor: const Color(0xFF000000),
-                    badgeTextColor: const Color(0xFFFFFFFF),
+                    badgeBackgroundColor: AgentationColors.pureBlack,
+                    badgeTextColor: AgentationColors.pureWhite,
                   )
                 : widget.highlightStyle;
 
@@ -1140,11 +1223,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
               ),
             ),
 
-            // Gesture interception layer (only active when inspecting and blocking interactions)
+            // Gesture interception layer (only active when inspecting)
             Positioned.fill(
               child: IgnorePointer(
-                ignoring: !isInspecting || !settings.blockInteractions,
+                ignoring: !isInspecting,
                 child: MouseRegion(
+                  opaque: settings.blockInteractions,
                   cursor: _currentInspectionCursor,
                   onExit: (_) {
                     _hoverThrottleTimer?.cancel();
@@ -1152,16 +1236,26 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                     _hoverPositionNotifier.value = null;
                     widget.controller.setHoveredResult(null);
                   },
-                  child: Listener(
-                    behavior: HitTestBehavior.opaque,
-                    onPointerDown: _handlePointerDown,
-                    onPointerMove: _handlePointerMove,
-                    onPointerUp: _handlePointerUp,
-                    onPointerHover: _handlePointerHover,
-                    onPointerCancel: _handlePointerCancel,
-                    onPointerSignal: _handlePointerSignal,
-                    onPointerPanZoomUpdate: _handlePointerPanZoomUpdate,
-                    child: const SizedBox.expand(),
+                  child: GestureDetector(
+                    behavior: settings.blockInteractions
+                        ? HitTestBehavior.opaque
+                        : HitTestBehavior.translucent,
+                    onTap: settings.blockInteractions ? () {} : null,
+                    child: Listener(
+                      behavior: settings.blockInteractions
+                          ? HitTestBehavior.opaque
+                          : HitTestBehavior.translucent,
+                      onPointerDown: _handlePointerDown,
+                      onPointerMove: _handlePointerMove,
+                      onPointerUp: _handlePointerUp,
+                      onPointerHover: _handlePointerHover,
+                      onPointerCancel: _handlePointerCancel,
+                      onPointerSignal: _handlePointerSignal,
+                      onPointerPanZoomUpdate: _handlePointerPanZoomUpdate,
+                      child: settings.blockInteractions
+                          ? const ColoredBox(color: AgentationColors.transparent)
+                          : const SizedBox.expand(),
+                    ),
                   ),
                 ),
               ),
@@ -1200,9 +1294,9 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                     child: IgnorePointer(
                       child: Container(
                         decoration: BoxDecoration(
-                          color: const Color(0xFF34C759).withValues(alpha: 0.08),
+                          color: AgentationColors.success.withValues(alpha: 0.08),
                           border: Border.all(
-                            color: const Color(0xFF34C759).withValues(alpha: 0.6),
+                            color: AgentationColors.success.withValues(alpha: 0.6),
                             width: 2.0,
                           ),
                           borderRadius: BorderRadius.circular(4.0),
@@ -1246,7 +1340,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7.5, vertical: 3.5),
                         decoration: BoxDecoration(
-                          color: const Color(0xE6000000), // rgba(0, 0, 0, 0.85)
+                          color: AgentationColors.shadowIntense, // rgba(0, 0, 0, 0.85)
                           borderRadius: BorderRadius.circular(3.5),
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.2),
@@ -1254,7 +1348,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                           ),
                           boxShadow: const [
                             BoxShadow(
-                              color: Color(0x33000000),
+                              color: AgentationColors.shadowHeavy,
                               blurRadius: 4.0,
                               offset: Offset(0, 2),
                             ),
@@ -1292,8 +1386,8 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                         final isAreaSelection = liveSelected.identity.widgetType == 'AreaSelection';
                         final selectionStyle = isAreaSelection
                             ? HighlightStyle(
-                                strokeColor: const Color(0xFF34C759),
-                                fillColor: const Color(0xFF34C759).withValues(alpha: 0.08),
+                                strokeColor: AgentationColors.success,
+                                fillColor: AgentationColors.success.withValues(alpha: 0.08),
                                 strokeWidth: 2.0,
                                 borderRadius: 4.0,
                               )
@@ -1339,7 +1433,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                             accentColor: (liveSelected.identity.widgetType == 'AreaSelection' ||
                                     toolMode == AnnotationToolMode.area ||
                                     widget.controller.multiSelection.length > 1)
-                                ? const Color(0xFF34C759)
+                                ? AgentationColors.success
                                 : null,
                             onClose: widget.controller.clearSelection,
                           ),
@@ -1347,17 +1441,24 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                       ),
 
                     // Numbered spatial annotation markers, hover preview tooltip, and edit dialog
-                    if (widget.controller.shouldShowMarkers)
+                    if (_markersVisible && !settings.hideUntilRestart)
                       ValueListenableBuilder<String?>(
                         valueListenable: _hoveredAnnotationIdNotifier,
                         builder: (context, hoveredId, _) {
+                          final annotationsToRender = _isMarkersExiting && widget.controller.annotations.isEmpty
+                              ? _cachedAnnotationsForExit
+                              : widget.controller.annotations;
+                          final totalCount = annotationsToRender.length;
+
                           return Stack(
                             fit: StackFit.expand,
                             children: [
                               // 1. Highlight outline around the hovered annotation element (matching Screenshot 1)
-                              if (hoveredId != null && widget.controller.activeAnnotation == null)
+                              if (!_isMarkersExiting &&
+                                  hoveredId != null &&
+                                  widget.controller.activeAnnotation == null)
                                 ...(() {
-                                  final hoveredAnn = widget.controller.annotations
+                                  final hoveredAnn = annotationsToRender
                                       .where((a) => a.id == hoveredId)
                                       .firstOrNull;
                                   if (hoveredAnn == null) return <Widget>[];
@@ -1386,27 +1487,32 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                 })(),
 
                               // 2. The markers
-                              for (int i = 0; i < widget.controller.annotations.length; i++) ...[
+                              for (int i = 0; i < totalCount; i++) ...[
                                 () {
-                                  final ann = widget.controller.annotations[i];
+                                  final ann = annotationsToRender[i];
                                   final currentBounds = _resolveCurrentBounds(ann);
                                   if (currentBounds == null) return const SizedBox.shrink();
                                   final isArea = ann.targetWidget.widgetType == 'AreaSelection' ||
                                       ann.isMultiSelect;
                                   final effectiveMarkerAccent = isArea
-                                      ? const Color(0xFF34C759)
+                                      ? AgentationColors.success
                                       : markerColor;
-                                  final isHovered = hoveredId == ann.id;
+                                  final isHovered = !_isMarkersExiting && hoveredId == ann.id;
 
                                   return AnnotationMarker(
                                     key: ValueKey('agentation_marker_${ann.id}'),
                                     index: i + 1,
+                                    layerIndex: i,
+                                    layerSize: totalCount,
+                                    isExiting: _isMarkersExiting,
                                     annotation: ann,
                                     boundsOverride: currentBounds,
                                     accentColor: effectiveMarkerAccent,
-                                    isSelected: widget.controller.activeAnnotation?.id == ann.id,
+                                    isSelected: !_isMarkersExiting &&
+                                        widget.controller.activeAnnotation?.id == ann.id,
                                     isHovered: isHovered,
                                     onHoverChanged: (hovering) {
+                                      if (_isMarkersExiting) return;
                                       if (hovering) {
                                         _hoveredAnnotationIdNotifier.value = ann.id;
                                       } else if (_hoveredAnnotationIdNotifier.value == ann.id) {
@@ -1414,6 +1520,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                       }
                                     },
                                     onTap: () {
+                                      if (_isMarkersExiting) return;
                                       _hoveredAnnotationIdNotifier.value = null;
                                       widget.controller.viewAnnotation(ann);
                                     },
@@ -1422,9 +1529,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                               ],
 
                               // 3. Hover Preview Tooltip Card (matching Screenshot 1)
-                              if (hoveredId != null && widget.controller.activeAnnotation == null)
+                              if (!_isMarkersExiting &&
+                                  hoveredId != null &&
+                                  widget.controller.activeAnnotation == null)
                                 ...(() {
-                                  final hoveredAnn = widget.controller.annotations
+                                  final hoveredAnn = annotationsToRender
                                       .where((a) => a.id == hoveredId)
                                       .firstOrNull;
                                   if (hoveredAnn == null) return <Widget>[];
@@ -1448,7 +1557,8 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                       ),
 
                     // Annotation edit dialog (matching Screenshot 2)
-                    if (widget.controller.areCommentsVisible &&
+                    if (!_isMarkersExiting &&
+                        widget.controller.areCommentsVisible &&
                         widget.controller.activeAnnotation != null) ...[
                       () {
                         final active = widget.controller.activeAnnotation!;
@@ -1457,7 +1567,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                         final isActiveArea = active.targetWidget.widgetType == 'AreaSelection' ||
                             active.isMultiSelect;
                         final effectiveCardAccent = isActiveArea
-                            ? const Color(0xFF34C759)
+                            ? AgentationColors.success
                             : markerColor;
                         return AnnotationDetailCard(
                           key: ValueKey('agentation_card_${active.id}'),
@@ -1595,7 +1705,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
               ),
 
             // Additional overlay elements (e.g. toolbar)
-            if (widget.overlayChild != null)
+            if (widget.overlayChild != null && !settings.hideUntilRestart)
               widget.overlayChild!,
           ],
         );

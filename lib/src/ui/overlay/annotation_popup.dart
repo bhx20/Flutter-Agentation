@@ -535,7 +535,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 1.5),
                                             decoration: BoxDecoration(
-                                              color: isDark ? const Color(0xFF282834) : const Color(0xFFE2E8F0),
+                                              color: isDark ? AgentationColors.darkCodeTagBg : AgentationColors.lightBorderSlate,
                                               borderRadius: BorderRadius.circular(4.0),
                                             ),
                                             child: Text(
@@ -627,10 +627,10 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                               onNotification: (notification) => true, // Absorb scroll notifications so underlying screen doesn't scroll!
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: isDark ? const Color(0xFF141418) : const Color(0xFFF6F8FA),
+                                  color: isDark ? AgentationColors.darkCodeBg : AgentationColors.lightCodeBg,
                                   borderRadius: BorderRadius.circular(8.0),
                                   border: Border.all(
-                                    color: isDark ? const Color(0xFF2E2E38) : const Color(0xFFE2E8F0),
+                                    color: isDark ? AgentationColors.darkCodeBorder : AgentationColors.lightBorderSlate,
                                     width: 1.0,
                                   ),
                                 ),
@@ -644,10 +644,10 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.5),
                                         decoration: BoxDecoration(
-                                          color: isDark ? const Color(0xFF1C1C24) : const Color(0xFFEEF2F6),
+                                          color: isDark ? AgentationColors.darkCodeHeaderBg : AgentationColors.lightCodeHeaderBg,
                                           border: Border(
                                             bottom: BorderSide(
-                                              color: isDark ? const Color(0xFF282834) : const Color(0xFFE2E8F0),
+                                              color: isDark ? AgentationColors.darkCodeTagBg : AgentationColors.lightBorderSlate,
                                               width: 1.0,
                                             ),
                                           ),
@@ -685,13 +685,13 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                                         Icon(
                                                           isCopied ? Icons.check_rounded : Icons.copy_rounded,
                                                           size: 11.0,
-                                                          color: isCopied ? const Color(0xFF34D399) : subtextColor,
+                                                          color: isCopied ? AgentationColors.emerald : subtextColor,
                                                         ),
                                                         const SizedBox(width: 3.0),
                                                         Text(
                                                           isCopied ? 'Copied' : 'Copy',
                                                           style: TextStyle(
-                                                            color: isCopied ? const Color(0xFF34D399) : subtextColor,
+                                                            color: isCopied ? AgentationColors.emerald : subtextColor,
                                                             fontSize: 10.0,
                                                             fontWeight: FontWeight.w500,
                                                           ),
@@ -866,7 +866,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                               child: Text(
                                 'Cancel',
                                 style: TextStyle(
-                                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                                  color: isDark ? AgentationColors.darkTextSubtle : AgentationColors.lightTextSecondary,
                                   fontSize: 13.0,
                                   fontWeight: FontWeight.w500,
                                   decoration: TextDecoration.none,
@@ -939,19 +939,19 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
     final Color intentColor;
     switch (intent) {
       case AnnotationIntent.change:
-        intentColor = const Color(0xFFFFCC00); // Yellow / Amber
+        intentColor = AgentationColors.amber; // Yellow / Amber
         break;
       case AnnotationIntent.bug:
-        intentColor = const Color(0xFFFF383C); // Red / Rose
+        intentColor = AgentationColors.destructive; // Red / Rose
         break;
       case AnnotationIntent.suggestion:
-        intentColor = const Color(0xFF34C759); // Green / Emerald
+        intentColor = AgentationColors.success; // Green / Emerald
         break;
       case AnnotationIntent.question:
-        intentColor = const Color(0xFF00C3D0); // Cyan
+        intentColor = AgentationColors.cyan; // Cyan
         break;
       case AnnotationIntent.note:
-        intentColor = const Color(0xFF0088FF); // Blue
+        intentColor = AgentationColors.accent; // Blue
         break;
     }
 
@@ -970,7 +970,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
           border: Border.all(
             color: isSelected
                 ? intentColor
-                : (isDark ? const Color(0x33FFFFFF) : const Color(0x22000000)),
+                : (isDark ? AgentationColors.darkBorderTranslucent : AgentationColors.shadowMedium),
             width: 1.0,
           ),
         ),
@@ -979,7 +979,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
           style: TextStyle(
             color: isSelected
                 ? intentColor
-                : (isDark ? const Color(0xFF8E8E93) : const Color(0xFF6E6E73)),
+                : (isDark ? AgentationColors.darkTextMuted : AgentationColors.darkIconInactive),
             fontSize: 11.0,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
           ),
@@ -1082,6 +1082,7 @@ class _CardDeleteIconButtonState extends State<_CardDeleteIconButton> {
   Widget build(BuildContext context) {
     return Tooltip(
       message: 'Delete',
+      triggerMode: TooltipTriggerMode.manual,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         onEnter: (_) => _isHovered.value = true,

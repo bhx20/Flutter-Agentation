@@ -216,6 +216,7 @@ abstract final class AgentationColors {
   static const Color shadowSubtle = Color(0x0A000000);
   static const Color shadowCardLight = Color(0x0D000000);
   static const Color shadowToolbarLight = Color(0x0F000000);
+  static const Color shadowToolbarMedium = Color(0x14000000);
   static const Color shadowPanel = Color(0x1F000000);
   static const Color shadowMedium = Color(0x22000000);
   static const Color shadowDeep = Color(0x26000000);
@@ -224,6 +225,13 @@ abstract final class AgentationColors {
   static const Color shadowDark = Color(0x66000000);
   static const Color shadowScrim = Color(0x7F000000);
   static const Color shadowIntense = Color(0xE6000000);
+
+  // ── Base & Highlight Tokens ──
+  static const Color transparent = Color(0x00000000);
+  static const Color pureBlack = Color(0xFF000000);
+  static const Color pureWhite = Color(0xFFFFFFFF);
+  static const Color highlightHoverStroke = Color(0x99007AFF);
+  static const Color highlightHoverFill = Color(0x10007AFF);
 
   // ── Syntax Highlighting Tokens ──
   static const Color syntaxDarkDefault = lightBorderSlate;

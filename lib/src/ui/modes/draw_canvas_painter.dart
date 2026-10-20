@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../domain/drawing_stroke.dart';
+import '../../theme/agentation_colors.dart';
 
 /// Canvas painter rendering both completed freehand strokes and active in-flight sketch paths.
 class DrawCanvasPainter extends CustomPainter {
   const DrawCanvasPainter({
     required this.strokes,
     this.currentStrokePoints = const [],
-    this.activeColor = const Color(0xFF6366F1),
+    this.activeColor = AgentationColors.indigo,
     this.activeStrokeWidth = 3.0,
   });
 

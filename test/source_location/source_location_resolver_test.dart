@@ -143,14 +143,16 @@ void main() {
       final exported = await controller.exportAnnotations();
       expect(exported, isNotNull);
 
-      // Verify exact clipboard structure matching Section 11 & Section 16
+      // Verify exact clipboard structure matching Section 11 & Section 16 enriched with platform & screen size
       final lines = exported!.split('\n');
       expect(lines[0], equals('[Flutter UI Feedback]'));
-      expect(lines[1], equals('Widget: LoginButton'));
-      expect(lines[2], equals('File: source_location_resolver_test.dart'));
-      expect(lines[3], contains('Location: test/source_location/source_location_resolver_test.dart'));
-      expect(lines[4], equals('Line: 28'));
-      expect(lines[5], equals('Comment: Make this button taller.'));
+      expect(lines[1], startsWith('Platform: '));
+      expect(lines[2], startsWith('Screen Size: '));
+      expect(lines[3], equals('Widget: LoginButton'));
+      expect(lines[4], equals('File: source_location_resolver_test.dart'));
+      expect(lines[5], contains('Location: test/source_location/source_location_resolver_test.dart'));
+      expect(lines[6], equals('Line: 28'));
+      expect(lines[7], equals('Comment: Make this button taller.'));
 
       // Ensure NO unnecessary context, dumps, JSON, or framework internals
       expect(exported, isNot(contains('{')));
@@ -197,7 +199,9 @@ void main() {
       final exported = await controller.exportAnnotations();
       expect(exported, isNotNull);
 
-      expect(exported, startsWith('[Flutter UI Feedback]\n\n1.\nWidget: LoginButton'));
+      expect(exported, startsWith('[Flutter UI Feedback]\nPlatform: '));
+      expect(exported, contains('Screen Size: '));
+      expect(exported, contains('1.\nWidget: LoginButton'));
       expect(exported, contains('Comment: Increase the button height to 48px.'));
       expect(exported, contains('2.\nWidget: TextField'));
       expect(exported, contains('Comment: Add more spacing above this field.'));

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import '../domain/annotation.dart';
 
 /// Adapter converting native Flutter [Annotation] objects into the canonical
@@ -51,17 +52,19 @@ class AgentationFormatAdapter {
   Map<String, dynamic> adaptAll(
     List<Annotation> annotations, {
     Map<String, dynamic>? sessionMetadata,
+    String? platform,
+    Size? viewport,
   }) {
     final payload = <String, dynamic>{
       'version': '1.0',
       'source': 'flutter_agentation',
       'timestamp': DateTime.now().toIso8601String(),
+      'platform': ?platform,
+      'screenSize': ?(viewport != null ? '${viewport.width.round()}×${viewport.height.round()}' : null),
       'count': annotations.length,
       'annotations': annotations.map(adapt).toList(),
+      'session': ?sessionMetadata,
     };
-    if (sessionMetadata != null) {
-      payload['session'] = sessionMetadata;
-    }
     return payload;
   }
 }

@@ -114,7 +114,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
                               textBaseline: TextBaseline.alphabetic,
                               children: [
                                 Text(
-                                  'Agentation',
+                                  'Flutter Agentation',
                                   style: TextStyle(
                                     color: textColor,
                                     fontSize: 14.0,
@@ -192,7 +192,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
                                       alignment: Alignment.centerLeft,
                                       children: <Widget>[
                                         ...previousChildren,
-                                        if (currentChild != null) currentChild,
+                                        ?currentChild,
                                       ],
                                     );
                                   },
@@ -270,16 +270,12 @@ class _SettingsPanelState extends State<SettingsPanel> {
                           ),
                         ),
                         _AgentationSwitch(
+                          key: const ValueKey('toggle_hide_until_restart'),
                           value: settings.hideUntilRestart,
                           isDark: isDark,
                           onChanged: (val) {
-                            controller.updateSettings(
-                              settings.copyWith(hideUntilRestart: val),
-                            );
-                            if (val) {
-                              controller.toggleToolbarMinimized();
-                              widget.onClose();
-                            }
+                            widget.onClose();
+                            controller.setHideUntilRestart(val);
                           },
                         ),
                       ],
@@ -307,6 +303,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
                         final isSelected = settings.markerColorId == swatch.id;
                         return Tooltip(
                           message: swatch.label,
+                          triggerMode: TooltipTriggerMode.manual,
                           child: GestureDetector(
                             key: ValueKey('swatch_${swatch.id}'),
                             onTap: () => controller.setMarkerColorId(swatch.id),
@@ -450,7 +447,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
         border: Border.all(
           color: checked
               ? theme.textPrimary
-              : (theme.isDark ? const Color(0xFF48484A) : const Color(0xFFD1D1D6)),
+              : (theme.isDark ? AgentationColors.darkCheckboxBorder : AgentationColors.lightBorderGray),
           width: 1.5,
         ),
       ),
@@ -497,7 +494,7 @@ class _HelpTooltipState extends State<_HelpTooltip> {
 
   @override
   Widget build(BuildContext context) {
-    const iconColor = Color(0xFF8E8E93);
+    const iconColor = AgentationColors.darkTextMuted;
 
     return CompositedTransformTarget(
       link: _layerLink,
@@ -515,11 +512,11 @@ class _HelpTooltipState extends State<_HelpTooltip> {
                 width: 175.0,
                 padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF383838),
+                  color: AgentationColors.darkHelpTooltipBg,
                   borderRadius: BorderRadius.circular(10.0),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x47000000),
+                      color: AgentationColors.shadowHelp,
                       blurRadius: 8.0,
                       offset: Offset(0, 1),
                     ),
@@ -530,7 +527,7 @@ class _HelpTooltipState extends State<_HelpTooltip> {
                   child: Text(
                     widget.content,
                     style: const TextStyle(
-                      color: Color(0xD9FFFFFF),
+                      color: AgentationColors.darkTextTranslucent,
                       fontSize: 11.0,
                       fontWeight: FontWeight.w400,
                       height: 1.35,
@@ -570,6 +567,7 @@ class _HelpTooltipState extends State<_HelpTooltip> {
 /// Compact miniature toggle switch matching upstream Agentation (24px x 16px).
 class _AgentationSwitch extends StatelessWidget {
   const _AgentationSwitch({
+    super.key,
     required this.value,
     required this.onChanged,
     required this.isDark,
@@ -587,7 +585,7 @@ class _AgentationSwitch extends StatelessWidget {
 
     final trackColor = value
         ? AgentationColors.platformBlue
-        : (isDark ? const Color(0xFF484848) : const Color(0xFFCDCDCD));
+        : (isDark ? AgentationColors.darkBorderMuted : AgentationColors.lightBorderSubtle);
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -614,7 +612,7 @@ class _AgentationSwitch extends StatelessWidget {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Color(0x33000000),
+                    color: AgentationColors.shadowHeavy,
                     blurRadius: 2.0,
                     offset: Offset(0, 1),
                   ),

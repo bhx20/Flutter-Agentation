@@ -157,7 +157,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Header displays dynamic version
-      expect(find.textContaining('Agentation'), findsOneWidget);
+      expect(find.text('Flutter Agentation'), findsOneWidget);
       expect(find.textContaining('v${PackageVersion.current}'), findsOneWidget);
       expect(find.byKey(const ValueKey('theme_toggle_button')), findsOneWidget);
 
@@ -249,6 +249,33 @@ void main() {
       await tester.tap(find.text('Forensic'));
       await tester.pumpAndSettle();
       expect(find.text('Compact'), findsOneWidget);
+    });
+
+    testWidgets('toggles hide until restart in settings and closes settings panel', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AgentationScope(
+              controller: controller,
+              child: SettingsPanel(onClose: () {}),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.settings.hideUntilRestart, isFalse);
+      expect(controller.isToolbarHidden, isFalse);
+
+      final switchFinder = find.byKey(const ValueKey('toggle_hide_until_restart'));
+      expect(switchFinder, findsOneWidget);
+
+      await tester.tap(switchFinder);
+      await tester.pumpAndSettle();
+
+      expect(controller.settings.hideUntilRestart, isTrue);
+      expect(controller.isToolbarHidden, isTrue);
+      expect(controller.isToolbarMinimized, isTrue);
     });
   });
 }

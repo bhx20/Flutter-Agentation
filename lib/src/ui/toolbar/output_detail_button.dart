@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../domain/toolbar_settings.dart';
+import '../../theme/agentation_colors.dart';
 
 /// Interactive button cycling between the 4 output detail levels with animated dot indicators.
 class OutputDetailButton extends StatelessWidget {
@@ -51,7 +52,7 @@ class OutputDetailButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E2E),
+            color: AgentationColors.darkSlateBg,
             borderRadius: BorderRadius.circular(8.0),
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.12),
@@ -82,7 +83,7 @@ class OutputDetailButton extends StatelessWidget {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isActive
-                          ? const Color(0xFF818CF8)
+                          ? AgentationColors.indigoSoft
                           : Colors.white.withValues(alpha: 0.25),
                     ),
                   );

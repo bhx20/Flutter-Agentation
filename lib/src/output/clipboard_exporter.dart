@@ -61,12 +61,21 @@ class ClipboardExporter {
         if (annotations.isEmpty) return '';
         if (annotations.length == 1) {
           final ann = annotations.first;
-          return feedbackBuilder.build(ann.toFeedbackTarget(), ann.comment);
+          return feedbackBuilder.build(
+            ann.toFeedbackTarget(),
+            ann.comment,
+            platform: platform,
+            screenSize: viewport,
+          );
         }
         final items = annotations
             .map((a) => (target: a.toFeedbackTarget(), comment: a.comment))
             .toList();
-        return feedbackBuilder.buildMultiple(items);
+        return feedbackBuilder.buildMultiple(
+          items,
+          platform: platform,
+          screenSize: viewport,
+        );
       case ExportFormat.markdown:
         return markdownEncoder.formatDocument(
           annotations,
@@ -83,7 +92,11 @@ class ClipboardExporter {
       case ExportFormat.json:
         return jsonEncoder.encodeAll(annotations, pretty: prettyJson);
       case ExportFormat.agentationJson:
-        final map = formatAdapter.adaptAll(annotations);
+        final map = formatAdapter.adaptAll(
+          annotations,
+          platform: platform,
+          viewport: viewport,
+        );
         return jsonEncoder.encodeMap(map, pretty: prettyJson);
       case ExportFormat.source:
         return annotations

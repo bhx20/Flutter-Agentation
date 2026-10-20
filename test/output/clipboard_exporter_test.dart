@@ -107,6 +107,27 @@ void main() {
       expect(exported, contains('Test note'));
     });
 
+    test('controller includes platform and screen size in feedback and markdown exports', () async {
+      controller.setPlatformName('iOS');
+      controller.updateScreenSize(const Size(393, 852));
+      await controller.createAnnotation(comment: 'Improve readability');
+
+      final feedback = await controller.exportAnnotations(format: ExportFormat.feedback);
+      expect(feedback, contains('[Flutter UI Feedback]'));
+      expect(feedback, contains('Platform: iOS'));
+      expect(feedback, contains('Screen Size: 393×852'));
+      expect(feedback, contains('Comment: Improve readability'));
+
+      final markdown = await controller.exportAnnotations(format: ExportFormat.markdown);
+      expect(markdown, contains('**Platform:** iOS'));
+      expect(markdown, contains('**Screen Size:** 393×852'));
+      expect(markdown, contains('Improve readability'));
+
+      final copied = await controller.copyFeedback();
+      expect(copied, contains('iOS'));
+      expect(copied, contains('393×852'));
+    });
+
     testWidgets('toolbar displays copy action and provides feedback on tap', (tester) async {
       await tester.pumpWidget(
         MaterialApp(

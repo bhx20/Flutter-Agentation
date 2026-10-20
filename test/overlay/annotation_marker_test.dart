@@ -260,6 +260,145 @@ void main() {
       expect(tf.controller!.text, equals('hell'));
       expect(controller.annotations.length, equals(1));
     });
+
+    testWidgets('AnnotationMarker animates scale up from 0.3 to 1.0 on entrance', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AnnotationMarker(
+                  index: 1,
+                  annotation: dummyAnnotation,
+                  onTap: () {},
+                  animateEntrance: true,
+                  layerIndex: 0,
+                  layerSize: 1,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // Initial frame: scale is 0.3, opacity is 0.0
+      final scaleFinder = find.byKey(const ValueKey('annotation_marker_scale_transform'));
+      final initialScale = tester.widget<Transform>(scaleFinder);
+      expect(initialScale.transform.entry(0, 0), closeTo(0.3, 0.05));
+
+      // Advance by entrance animation duration (250ms)
+      await tester.pump(const Duration(milliseconds: 250));
+
+      final settledScale = tester.widget<Transform>(scaleFinder);
+      expect(settledScale.transform.entry(0, 0), closeTo(1.0, 0.05));
+    });
+
+    testWidgets('AnnotationMarker animates scale down to 0.3 when isExiting becomes true', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AnnotationMarker(
+                  index: 1,
+                  annotation: dummyAnnotation,
+                  onTap: () {},
+                  animateEntrance: false,
+                  isExiting: false,
+                  layerIndex: 0,
+                  layerSize: 1,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final scaleFinder = find.byKey(const ValueKey('annotation_marker_scale_transform'));
+      // Resting state: scale 1.0
+      var scaleWidget = tester.widget<Transform>(scaleFinder);
+      expect(scaleWidget.transform.entry(0, 0), closeTo(1.0, 0.05));
+
+      // Trigger exit
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AnnotationMarker(
+                  index: 1,
+                  annotation: dummyAnnotation,
+                  onTap: () {},
+                  animateEntrance: false,
+                  isExiting: true,
+                  layerIndex: 0,
+                  layerSize: 1,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      // After exit duration (200ms)
+      await tester.pump(const Duration(milliseconds: 200));
+
+      scaleWidget = tester.widget<Transform>(scaleFinder);
+      expect(scaleWidget.transform.entry(0, 0), closeTo(0.3, 0.05));
+    });
+
+    testWidgets('InspectionOverlay coordinates scale-down exit and scale-up entrance on toggleCommentsVisibility', (tester) async {
+      final storage = MemoryAnnotationStorage();
+      final controller = AgentationController(storage: storage);
+      controller.setToolbarMinimized(false);
+
+      await controller.createAnnotation(
+        comment: 'First comment',
+        targetResult: const WidgetInspectionResult(
+          identity: WidgetIdentity(id: 'txt1', widgetType: 'Text'),
+          bounds: WidgetBounds(x: 50, y: 50, width: 100, height: 40),
+          context: WidgetContext.empty(),
+          ancestors: [],
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              showToolbar: false,
+              child: const Center(child: Text('Inspectable Widget')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AnnotationMarker), findsOneWidget);
+
+      // Hide comments: marker remains in tree during exit animation
+      controller.toggleCommentsVisibility();
+      await tester.pump();
+
+      expect(find.byType(AnnotationMarker), findsOneWidget);
+
+      // Advance halfway through exit
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(AnnotationMarker), findsOneWidget);
+
+      // Complete exit animation & timer
+      await tester.pumpAndSettle();
+      expect(find.byType(AnnotationMarker), findsNothing);
+
+      // Show comments again: marker reappears and scales up
+      controller.toggleCommentsVisibility();
+      await tester.pump();
+
+      expect(find.byType(AnnotationMarker), findsOneWidget);
+      await tester.pumpAndSettle();
+      expect(find.byType(AnnotationMarker), findsOneWidget);
+    });
   });
 }
 

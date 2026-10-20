@@ -2,14 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/flutter_agentation.dart';
-import 'package:flutter_agentation/src/core/agentation_controller.dart';
-import 'package:flutter_agentation/src/core/agentation_scope.dart';
-import 'package:flutter_agentation/src/domain/marker_color.dart';
-import 'package:flutter_agentation/src/domain/toolbar_settings.dart';
-import 'package:flutter_agentation/src/domain/widget_inspection_result.dart';
-import 'package:flutter_agentation/src/theme/agentation_colors.dart';
-import 'package:flutter_agentation/src/ui/overlay/annotation_marker.dart';
-import 'package:flutter_agentation/src/ui/toolbar/agentation_toolbar.dart';
 
 void main() {
   group('Toolbar Hover Effect, Disabled States & Custom Tooltip', () {
@@ -522,6 +514,166 @@ void main() {
       expect(boxDeco.shape, equals(BoxShape.circle));
       expect(boxDeco.color, equals(const Color(0x29FFFFFF)));
     });
+
+    testWidgets('hovering minimized button at top-left corner dynamically flips tooltip to right side without cutoff', (tester) async {
+      final controller = AgentationController();
+      controller.setToolbarMinimized(true);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(
+                    initialAlignment: Alignment.topLeft,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final expandButton = find.byKey(const ValueKey('toolbar_expand'));
+      expect(expandButton, findsOneWidget);
+
+      final buttonRect = tester.getRect(expandButton);
+      expect(buttonRect.left, lessThan(100.0)); // Situated near the left edge
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(tester.getCenter(expandButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start Feedback Mode'), findsOneWidget);
+      final tooltipTextPos = tester.getTopLeft(find.text('Start Feedback Mode'));
+
+      // Since there are not enough pixels on the left, the tooltip dynamically positions on the right of the button!
+      expect(tooltipTextPos.dx, greaterThan(buttonRect.right));
+      expect(tooltipTextPos.dx, greaterThan(0.0));
+    });
+
+    testWidgets('hovering minimized button at bottom-right corner positions tooltip on left side', (tester) async {
+      final controller = AgentationController();
+      controller.setToolbarMinimized(true);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(
+                    initialAlignment: Alignment.bottomRight,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final expandButton = find.byKey(const ValueKey('toolbar_expand'));
+      expect(expandButton, findsOneWidget);
+
+      final buttonRect = tester.getRect(expandButton);
+      expect(buttonRect.right, greaterThan(700.0)); // Situated near the right edge of 800w screen
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.addPointer(location: Offset.zero);
+      addTearDown(gesture.removePointer);
+      await gesture.moveTo(tester.getCenter(expandButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Start Feedback Mode'), findsOneWidget);
+      final tooltipTextPos = tester.getTopLeft(find.text('Start Feedback Mode'));
+
+      // Positions on the left of the button
+      expect(tooltipTextPos.dx, lessThan(buttonRect.left));
+      expect(tooltipTextPos.dx, greaterThan(0.0));
+    });
+
+    testWidgets('when toolbar is near top of screen, buttons configure tooltips with preferBelow: true and upward pointing beak', (tester) async {
+      final controller = AgentationController();
+      controller.setToolbarMinimized(false);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(
+                    initialAlignment: Alignment.topCenter,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
+      expect(tooltips, isNotEmpty);
+
+      // Verify settings tooltip has preferBelow: true and upward beak
+      final settingsTooltip = tooltips.firstWhere(
+        (t) => (t.richMessage?.toPlainText() ?? '').contains('Settings'),
+      );
+      expect(settingsTooltip.preferBelow, isTrue);
+
+      final deco = settingsTooltip.decoration as ShapeDecoration;
+      final shape = deco.shape as dynamic;
+      expect(shape.beakDirection, equals(TooltipBeakDirection.up));
+    });
+
+    testWidgets('tooltips use TooltipTriggerMode.manual and copy action does not display toast', (tester) async {
+      final controller = AgentationController();
+      await controller.createAnnotation(comment: 'Issue for copy test');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              children: [
+                AgentationScope(
+                  controller: controller,
+                  child: const AgentationToolbar(),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify all toolbar tooltips have manual triggerMode (never trigger as touch toast)
+      final tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
+      for (final t in tooltips) {
+        expect(t.triggerMode, equals(TooltipTriggerMode.manual));
+      }
+
+      // Tap copy button
+      final copyFinder = find.byKey(const ValueKey('toolbar_copy'));
+      await tester.tap(copyFinder);
+      await tester.pump();
+
+      // Verify tooltip label is still 'Copy feedback' (never 'Copied!' toast)
+      final updatedTooltips = tester.widgetList<Tooltip>(find.byType(Tooltip)).toList();
+      expect(updatedTooltips.any((t) => (t.richMessage?.toPlainText() ?? '').contains('Copied!')), isFalse);
+
+      await tester.pump(const Duration(milliseconds: 1600));
+      controller.dispose();
+    });
   });
 }
+
 

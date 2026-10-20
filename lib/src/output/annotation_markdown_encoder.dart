@@ -183,6 +183,7 @@ class AnnotationMarkdownEncoder {
       buffer.writeln();
       buffer.writeln('**Environment:**');
       buffer.writeln('- Viewport: $vp');
+      buffer.writeln('- Screen Size: $vp');
       if (url != null && url.isNotEmpty) {
         buffer.writeln('- URL: $url');
       } else {
@@ -203,9 +204,19 @@ class AnnotationMarkdownEncoder {
       buffer.writeln('---');
       buffer.writeln();
     } else if (detailLevel != OutputDetailLevel.compact) {
+      if (platform != null && platform.isNotEmpty) {
+        buffer.writeln('**Platform:** $platform');
+      }
+      buffer.writeln('**Screen Size:** $vp');
       buffer.writeln('**Viewport:** $vp');
       buffer.writeln();
     } else {
+      if (platform != null && platform.isNotEmpty) {
+        buffer.writeln('**Platform:** $platform');
+      }
+      if (viewport != null) {
+        buffer.writeln('**Screen Size:** $vp');
+      }
       buffer.writeln();
     }
 

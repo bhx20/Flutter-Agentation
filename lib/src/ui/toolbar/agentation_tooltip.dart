@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/agentation_colors.dart';
 
 /// Sleek floating tooltip with a downward pointing caret and shortcut badge,
 /// matching Screenshot 2 of the Agentation design system.
@@ -54,11 +55,11 @@ class _AgentationTooltipState extends State<AgentationTooltip> {
                       vertical: 6.0,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF18181B),
+                      color: AgentationColors.darkTooltipBg,
                       borderRadius: BorderRadius.circular(8.0),
                       boxShadow: const [
                         BoxShadow(
-                          color: Color(0x66000000),
+                          color: AgentationColors.shadowDark,
                           blurRadius: 8.0,
                           offset: Offset(0, 2),
                         ),
@@ -81,7 +82,7 @@ class _AgentationTooltipState extends State<AgentationTooltip> {
                           Text(
                             widget.shortcut!,
                             style: const TextStyle(
-                              color: Color(0xFF888888),
+                              color: AgentationColors.lightTextGray,
                               fontSize: 12.0,
                               fontWeight: FontWeight.w500,
                               decoration: TextDecoration.none,
@@ -93,7 +94,7 @@ class _AgentationTooltipState extends State<AgentationTooltip> {
                   ),
                   CustomPaint(
                     size: const Size(10, 5),
-                    painter: _CaretPainter(color: const Color(0xFF18181B)),
+                    painter: _CaretPainter(color: AgentationColors.darkTooltipBg),
                   ),
                 ],
               ),

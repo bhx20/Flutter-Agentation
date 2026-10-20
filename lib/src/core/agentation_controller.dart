@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import '../inspection/flutter_inspection_engine.dart';
@@ -32,6 +33,8 @@ class AgentationController extends ChangeNotifier {
     AgentSyncClient? syncClient,
     InspectionMode initialMode = InspectionMode.inactive,
     String? appName,
+    String? platform,
+    Size? screenSize,
     this.onAnnotationAdd,
     this.onAnnotationDelete,
     this.onAnnotationUpdate,
@@ -47,6 +50,8 @@ class AgentationController extends ChangeNotifier {
         _state = AgentationState(mode: initialMode),
         shouldCopyToClipboard = copyToClipboard {
     _appName = appName;
+    _platformName = platform;
+    _screenSize = screenSize;
     if (syncClient != null) {
       _syncClient = syncClient;
     }
@@ -133,6 +138,56 @@ class AgentationController extends ChangeNotifier {
     _appName = name;
   }
 
+  String? _platformName;
+
+  /// The active platform name (e.g. 'Android', 'iOS', 'macOS', 'Windows', 'Linux', 'Web').
+  String get currentPlatformName {
+    if (_platformName != null && _platformName!.isNotEmpty) {
+      return _platformName!;
+    }
+    if (kIsWeb) return 'Web';
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'Android';
+      case TargetPlatform.iOS:
+        return 'iOS';
+      case TargetPlatform.macOS:
+        return 'macOS';
+      case TargetPlatform.windows:
+        return 'Windows';
+      case TargetPlatform.linux:
+        return 'Linux';
+      case TargetPlatform.fuchsia:
+        return 'Fuchsia';
+    }
+  }
+
+  /// Sets or overrides the active platform name.
+  void setPlatformName(String? name) {
+    _platformName = name;
+  }
+
+  Size? _screenSize;
+
+  /// The active viewport / screen size of the application.
+  Size? get screenSize {
+    if (_screenSize != null) return _screenSize;
+    try {
+      final view = WidgetsBinding.instance.platformDispatcher.views.firstOrNull;
+      if (view != null && view.physicalSize.width > 0 && view.physicalSize.height > 0) {
+        final dpr = view.devicePixelRatio > 0 ? view.devicePixelRatio : 1.0;
+        return view.physicalSize / dpr;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Updates the screen size / viewport dimensions.
+  void updateScreenSize(Size size) {
+    if (_screenSize == size) return;
+    _screenSize = size;
+  }
+
   /// Whether an annotation creation can be undone.
   bool get canUndo => _annotations.isNotEmpty;
 
@@ -165,9 +220,25 @@ class AgentationController extends ChangeNotifier {
   bool get areCommentsVisible => _state.areCommentsVisible;
 
   /// Whether markers and comments should currently be displayed on the overlay.
-  /// Exactly matches React Agentation: markers are shown only when toolbar is active (not minimized/collapsed)
+  /// Exactly matches React Agentation: markers are shown only when toolbar is active (not hidden/minimized)
   /// and comments are set to visible.
-  bool get shouldShowMarkers => !_state.isToolbarMinimized && _state.areCommentsVisible;
+  bool get shouldShowMarkers =>
+      !_state.settings.hideUntilRestart &&
+      !_state.isToolbarMinimized &&
+      _state.areCommentsVisible;
+
+  /// Whether the toolbar is currently hidden until app restart.
+  bool get isToolbarHidden => _state.settings.hideUntilRestart;
+
+  /// Sets whether the toolbar is hidden until app restart.
+  void setHideUntilRestart(bool hide) {
+    if (_state.settings.hideUntilRestart == hide) return;
+    if (hide) {
+      closeSettings();
+      setToolbarMinimized(true);
+    }
+    updateSettings(_state.settings.copyWith(hideUntilRestart: hide));
+  }
 
   /// Currently selected inspection result.
   WidgetInspectionResult? get selectedResult => _state.selectedResult;
@@ -695,7 +766,7 @@ class AgentationController extends ChangeNotifier {
       ),
       elementBoundingBoxes: [bounds],
       metadata: {
-        if (resolvedPath != null) 'path': resolvedPath,
+        'path': ?resolvedPath,
         ...metadata,
       },
     );
@@ -740,11 +811,15 @@ class AgentationController extends ChangeNotifier {
     OutputDetailLevel? detailLevel,
     bool prettyJson = true,
     String? appName,
+    String? platform,
+    Size? viewport,
     ClipboardExporter exporter = const ClipboardExporter(),
   }) async {
     final activeFormat = format ?? _mapCopyFormatToExportFormat(_state.settings.copyFormat);
     final activeDetail = detailLevel ?? _state.settings.outputDetail;
     final activeAppName = appName ?? _appName;
+    final activePlatform = platform ?? currentPlatformName;
+    final activeViewport = viewport ?? screenSize;
 
     final output = exporter.formatAnnotations(
       _annotations,
@@ -752,6 +827,8 @@ class AgentationController extends ChangeNotifier {
       detailLevel: activeDetail,
       prettyJson: prettyJson,
       appName: activeAppName,
+      platform: activePlatform,
+      viewport: activeViewport,
     );
 
     if (output.isEmpty && _annotations.isNotEmpty) {
@@ -765,6 +842,8 @@ class AgentationController extends ChangeNotifier {
         detailLevel: activeDetail,
         prettyJson: prettyJson,
         appName: activeAppName,
+        platform: activePlatform,
+        viewport: activeViewport,
       );
     }
 
@@ -1182,14 +1261,26 @@ class AgentationController extends ChangeNotifier {
   Timer? _copyTimer;
 
   /// Copies formatted annotations output to clipboard and triggers [onCopy].
-  Future<String> copyFeedback() async {
+  Future<String> copyFeedback({
+    ExportFormat? format,
+    OutputDetailLevel? detailLevel,
+    String? platform,
+    Size? screenSize,
+  }) async {
     isCopiedNotifier.value = true;
     _copyTimer?.cancel();
     _copyTimer = Timer(const Duration(milliseconds: 1500), () {
       isCopiedNotifier.value = false;
     });
 
-    final markdown = await exportAnnotations(format: ExportFormat.markdown) ?? '';
+    final activeFormat = format ?? _mapCopyFormatToExportFormat(_state.settings.copyFormat);
+    final markdown = await exportAnnotations(
+          format: activeFormat,
+          detailLevel: detailLevel,
+          platform: platform,
+          viewport: screenSize,
+        ) ??
+        '';
     if (shouldCopyToClipboard && markdown.isNotEmpty) {
       await Clipboard.setData(ClipboardData(text: markdown));
     }

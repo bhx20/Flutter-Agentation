@@ -195,7 +195,7 @@ class _ComponentPaletteState extends State<ComponentPalette> {
                         painter: _DashedBorderPainter(
                           color: isWireframeActive
                               ? AgentationColors.warning
-                              : (isDark ? const Color(0x33FFFFFF) : const Color(0x33000000)),
+                              : (isDark ? AgentationColors.darkBorderTranslucent : AgentationColors.shadowHeavy),
                           radius: 8.0,
                         ),
                         child: Container(

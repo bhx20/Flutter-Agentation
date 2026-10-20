@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../theme/agentation_colors.dart';
 
 /// An interactive action button within the Agentation floating toolbar.
 class ToolbarActionButton extends StatelessWidget {
@@ -8,8 +9,8 @@ class ToolbarActionButton extends StatelessWidget {
     required this.tooltip,
     required this.onPressed,
     this.isActive = false,
-    this.activeColor = const Color(0xFF6366F1), // Indigo 500
-    this.inactiveColor = const Color(0xFF94A3B8), // Slate 400
+    this.activeColor = AgentationColors.indigo, // Indigo 500
+    this.inactiveColor = AgentationColors.darkTextSecondary, // Slate 400
     this.badgeText,
   });
 
@@ -38,6 +39,7 @@ class ToolbarActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
+      triggerMode: TooltipTriggerMode.manual,
       waitDuration: const Duration(milliseconds: 400),
       child: Material(
         color: Colors.transparent,
