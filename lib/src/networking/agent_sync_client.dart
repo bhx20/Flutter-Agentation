@@ -279,10 +279,15 @@ class AgentSyncClient {
         'data': payload,
       });
 
+      final deliveryId = 'del_${DateTime.now().millisecondsSinceEpoch}_${payload.hashCode.abs()}';
       final res = await _transport(
         'POST',
         uri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Agentation-Webhook/1.0',
+          'X-Agentation-Delivery-Id': deliveryId,
+        },
         body: body,
       );
 

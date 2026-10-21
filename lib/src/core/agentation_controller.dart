@@ -24,6 +24,7 @@ import '../storage/annotation_storage.dart';
 import '../storage/memory_annotation_storage.dart';
 import '../output/clipboard_exporter.dart';
 import '../networking/agent_sync_client.dart';
+import '../networking/mcp/flutter_mcp_server.dart';
 import '../source_location/widget_source_location.dart';
 import 'agentation_logger.dart';
 import 'agentation_state.dart';
@@ -57,6 +58,9 @@ class AgentationController extends ChangeNotifier {
     _screenSize = screenSize;
     if (syncClient != null) {
       _syncClient = syncClient;
+    }
+    if (_state.settings.mcpEnabled) {
+      _mcpServer.start(port: _state.settings.mcpPort);
     }
   }
 
@@ -154,6 +158,11 @@ class AgentationController extends ChangeNotifier {
 
   /// The optional MCP synchronization client.
   AgentSyncClient? get syncClient => _syncClient;
+
+  late final FlutterMcpServer _mcpServer = FlutterMcpServer(this);
+
+  /// Embedded Model Context Protocol (MCP) server for local AI agents (Antigravity, Claude, Cursor).
+  FlutterMcpServer get mcpServer => _mcpServer;
 
   /// Sets or updates the active [AgentSyncClient].
   void setSyncClient(AgentSyncClient? client) {
@@ -338,7 +347,17 @@ class AgentationController extends ChangeNotifier {
     if (_state.settings == settings) return;
     final oldMcp = _state.settings.mcpEndpoint;
     final oldWebhook = _state.settings.webhookUrl;
+    final oldMcpEnabled = _state.settings.mcpEnabled;
+    final oldMcpPort = _state.settings.mcpPort;
     _state = _state.copyWith(settings: settings);
+
+    if (settings.mcpEnabled != oldMcpEnabled || settings.mcpPort != oldMcpPort) {
+      if (settings.mcpEnabled) {
+        _mcpServer.start(port: settings.mcpPort);
+      } else {
+        _mcpServer.stop();
+      }
+    }
 
     if (settings.mcpEndpoint != oldMcp || settings.webhookUrl != oldWebhook) {
       final endpoint = settings.mcpEndpoint?.trim();
@@ -747,7 +766,7 @@ class AgentationController extends ChangeNotifier {
     });
 
     onAnnotationAdd?.call(annotation);
-
+    _mcpServer.broadcastUpdate();
     notifyListeners();
     return annotation;
   }
@@ -964,6 +983,7 @@ class AgentationController extends ChangeNotifier {
     });
 
     onAnnotationUpdate?.call(updated);
+    _mcpServer.broadcastUpdate();
     notifyListeners();
     return updated;
   }
@@ -984,6 +1004,7 @@ class AgentationController extends ChangeNotifier {
       if (target != null) {
         onAnnotationDelete?.call(target);
       }
+      _mcpServer.broadcastUpdate();
       notifyListeners();
     }
     return success;
@@ -1138,6 +1159,7 @@ class AgentationController extends ChangeNotifier {
     if (cleared.isNotEmpty) {
       onAnnotationsClear?.call(cleared);
     }
+    _mcpServer.broadcastUpdate();
     notifyListeners();
   }
 
@@ -1353,6 +1375,7 @@ class AgentationController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _mcpServer.dispose();
     _copyTimer?.cancel();
     isCopiedNotifier.dispose();
     _pendingPlacementNotifier.dispose();

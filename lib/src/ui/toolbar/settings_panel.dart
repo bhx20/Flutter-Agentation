@@ -7,6 +7,7 @@ import '../../domain/toolbar_settings.dart';
 import '../../theme/agentation_colors.dart';
 import '../../theme/agentation_theme.dart';
 import 'agentation_icons.dart';
+import 'mcp_webhooks_panel.dart';
 
 /// Settings panel matching the official Agentation design system without MCP.
 class SettingsPanel extends StatefulWidget {
@@ -26,6 +27,7 @@ class SettingsPanel extends StatefulWidget {
 class _SettingsPanelState extends State<SettingsPanel> {
   final GlobalKey _panelKey = GlobalKey();
   AgentationController? _controller;
+  bool _showMcpWebhooks = false;
 
   AgentationController get _ctrl =>
       widget.controller ?? AgentationScope.of(context);
@@ -84,7 +86,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
             key: _panelKey,
             color: Colors.transparent,
             child: Container(
-              width: 253.0,
+              width: _showMcpWebhooks ? 280.0 : 253.0,
               decoration: BoxDecoration(
               color: theme.panelBackground,
               borderRadius: BorderRadius.circular(16.0),
@@ -95,10 +97,19 @@ class _SettingsPanelState extends State<SettingsPanel> {
               borderRadius: BorderRadius.circular(16.0),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(14.0, 12.0, 14.0, 12.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+                child: _showMcpWebhooks
+                    ? McpWebhooksPanel(
+                        controller: controller,
+                        onBack: () {
+                          setState(() {
+                            _showMcpWebhooks = false;
+                          });
+                        },
+                      )
+                    : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                     // ── Header: Agentation v0.0.1 + Moon/Sun Theme Toggle ──
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -421,6 +432,60 @@ class _SettingsPanelState extends State<SettingsPanel> {
                                 style: TextStyle(color: textColor, fontSize: 13.0),
                                 overflow: TextOverflow.ellipsis,
                               ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 10.0),
+                    Divider(height: 1.0, thickness: 1.0, color: dividerColor),
+                    const SizedBox(height: 8.0),
+
+                    // ── Nav Link: Manage MCP & Webhooks (matching official Agentation) ──
+                    InkWell(
+                      key: const ValueKey('settings_nav_mcp_webhooks'),
+                      onTap: () {
+                        setState(() {
+                          _showMcpWebhooks = true;
+                        });
+                      },
+                      borderRadius: BorderRadius.circular(6.0),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Manage MCP & Webhooks',
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 13.0,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (controller.mcpServer.isRunning)
+                                  Container(
+                                    width: 6.0,
+                                    height: 6.0,
+                                    margin: const EdgeInsets.only(right: 6.0),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.greenAccent[400],
+                                    ),
+                                  ),
+                                Icon(
+                                  Icons.chevron_right,
+                                  size: 16.0,
+                                  color: subtextColor,
+                                ),
+                              ],
                             ),
                           ],
                         ),

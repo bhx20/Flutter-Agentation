@@ -51,6 +51,9 @@ class ToolbarSettings {
     this.mcpEndpoint,
     this.sessionId,
     this.webhookUrl,
+    this.mcpEnabled = false,
+    this.mcpPort = 4747,
+    this.autoSendWebhook = false,
   });
 
   /// The active output detail level.
@@ -86,6 +89,15 @@ class ToolbarSettings {
   /// Optional webhook URL for external notification dispatching.
   final String? webhookUrl;
 
+  /// Whether the embedded Flutter MCP server is enabled.
+  final bool mcpEnabled;
+
+  /// Port on which the embedded MCP server listens (default: 4747).
+  final int mcpPort;
+
+  /// Whether annotations are automatically dispatched to the webhook URL on creation and updates.
+  final bool autoSendWebhook;
+
   ToolbarSettings copyWith({
     OutputDetailLevel? outputDetail,
     CopyFormat? copyFormat,
@@ -98,6 +110,9 @@ class ToolbarSettings {
     String? mcpEndpoint,
     String? sessionId,
     String? webhookUrl,
+    bool? mcpEnabled,
+    int? mcpPort,
+    bool? autoSendWebhook,
   }) {
     return ToolbarSettings(
       outputDetail: outputDetail ?? this.outputDetail,
@@ -112,6 +127,9 @@ class ToolbarSettings {
       mcpEndpoint: mcpEndpoint ?? this.mcpEndpoint,
       sessionId: sessionId ?? this.sessionId,
       webhookUrl: webhookUrl ?? this.webhookUrl,
+      mcpEnabled: mcpEnabled ?? this.mcpEnabled,
+      mcpPort: mcpPort ?? this.mcpPort,
+      autoSendWebhook: autoSendWebhook ?? this.autoSendWebhook,
     );
   }
 
@@ -129,7 +147,10 @@ class ToolbarSettings {
         other.hideUntilRestart == hideUntilRestart &&
         other.mcpEndpoint == mcpEndpoint &&
         other.sessionId == sessionId &&
-        other.webhookUrl == webhookUrl;
+        other.webhookUrl == webhookUrl &&
+        other.mcpEnabled == mcpEnabled &&
+        other.mcpPort == mcpPort &&
+        other.autoSendWebhook == autoSendWebhook;
   }
 
   @override
@@ -143,5 +164,8 @@ class ToolbarSettings {
         mcpEndpoint,
         sessionId,
         webhookUrl,
+        mcpEnabled,
+        mcpPort,
+        autoSendWebhook,
       );
 }
