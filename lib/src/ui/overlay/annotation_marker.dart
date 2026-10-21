@@ -290,12 +290,14 @@ class AnnotationHoverPreviewCard extends StatelessWidget {
     required this.annotation,
     required this.bounds,
     required this.onTap,
+    this.onHoverChanged,
     this.isDark = false,
   });
 
   final Annotation annotation;
   final WidgetBounds bounds;
   final VoidCallback onTap;
+  final ValueChanged<bool>? onHoverChanged;
   final bool isDark;
 
   @override
@@ -304,23 +306,27 @@ class AnnotationHoverPreviewCard extends StatelessWidget {
     const cardMaxWidth = 240.0;
     const cardMinWidth = 120.0;
 
-    // Position directly below or near the marker / element
-    final double anchorX;
-    final double anchorY;
-    if (annotation.tapPosition != null) {
-      final relX = annotation.tapPosition!.dx - annotation.bounds.x;
-      final relY = annotation.tapPosition!.dy - annotation.bounds.y;
-      anchorX = bounds.x + relX;
-      anchorY = bounds.y + relY;
-    } else {
-      anchorX = bounds.x;
-      anchorY = bounds.y;
-    }
-    final left = (anchorX - (cardMaxWidth / 2)).clamp(8.0, math.max(8.0, screenSize.width - cardMaxWidth - 8.0)).toDouble();
-    final preferredTop = anchorY + 16.0;
-    final top = (preferredTop + 70.0 < screenSize.height)
+    // Determine the element's actual bounding box on screen
+    final elementTop = bounds.y;
+    final elementBottom = bounds.y + (bounds.height > 0 ? bounds.height : 24.0);
+    final elementCenterX = (bounds.width > 0)
+        ? (bounds.x + (bounds.width / 2.0))
+        : (annotation.tapPosition?.dx ?? bounds.x);
+
+    // Approximate card height based on comment text length so it never overlaps the hovered element
+    final approxLines = (annotation.comment.length / 28.0).ceil().clamp(1, 14);
+    final estimatedCardHeight = 48.0 + (approxLines * 18.0);
+
+    // Prefer positioning cleanly below the element; if not enough room at bottom of viewport, position cleanly above
+    final preferredTop = elementBottom + 8.0;
+    final top = (preferredTop + estimatedCardHeight < screenSize.height - 8.0)
         ? preferredTop
-        : math.max(16.0, anchorY - 65.0);
+        : math.max(8.0, elementTop - estimatedCardHeight - 8.0);
+
+    // Center horizontally aligned with the element
+    final left = (elementCenterX - (cardMaxWidth / 2.0))
+        .clamp(8.0, math.max(8.0, screenSize.width - cardMaxWidth - 8.0))
+        .toDouble();
 
     final theme = AgentationThemeData.resolve(isDark: isDark);
     final cardBg = theme.cardBackground;
@@ -330,52 +336,57 @@ class AnnotationHoverPreviewCard extends StatelessWidget {
     return Positioned(
       left: left,
       top: top,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Material(
-          color: Colors.transparent,
-          elevation: 8.0,
-          borderRadius: BorderRadius.circular(12.0),
-          child: Container(
-            constraints: const BoxConstraints(
-              minWidth: cardMinWidth,
-              maxWidth: cardMaxWidth,
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
-            decoration: BoxDecoration(
-              color: cardBg,
-              borderRadius: BorderRadius.circular(12.0),
-              border: Border.all(
-                color: theme.borderTranslucentColor,
-                width: 1.0,
+      child: MouseRegion(
+        onEnter: (_) => onHoverChanged?.call(true),
+        onExit: (_) => onHoverChanged?.call(false),
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Material(
+            color: Colors.transparent,
+            elevation: 8.0,
+            borderRadius: BorderRadius.circular(12.0),
+            child: Container(
+              constraints: const BoxConstraints(
+                minWidth: cardMinWidth,
+                maxWidth: cardMaxWidth,
               ),
-              boxShadow: theme.cardShadows,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  formatWidgetLabel(annotation.targetWidget.widgetType),
-                  style: TextStyle(
-                    color: labelColor,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 12.0,
-                    fontWeight: FontWeight.normal,
-                    decoration: TextDecoration.none,
-                  ),
+              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(12.0),
+                border: Border.all(
+                  color: theme.borderTranslucentColor,
+                  width: 1.0,
                 ),
-                const SizedBox(height: 3.0),
-                Text(
-                  annotation.comment,
-                  style: TextStyle(
-                    color: commentColor,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w500,
-                    decoration: TextDecoration.none,
+                boxShadow: theme.cardShadows,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    formatWidgetLabel(annotation.targetWidget.widgetType),
+                    style: TextStyle(
+                      color: labelColor,
+                      fontStyle: FontStyle.italic,
+                      fontSize: 12.0,
+                      fontWeight: FontWeight.normal,
+                      decoration: TextDecoration.none,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 3.0),
+                  Text(
+                    annotation.comment,
+                    style: TextStyle(
+                      color: commentColor,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w500,
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

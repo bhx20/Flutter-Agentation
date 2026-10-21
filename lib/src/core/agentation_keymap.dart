@@ -86,6 +86,7 @@ class AgentationKeymap {
     ],
     this.layoutKeys = const [
       SingleActivator(LogicalKeyboardKey.keyL),
+      SingleActivator(LogicalKeyboardKey.keyL, shift: true),
     ],
     this.toggleCommentsKeys = const [
       SingleActivator(LogicalKeyboardKey.keyH),
@@ -245,8 +246,9 @@ class AgentationShortcuts extends StatefulWidget {
   static bool isEditingText() {
     final primaryFocus = FocusManager.instance.primaryFocus;
     if (primaryFocus == null) return false;
+    if (!primaryFocus.hasFocus) return false;
     final context = primaryFocus.context;
-    if (context == null) return false;
+    if (context == null || !context.mounted) return false;
     if (context.widget is EditableText) return true;
     if (context.findAncestorWidgetOfExactType<EditableText>() != null) return true;
     if (context.findAncestorWidgetOfExactType<TextField>() != null) return true;
@@ -260,6 +262,17 @@ class AgentationShortcuts extends StatefulWidget {
 
 class _AgentationShortcutsState extends State<AgentationShortcuts> {
   late final FocusNode _focusNode;
+  int _lastHandledMicroseconds = 0;
+
+  bool get _wasJustHandled {
+    final now = DateTime.now().microsecondsSinceEpoch;
+    return (now - _lastHandledMicroseconds).abs() < 100000;
+  }
+
+  bool _markHandled() {
+    _lastHandledMicroseconds = DateTime.now().microsecondsSinceEpoch;
+    return true;
+  }
 
   @override
   void initState() {
@@ -292,20 +305,23 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
 
     // ── 1. Escape: Close topmost layer matching upstream Agentation ──
     if (key == LogicalKeyboardKey.escape) {
-      return _handleClose();
+      if (_handleClose()) {
+        return _markHandled();
+      }
+      return false;
     }
 
     // ── 2. Cmd+Shift+F / Ctrl+Shift+F: Toggle feedback mode (expanded vs collapsed) ──
     if ((isCtrl || isMeta) && isShift && key == LogicalKeyboardKey.keyF) {
       ctrl.toggleToolbarMinimized();
-      return true;
+      return _markHandled();
     }
 
     // ── 3. Ctrl+Enter / Cmd+Enter: Submit active note or reply ──
     if ((isCtrl || isMeta) && key == LogicalKeyboardKey.enter) {
       if (widget.onSubmit != null) {
         widget.onSubmit!();
-        return true;
+        return _markHandled();
       }
     }
 
@@ -316,83 +332,111 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
       } else {
         ctrl.undo();
       }
-      return true;
+      return _markHandled();
     }
     if ((isCtrl || isMeta) && key == LogicalKeyboardKey.keyY) {
       ctrl.redo();
-      return true;
+      return _markHandled();
     }
 
     // ── 5. Alt+I / Alt+V (legacy shortcuts) ──
     if (isAlt && key == LogicalKeyboardKey.keyI) {
       ctrl.toggleToolbarMinimized();
-      return true;
+      return _markHandled();
     }
     if (isAlt && key == LogicalKeyboardKey.keyV) {
       ctrl.toggleCommentsVisibility();
-      return true;
+      return _markHandled();
     }
 
-    // ── 6. Single-key shortcuts belong to the expanded toolbar ──
-    // In upstream: Skip when collapsed, when typing in an input field, or when modifier keys are held.
+    // ── 6. Single-key shortcuts ──
+    // Do not trigger if typing in an input field, or modifier keys (Ctrl/Meta/Alt) are held.
     final isTyping = AgentationShortcuts.isEditingText();
-    if (ctrl.isToolbarMinimized || isTyping || isCtrl || isMeta || isAlt) {
+    if (isTyping || isCtrl || isMeta || isAlt) {
       return false;
     }
 
     if (event.synthesized) return false;
 
-    // "P" -> Toggle pause / resume animations
-    if (key == LogicalKeyboardKey.keyP) {
-      ctrl.toggleFreeze();
-      return true;
+    // "L" -> Toggle layout mode (component palette)
+    // Works whether toolbar is currently expanded or minimized.
+    final isKeyL = key == LogicalKeyboardKey.keyL ||
+        key.keyLabel.toLowerCase() == 'l' ||
+        (event.character != null && event.character!.toLowerCase() == 'l');
+
+    if (isKeyL) {
+      ctrl.toggleLayoutMode();
+      return _markHandled();
     }
 
-    // "L" -> Toggle layout mode
-    if (key == LogicalKeyboardKey.keyL) {
-      ctrl.toggleLayoutMode();
-      return true;
+    // Other single-key shortcuts belong to the expanded toolbar
+    if (ctrl.isToolbarMinimized) {
+      return false;
+    }
+
+    // "P" -> Toggle pause / resume animations
+    final isKeyP = key == LogicalKeyboardKey.keyP ||
+        key.keyLabel.toLowerCase() == 'p' ||
+        (event.character != null && event.character!.toLowerCase() == 'p');
+    if (isKeyP) {
+      ctrl.toggleFreeze();
+      return _markHandled();
     }
 
     // "H" -> Toggle markers visibility
-    if (key == LogicalKeyboardKey.keyH) {
+    final isKeyH = key == LogicalKeyboardKey.keyH ||
+        key.keyLabel.toLowerCase() == 'h' ||
+        (event.character != null && event.character!.toLowerCase() == 'h');
+    if (isKeyH) {
       if (ctrl.annotations.isNotEmpty) {
         ctrl.toggleCommentsVisibility();
-        return true;
+        return _markHandled();
       }
       return false;
     }
 
     // "C" -> Copy feedback
-    if (key == LogicalKeyboardKey.keyC) {
+    final isKeyC = key == LogicalKeyboardKey.keyC ||
+        key.keyLabel.toLowerCase() == 'c' ||
+        (event.character != null && event.character!.toLowerCase() == 'c');
+    if (isKeyC) {
       if (ctrl.annotations.isNotEmpty) {
         ctrl.copyFeedback();
-        return true;
+        return _markHandled();
       }
       return false;
     }
 
     // "X" -> Clear all annotations
-    if (key == LogicalKeyboardKey.keyX) {
+    final isKeyX = key == LogicalKeyboardKey.keyX ||
+        key.keyLabel.toLowerCase() == 'x' ||
+        (event.character != null && event.character!.toLowerCase() == 'x');
+    if (isKeyX) {
       if (ctrl.annotations.isNotEmpty) {
         ctrl.clearAnnotations();
-        return true;
+        return _markHandled();
       }
       return false;
     }
 
     // "S" -> Send annotations
-    if (key == LogicalKeyboardKey.keyS) {
+    final isKeyS = key == LogicalKeyboardKey.keyS ||
+        key.keyLabel.toLowerCase() == 's' ||
+        (event.character != null && event.character!.toLowerCase() == 's');
+    if (isKeyS) {
       if (ctrl.annotations.isNotEmpty && ctrl.canSend) {
         ctrl.submitAnnotations();
-        return true;
+        return _markHandled();
       }
       return false;
     }
 
     // Delete / Backspace -> Delete selected comment
     if (key == LogicalKeyboardKey.delete || key == LogicalKeyboardKey.backspace) {
-      return _handleDelete();
+      if (_handleDelete()) {
+        return _markHandled();
+      }
+      return false;
     }
 
     // Arrow keys nudge: ArrowUp, ArrowDown, ArrowLeft, ArrowRight
@@ -523,15 +567,20 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
         actions: {
           ToggleFeedbackModeIntent: CallbackAction<ToggleFeedbackModeIntent>(
             onInvoke: (_) {
+              if (_wasJustHandled) return null;
               _ctrl.toggleToolbarMinimized();
               return null;
             },
           ),
           CloseAnnotationIntent: CallbackAction<CloseAnnotationIntent>(
-            onInvoke: (_) => _handleClose(),
+            onInvoke: (_) {
+              if (_wasJustHandled) return null;
+              return _handleClose();
+            },
           ),
           PauseAnimationsIntent: _AgentationAction<PauseAnimationsIntent>(
             onInvoke: (_) {
+              if (_wasJustHandled) return null;
               if (_ctrl.isToolbarMinimized) return null;
               _ctrl.toggleFreeze();
               return null;
@@ -539,13 +588,14 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
           ),
           ToggleLayoutModeIntent: _AgentationAction<ToggleLayoutModeIntent>(
             onInvoke: (_) {
-              if (_ctrl.isToolbarMinimized) return null;
+              if (_wasJustHandled) return null;
               _ctrl.toggleLayoutMode();
               return null;
             },
           ),
           ToggleCommentsVisibilityIntent: _AgentationAction<ToggleCommentsVisibilityIntent>(
             onInvoke: (_) {
+              if (_wasJustHandled) return null;
               if (_ctrl.isToolbarMinimized) return null;
               if (_ctrl.annotations.isNotEmpty) {
                 _ctrl.toggleCommentsVisibility();
@@ -555,6 +605,7 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
           ),
           CopyFeedbackIntent: _AgentationAction<CopyFeedbackIntent>(
             onInvoke: (_) {
+              if (_wasJustHandled) return null;
               if (_ctrl.isToolbarMinimized) return null;
               if (_ctrl.annotations.isNotEmpty) {
                 _ctrl.copyFeedback();
@@ -564,6 +615,7 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
           ),
           ClearAllAnnotationsIntent: _AgentationAction<ClearAllAnnotationsIntent>(
             onInvoke: (_) {
+              if (_wasJustHandled) return null;
               if (_ctrl.isToolbarMinimized) return null;
               if (_ctrl.annotations.isNotEmpty) {
                 _ctrl.clearAnnotations();
@@ -573,6 +625,7 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
           ),
           SendAnnotationsIntent: _AgentationAction<SendAnnotationsIntent>(
             onInvoke: (_) {
+              if (_wasJustHandled) return null;
               if (_ctrl.isToolbarMinimized) return null;
               if (_ctrl.annotations.isNotEmpty && _ctrl.canSend) {
                 _ctrl.submitAnnotations();
@@ -581,28 +634,35 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
             },
           ),
           DeleteAnnotationIntent: _AgentationAction<DeleteAnnotationIntent>(
-            onInvoke: (_) => _handleDelete(),
+            onInvoke: (_) {
+              if (_wasJustHandled) return null;
+              return _handleDelete();
+            },
           ),
           SubmitAnnotationIntent: CallbackAction<SubmitAnnotationIntent>(
             onInvoke: (_) {
+              if (_wasJustHandled) return null;
               widget.onSubmit?.call();
               return null;
             },
           ),
           ToggleInspectIntent: CallbackAction<ToggleInspectIntent>(
             onInvoke: (_) {
+              if (_wasJustHandled) return null;
               _ctrl.toggleToolbarMinimized();
               return null;
             },
           ),
           UndoAnnotationIntent: CallbackAction<UndoAnnotationIntent>(
             onInvoke: (_) {
+              if (_wasJustHandled) return null;
               _ctrl.undo();
               return null;
             },
           ),
           RedoAnnotationIntent: CallbackAction<RedoAnnotationIntent>(
             onInvoke: (_) {
+              if (_wasJustHandled) return null;
               _ctrl.redo();
               return null;
             },
@@ -610,6 +670,7 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
         },
         child: Focus(
           focusNode: _focusNode,
+          autofocus: true,
           canRequestFocus: true,
           child: widget.child,
         ),

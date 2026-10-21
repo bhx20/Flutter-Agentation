@@ -11,6 +11,8 @@ class SpatialGuidePainter extends CustomPainter {
     this.screenSize = Size.zero,
     Color? accentColor,
     Color? guideColor,
+    this.showFill = true,
+    this.showBox = true,
   })  : targetBounds = activeBounds ?? targetBounds ?? const WidgetBounds.zero(),
         accentColor = guideColor ?? accentColor ?? AgentationColors.indigo;
 
@@ -22,6 +24,12 @@ class SpatialGuidePainter extends CustomPainter {
 
   /// Visual theme accent color.
   final Color accentColor;
+
+  /// Whether to draw solid background fill over the target bounds.
+  final bool showFill;
+
+  /// Whether to draw outer bounding stroke box.
+  final bool showBox;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -56,8 +64,12 @@ class SpatialGuidePainter extends CustomPainter {
     canvas.drawLine(Offset(0, rect.bottom), Offset(size.width, rect.bottom), guidePaint);
 
     // Draw bounding box fill and outline
-    canvas.drawRect(rect, fillPaint);
-    canvas.drawRect(rect, boxPaint);
+    if (showFill) {
+      canvas.drawRect(rect, fillPaint);
+    }
+    if (showBox) {
+      canvas.drawRect(rect, boxPaint);
+    }
 
     // Draw dimension badge: "W×H"
     final dimensionText = '${rect.width.round()}×${rect.height.round()}px';
@@ -122,7 +134,9 @@ class SpatialGuidePainter extends CustomPainter {
   bool shouldRepaint(covariant SpatialGuidePainter oldDelegate) {
     return oldDelegate.targetBounds != targetBounds ||
         oldDelegate.screenSize != screenSize ||
-        oldDelegate.accentColor != accentColor;
+        oldDelegate.accentColor != accentColor ||
+        oldDelegate.showFill != showFill ||
+        oldDelegate.showBox != showBox;
   }
 }
 

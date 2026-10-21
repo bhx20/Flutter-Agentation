@@ -6,7 +6,6 @@ import '../../core/agentation_scope.dart';
 import '../../core/agentation_state.dart';
 import '../design/component_palette.dart';
 import '../../domain/marker_color.dart';
-import '../../domain/placement_data.dart';
 import '../../theme/agentation_colors.dart';
 import '../../theme/agentation_theme.dart';
 import 'agentation_icons.dart';
@@ -410,41 +409,10 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
               onSelectTemplate: (template) {
                 final dropPos = Offset(screenSize.width / 2, screenSize.height / 2);
                 final treePlacement = controller.engine.resolveTreePlacement(dropPos);
-                final comment = controller.engine.treePlacementResolver.formatComment(
-                  action: 'Place',
-                  targetLabel: template.label,
-                  placement: treePlacement,
-                );
-                final placementData = template.toPlacementData();
-                final enrichedPlacement = PlacementData(
-                  componentType: placementData.componentType,
-                  width: placementData.width,
-                  height: placementData.height,
-                  text: placementData.text,
-                  prompt: placementData.prompt,
-                  parentWidget: treePlacement.parentWidget,
-                  relativeTarget: treePlacement.relativeTarget,
-                  direction: treePlacement.direction,
-                  treePlacement: treePlacement.description,
-                );
-
-                controller.createPlacementAnnotation(
-                  placement: enrichedPlacement,
+                controller.promptPlacement(
+                  template: template,
                   position: dropPos,
-                  comment: comment,
-                  metadata: {
-                    'path': treePlacement.parentBreadcrumb != null
-                        ? '${treePlacement.parentBreadcrumb} (${treePlacement.description})'
-                        : treePlacement.description,
-                    'parentWidget': treePlacement.parentWidget,
-                    'direction': treePlacement.direction,
-                    if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,
-                    if (treePlacement.siblingBefore != null) 'siblingBefore': treePlacement.siblingBefore,
-                    if (treePlacement.siblingAfter != null) 'siblingAfter': treePlacement.siblingAfter,
-                    if (treePlacement.childIndex != null) 'childIndex': treePlacement.childIndex,
-                    if (treePlacement.parentBreadcrumb != null) 'parentBreadcrumb': treePlacement.parentBreadcrumb,
-                    'treePlacement': treePlacement.description,
-                  },
+                  treePlacement: treePlacement,
                 );
                 controller.closeLayoutMode();
               },

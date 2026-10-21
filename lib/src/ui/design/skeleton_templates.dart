@@ -19,6 +19,7 @@ class SkeletonTemplate {
   PlacementData toPlacementData({double? width, double? height}) {
     return PlacementData(
       componentType: componentType,
+      label: label,
       prompt: defaultPrompt,
       width: width ?? defaultWidth,
       height: height ?? defaultHeight,

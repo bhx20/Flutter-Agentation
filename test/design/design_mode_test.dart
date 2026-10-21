@@ -14,6 +14,7 @@ import 'package:flutter_agentation/src/domain/rearrange_data.dart';
 import 'package:flutter_agentation/src/domain/widget_bounds.dart';
 import 'package:flutter_agentation/src/domain/widget_identity.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
+import 'package:flutter_agentation/src/core/flutter_agentation.dart';
 
 void main() {
   group('Visual Design Mode & Skeletons Palette (User Story 5)', () {
@@ -301,6 +302,67 @@ void main() {
       expect(closed, isTrue);
 
       await mouseGesture.removePointer();
+    });
+
+    testWidgets('dragging a SkeletonTemplate renders SpatialGuidePainter at the active drag position, not at (0, 0)', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: FlutterAgentation(
+            controller: controller,
+            showToolbar: true,
+            initialToolbarMinimized: false,
+            child: const Scaffold(
+              body: Center(
+                child: Text('Host Page Content'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      controller.openComponent();
+      await tester.pumpAndSettle();
+
+      final buttonFinder = find.text('Button');
+      expect(buttonFinder, findsWidgets);
+
+      final buttonCenter = tester.getCenter(buttonFinder.first);
+      final gesture = await tester.startGesture(buttonCenter);
+      await tester.pump(const Duration(milliseconds: 350));
+
+      // Move into drop target on host page
+      const dragTargetPos = Offset(300, 300);
+      await gesture.moveTo(dragTargetPos);
+      await tester.pump();
+
+      // Find CustomPaint with SpatialGuidePainter
+      final painterFinders = find.byWidgetPredicate(
+        (widget) => widget is CustomPaint && widget.painter is SpatialGuidePainter,
+      );
+      expect(painterFinders, findsWidgets);
+
+      final customPaints = tester.widgetList<CustomPaint>(painterFinders);
+      final activeGuidePainter = customPaints
+          .map((cp) => cp.painter as SpatialGuidePainter)
+          .firstWhere((p) => p.targetBounds.width > 0);
+
+      // The guide painter must NOT be at (0, 0), it should match the drag target pos
+      expect(activeGuidePainter.targetBounds.x, isNot(equals(0.0)));
+      expect(activeGuidePainter.targetBounds.y, isNot(equals(0.0)));
+
+      // Drop opens interactive counter-question configuration dialog
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Configure Button'), findsOneWidget);
+      expect(find.text('Place Component'), findsOneWidget);
+
+      // Confirm placement with ready defaults
+      await tester.tap(find.text('Place Component'));
+      await tester.pumpAndSettle();
+
+      expect(controller.annotations.length, equals(1));
+      expect(controller.annotations.first.kind, equals(AnnotationKind.placement));
     });
   });
 }

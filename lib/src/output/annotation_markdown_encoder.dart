@@ -63,9 +63,56 @@ class AnnotationMarkdownEncoder {
     buffer.writeln(annotation.comment);
     buffer.writeln();
 
+    final isPlacement = annotation.kind == AnnotationKind.placement || annotation.placement != null;
+    final placement = annotation.placement;
+
     buffer.writeln('Widget:');
-    buffer.writeln(annotation.targetWidget.widgetType);
+    buffer.writeln(isPlacement
+        ? (placement?.label ?? (annotation.metadata['label'] as String?) ?? (placement?.componentType ?? annotation.targetWidget.widgetType))
+        : annotation.targetWidget.widgetType);
     buffer.writeln();
+
+    if (isPlacement) {
+      buffer.writeln('Action:');
+      buffer.writeln('Place Component');
+      buffer.writeln();
+
+      buffer.writeln('Component Type:');
+      buffer.writeln(placement?.componentType ?? annotation.targetWidget.widgetType);
+      buffer.writeln();
+
+      if (placement?.parentWidget != null) {
+        buffer.writeln('Target Container:');
+        buffer.writeln(placement!.parentWidget);
+        buffer.writeln();
+      }
+
+      if (placement?.treePlacement != null) {
+        buffer.writeln('Placement:');
+        buffer.writeln(placement!.treePlacement);
+        buffer.writeln();
+      }
+
+      if (placement?.direction != null) {
+        buffer.writeln('Direction:');
+        buffer.writeln(placement!.direction);
+        buffer.writeln();
+      }
+
+      if (placement?.relativeTarget != null) {
+        buffer.writeln('Relative Target:');
+        buffer.writeln(placement!.relativeTarget);
+        buffer.writeln();
+      }
+
+      if (placement?.childIndex != null) {
+        buffer.writeln('Insertion Index:');
+        buffer.writeln(placement?.totalChildren != null
+            ? 'child #${placement!.childIndex} of ${placement.totalChildren}'
+            : 'child #${placement!.childIndex}');
+        buffer.writeln();
+      }
+    }
 
     if (annotation.targetWidget.id.isNotEmpty) {
       buffer.writeln('Identifier:');
@@ -73,11 +120,19 @@ class AnnotationMarkdownEncoder {
       buffer.writeln();
     }
 
-    final path = annotation.metadata['path'] as String? ??
+    final path = placement?.parentBreadcrumb ??
+        annotation.metadata['parentBreadcrumb'] as String? ??
+        annotation.metadata['path'] as String? ??
         annotation.metadata['widgetPath'] as String?;
     if (path != null && path.isNotEmpty) {
       buffer.writeln('Path:');
       buffer.writeln(path);
+      buffer.writeln();
+    }
+
+    if (annotation.sourceFile != null && annotation.sourceFile!.isNotEmpty) {
+      buffer.writeln('Source:');
+      buffer.writeln(annotation.sourceFile);
       buffer.writeln();
     }
 
@@ -223,14 +278,22 @@ class AnnotationMarkdownEncoder {
     for (int i = 0; i < annotations.length; i++) {
       final a = annotations[i];
       final num = i + 1;
-      final type = a.targetWidget.widgetType.isNotEmpty
-          ? a.targetWidget.widgetType
-          : 'Widget';
+      final isPlacement = a.kind == AnnotationKind.placement || a.placement != null;
+      final placement = a.placement;
+
+      final type = isPlacement
+          ? (placement?.label ?? (a.metadata['label'] as String?) ?? (placement?.componentType ?? a.targetWidget.widgetType))
+          : (a.targetWidget.widgetType.isNotEmpty
+              ? a.targetWidget.widgetType
+              : 'Widget');
       
       String location;
-      if (a.kind == AnnotationKind.placement || a.placement != null || a.metadata.containsKey('treePlacement')) {
-        final breadcrumb = a.metadata['parentBreadcrumb'] as String? ?? a.metadata['path'] as String?;
-        final treeDesc = a.metadata['treePlacement'] as String? ?? a.placement?.treePlacement;
+      if (isPlacement || a.metadata.containsKey('treePlacement')) {
+        final breadcrumb = placement?.parentBreadcrumb ??
+            a.metadata['parentBreadcrumb'] as String? ??
+            a.metadata['path'] as String?;
+        final treeDesc = placement?.treePlacement ??
+            a.metadata['treePlacement'] as String?;
         if (breadcrumb != null && breadcrumb.isNotEmpty) {
           if (treeDesc != null && treeDesc.isNotEmpty && !breadcrumb.contains(treeDesc)) {
             location = '$breadcrumb ($treeDesc)';
@@ -238,7 +301,7 @@ class AnnotationMarkdownEncoder {
             location = breadcrumb;
           }
         } else {
-          location = treeDesc ?? a.placement?.parentWidget ?? a.metadata['path'] as String? ?? '';
+          location = treeDesc ?? placement?.parentWidget ?? a.metadata['path'] as String? ?? '';
         }
       } else if (a.targetWidget.widgetType == 'AreaSelection') {
         final rawPath = a.metadata['path'] as String? ?? a.metadata['widgetPath'] as String?;
@@ -277,18 +340,65 @@ class AnnotationMarkdownEncoder {
           final truncated = text.length > 30 ? '${text.substring(0, 30)}...' : text;
           selected = ' (re: "$truncated")';
         }
-        buffer.writeln('$num. **$type**$src: $comment$selected');
-      } else if (detailLevel == OutputDetailLevel.forensic) {
-        buffer.writeln('### $num. $type');
-        final fullPath = a.metadata['fullPath'] as String? ??
-            a.metadata['fullDomPath'] as String? ??
-            a.metadata['fullWidgetPath'] as String? ??
-            (location.isNotEmpty ? location : null);
-        if (a.isMultiSelect && fullPath != null) {
-          buffer.writeln('*Forensic data shown for first element of selection*');
+        if (isPlacement) {
+          final targetInfo = placement?.relativeTarget != null
+              ? ' (${placement?.direction ?? "inside"} ${placement!.relativeTarget})'
+              : (placement?.parentWidget != null ? ' (in ${placement!.parentWidget})' : '');
+          buffer.writeln('$num. **Place $type**$targetInfo$src: $comment$selected');
+        } else {
+          buffer.writeln('$num. **$type**$src: $comment$selected');
         }
-        if (fullPath != null && fullPath.isNotEmpty) {
-          buffer.writeln('**Full DOM Path:** $fullPath');
+      } else if (detailLevel == OutputDetailLevel.forensic) {
+        if (isPlacement) {
+          buffer.writeln('### $num. Place $type');
+          buffer.writeln('**Action:** Place Component');
+          buffer.writeln('**Component Type:** ${placement?.componentType ?? a.targetWidget.widgetType}');
+          final source = placement?.source ?? (a.metadata['source'] as String?);
+          final variant = placement?.variant ?? (a.metadata['variant'] as String?);
+          if (source != null && source.isNotEmpty) {
+            buffer.writeln('**Source / Path:** `$source`');
+          }
+          if (variant != null && variant.isNotEmpty) {
+            buffer.writeln('**Variant / Style:** $variant');
+          }
+          buffer.writeln('**Development Instruction:** Understand the project theme, decorations, and design language in this codebase, and develop this component to match the existing project style.');
+          if (placement?.parentWidget != null) {
+            buffer.writeln('**Target Container:** ${placement!.parentWidget}');
+          }
+          if (location.isNotEmpty) {
+            buffer.writeln('**Hierarchy:** $location');
+          }
+          if (placement?.treePlacement != null) {
+            buffer.writeln('**Placement:** ${placement!.treePlacement}');
+          }
+          if (placement?.direction != null) {
+            buffer.writeln('**Direction:** ${placement!.direction}');
+          }
+          if (placement?.relativeTarget != null) {
+            buffer.writeln('**Relative Target:** ${placement!.relativeTarget}');
+          }
+          if (placement?.childIndex != null) {
+            final total = placement?.totalChildren;
+            buffer.writeln('**Insertion Index:** child #${placement!.childIndex}${total != null ? ' of $total' : ''}');
+          }
+          if (placement?.siblingBefore != null) {
+            buffer.writeln('**Sibling Before:** ${placement!.siblingBefore}');
+          }
+          if (placement?.siblingAfter != null) {
+            buffer.writeln('**Sibling After:** ${placement!.siblingAfter}');
+          }
+        } else {
+          buffer.writeln('### $num. $type');
+          final fullPath = a.metadata['fullPath'] as String? ??
+              a.metadata['fullDomPath'] as String? ??
+              a.metadata['fullWidgetPath'] as String? ??
+              (location.isNotEmpty ? location : null);
+          if (a.isMultiSelect && fullPath != null) {
+            buffer.writeln('*Forensic data shown for first element of selection*');
+          }
+          if (fullPath != null && fullPath.isNotEmpty) {
+            buffer.writeln('**Full DOM Path:** $fullPath');
+          }
         }
         final cssClasses = a.metadata['cssClasses'] as String? ??
             a.metadata['classes'] as String?;
@@ -338,10 +448,51 @@ class AnnotationMarkdownEncoder {
         buffer.writeln('**Feedback:** ${a.comment}');
         buffer.writeln();
       } else {
-        // standard and detailed
         buffer.writeln('### $num. $type');
-        if (location.isNotEmpty) {
-          buffer.writeln('**Location:** $location');
+        if (isPlacement) {
+          buffer.writeln('**Action:** Place Component');
+          buffer.writeln('**Component Type:** ${placement?.componentType ?? a.targetWidget.widgetType}');
+          final source = placement?.source ?? (a.metadata['source'] as String?);
+          final variant = placement?.variant ?? (a.metadata['variant'] as String?);
+          if (source != null && source.isNotEmpty) {
+            buffer.writeln('**Source / Path:** `$source`');
+          }
+          if (variant != null && variant.isNotEmpty) {
+            buffer.writeln('**Variant / Style:** $variant');
+          }
+          buffer.writeln('**Development Instruction:** Understand the project theme, decorations, and design language in this codebase, and develop this component to match the existing project style.');
+          if (placement?.parentWidget != null) {
+            buffer.writeln('**Target Container:** ${placement!.parentWidget}');
+          }
+          if (location.isNotEmpty) {
+            buffer.writeln('**Location:** $location');
+            buffer.writeln('**Hierarchy:** $location');
+          }
+          if (placement?.treePlacement != null) {
+            buffer.writeln('**Placement:** ${placement!.treePlacement}');
+          }
+          if (detailLevel == OutputDetailLevel.detailed) {
+            if (placement?.direction != null) {
+              buffer.writeln('**Direction:** ${placement!.direction}');
+            }
+            if (placement?.relativeTarget != null) {
+              buffer.writeln('**Relative Target:** ${placement!.relativeTarget}');
+            }
+            if (placement?.childIndex != null) {
+              final total = placement?.totalChildren;
+              buffer.writeln('**Insertion Index:** child #${placement!.childIndex}${total != null ? ' of $total' : ''}');
+            }
+            if (placement?.siblingBefore != null) {
+              buffer.writeln('**Sibling Before:** ${placement!.siblingBefore}');
+            }
+            if (placement?.siblingAfter != null) {
+              buffer.writeln('**Sibling After:** ${placement!.siblingAfter}');
+            }
+          }
+        } else {
+          if (location.isNotEmpty) {
+            buffer.writeln('**Location:** $location');
+          }
         }
         if (a.sourceFile != null && a.sourceFile!.isNotEmpty) {
           buffer.writeln('**Source:** ${a.sourceFile}');

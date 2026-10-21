@@ -21,6 +21,7 @@ class AgentationFormatAdapter {
     return {
       'id': annotation.id,
       'type': 'annotation',
+      'kind': annotation.kind.name,
       'platform': 'flutter',
       'comment': annotation.comment,
       'timestamp': annotation.timestamp.toIso8601String(),
@@ -42,6 +43,10 @@ class AgentationFormatAdapter {
         'width': annotation.bounds.width,
         'height': annotation.bounds.height,
       },
+      if (annotation.placement != null) 'placement': annotation.placement!.toJson(),
+      if (annotation.sourceFile != null) 'sourceFile': annotation.sourceFile,
+      if (annotation.sourceLocation != null)
+        'sourceLocation': annotation.sourceLocation!.toJson(),
       if (annotation.selectedText != null)
         'selectedText': annotation.selectedText,
       if (annotation.metadata.isNotEmpty) 'metadata': annotation.metadata,

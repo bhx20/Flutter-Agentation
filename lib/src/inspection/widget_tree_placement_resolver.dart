@@ -1,6 +1,8 @@
 import 'package:flutter/widgets.dart';
 
 import '../domain/widget_identity.dart';
+import '../source_location/source_location_resolver.dart';
+import '../source_location/widget_source_location.dart';
 import 'element_inspector.dart';
 import 'hit_test_engine.dart';
 import 'text_resolver.dart';
@@ -18,6 +20,7 @@ class WidgetTreePlacement {
     this.childIndex,
     this.totalChildren,
     required this.description,
+    this.sourceLocation,
   });
 
   /// The parent container in the widget tree (e.g. 'Column', 'Row', 'ListView', 'Card', 'Stack').
@@ -46,6 +49,9 @@ class WidgetTreePlacement {
 
   /// Concise natural placement description (e.g. "after Text ('Basic & Boxes') in Column").
   final String description;
+
+  /// Exact source code location of the resolved target element or parent container, if available.
+  final WidgetSourceLocation? sourceLocation;
 
   /// Fallback empty placement when no container or target could be resolved.
   static const fallback = WidgetTreePlacement(
@@ -76,15 +82,18 @@ class WidgetTreePlacementResolver {
     ElementInspector? elementInspector,
     TextResolver? textResolver,
     WidgetPathResolver? pathResolver,
+    SourceLocationResolver? sourceLocationResolver,
   })  : hitTestEngine = hitTestEngine ?? HitTestEngine(),
         elementInspector = elementInspector ?? ElementInspector(),
         textResolver = textResolver ?? TextResolver(),
-        pathResolver = pathResolver ?? WidgetPathResolver();
+        pathResolver = pathResolver ?? WidgetPathResolver(),
+        sourceLocationResolver = sourceLocationResolver ?? FlutterSourceLocationResolver();
 
   final HitTestEngine hitTestEngine;
   final ElementInspector elementInspector;
   final TextResolver textResolver;
   final WidgetPathResolver pathResolver;
+  final SourceLocationResolver sourceLocationResolver;
 
   /// Resolves the widget tree placement at [dropPosition].
   WidgetTreePlacement resolvePlacement({
@@ -131,6 +140,12 @@ class WidgetTreePlacementResolver {
       final containerName = containerElement.widget.runtimeType.toString();
       final breadcrumb = pathResolver.resolvePathString(containerElement);
 
+      WidgetSourceLocation? sourceLoc;
+      try {
+        sourceLoc = sourceLocationResolver.resolve(targetElement) ??
+            sourceLocationResolver.resolve(containerElement);
+      } catch (_) {}
+
       // 2. Inspect container's meaningful children
       final siblings = _resolveContainerSiblings(
         containerElement,
@@ -146,6 +161,7 @@ class WidgetTreePlacementResolver {
           breadcrumb: breadcrumb,
           siblings: siblings,
           dropPosition: dropPosition,
+          sourceLocation: sourceLoc,
         );
       }
 
@@ -161,6 +177,7 @@ class WidgetTreePlacementResolver {
           direction: dir,
           relativeTarget: targetLabel,
           description: '$dir $targetLabel in $containerName',
+          sourceLocation: sourceLoc,
         );
       }
 
@@ -171,6 +188,7 @@ class WidgetTreePlacementResolver {
         direction: 'inside',
         relativeTarget: targetLabel,
         description: 'inside $targetLabel',
+        sourceLocation: sourceLoc,
       );
     } catch (_) {
       return WidgetTreePlacement.fallback;
@@ -340,6 +358,7 @@ class WidgetTreePlacementResolver {
     required String? breadcrumb,
     required List<_SiblingInfo> siblings,
     required Offset dropPosition,
+    WidgetSourceLocation? sourceLocation,
   }) {
     final isVertical = containerName != 'Row';
 
@@ -357,6 +376,7 @@ class WidgetTreePlacementResolver {
           childIndex: 0,
           totalChildren: siblings.length,
           description: 'as first child of $containerName',
+          sourceLocation: sourceLocation,
         );
       }
 
@@ -371,6 +391,7 @@ class WidgetTreePlacementResolver {
           childIndex: siblings.length,
           totalChildren: siblings.length,
           description: 'as last child of $containerName',
+          sourceLocation: sourceLocation,
         );
       }
 
@@ -391,6 +412,7 @@ class WidgetTreePlacementResolver {
               childIndex: i + 1,
               totalChildren: siblings.length,
               description: 'after ${current.label} in $containerName',
+              sourceLocation: sourceLocation,
             );
           } else {
             return WidgetTreePlacement(
@@ -403,6 +425,7 @@ class WidgetTreePlacementResolver {
               childIndex: i + 1,
               totalChildren: siblings.length,
               description: 'before ${next.label} in $containerName',
+              sourceLocation: sourceLocation,
             );
           }
         }
@@ -425,6 +448,7 @@ class WidgetTreePlacementResolver {
         direction: dir,
         relativeTarget: closest.label,
         description: '$dir ${closest.label} in $containerName',
+        sourceLocation: sourceLocation,
       );
     } else {
       // Horizontal (Row)
@@ -440,6 +464,7 @@ class WidgetTreePlacementResolver {
           childIndex: 0,
           totalChildren: siblings.length,
           description: 'as first child of $containerName',
+          sourceLocation: sourceLocation,
         );
       }
 
@@ -453,6 +478,7 @@ class WidgetTreePlacementResolver {
           childIndex: siblings.length,
           totalChildren: siblings.length,
           description: 'as last child of $containerName',
+          sourceLocation: sourceLocation,
         );
       }
 
@@ -472,6 +498,7 @@ class WidgetTreePlacementResolver {
               childIndex: i + 1,
               totalChildren: siblings.length,
               description: 'after ${current.label} in $containerName',
+              sourceLocation: sourceLocation,
             );
           } else {
             return WidgetTreePlacement(
@@ -484,6 +511,7 @@ class WidgetTreePlacementResolver {
               childIndex: i + 1,
               totalChildren: siblings.length,
               description: 'before ${next.label} in $containerName',
+              sourceLocation: sourceLocation,
             );
           }
         }
@@ -505,6 +533,7 @@ class WidgetTreePlacementResolver {
         direction: dir,
         relativeTarget: closest.label,
         description: '$dir ${closest.label} in $containerName',
+        sourceLocation: sourceLocation,
       );
     }
   }

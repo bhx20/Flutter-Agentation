@@ -65,6 +65,7 @@ class FlutterInspectionEngine {
               elementInspector: elementInspector,
               textResolver: textResolver,
               pathResolver: pathResolver,
+              sourceLocationResolver: sourceLocationResolver,
             );
 
   /// Registry caching weak references to live RenderBoxes for inspected widgets.

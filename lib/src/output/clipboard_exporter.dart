@@ -58,21 +58,9 @@ class ClipboardExporter {
   }) {
     switch (format) {
       case ExportFormat.feedback:
-        if (annotations.isEmpty) return '';
-        if (annotations.length == 1) {
-          final ann = annotations.first;
-          return feedbackBuilder.build(
-            ann.toFeedbackTarget(),
-            ann.comment,
-            platform: platform,
-            screenSize: viewport,
-          );
-        }
-        final items = annotations
-            .map((a) => (target: a.toFeedbackTarget(), comment: a.comment))
-            .toList();
-        return feedbackBuilder.buildMultiple(
-          items,
+        return feedbackBuilder.buildMultipleAnnotations(
+          annotations,
+          detailLevel: detailLevel,
           platform: platform,
           screenSize: viewport,
         );

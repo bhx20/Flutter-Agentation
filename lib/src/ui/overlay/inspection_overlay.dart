@@ -10,7 +10,7 @@ import '../../core/agentation_state.dart';
 import '../../domain/annotation.dart';
 import '../../domain/drawing_stroke.dart';
 import '../../domain/marker_color.dart';
-import '../../domain/placement_data.dart';
+import '../../domain/pending_placement.dart';
 import '../../domain/widget_bounds.dart';
 import '../../domain/widget_context.dart';
 import '../../domain/widget_identity.dart';
@@ -19,12 +19,15 @@ import '../modes/area_selection_handler.dart';
 import '../modes/draw_canvas_painter.dart';
 import '../design/component_palette.dart';
 import '../design/rearrange_controller.dart';
+import '../design/realistic_skeleton_preview.dart';
 import '../design/skeleton_templates.dart';
 import '../design/spatial_guide_painter.dart';
 import 'annotation_marker.dart';
 import 'annotation_popup.dart';
+import 'component_placement_dialog.dart';
 import 'freeze_overlay.dart';
 import 'highlight_style.dart';
+import 'placed_component_preview.dart';
 import '../../theme/agentation_colors.dart';
 import 'widget_highlight.dart';
 
@@ -88,11 +91,30 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       ValueNotifier<WidgetInspectionResult?>(null);
   final ValueNotifier<WidgetBounds?> _activeRearrangeBoundsNotifier =
       ValueNotifier<WidgetBounds?>(null);
+  final ValueNotifier<Offset?> _draggedTemplateOffsetNotifier =
+      ValueNotifier<Offset?>(null);
   Offset? _lastHoverPosition;
   DateTime? _lastHoverTime;
   Timer? _hoverThrottleTimer;
   final ValueNotifier<Offset?> _hoverPositionNotifier = ValueNotifier<Offset?>(null);
   final ValueNotifier<String?> _hoveredAnnotationIdNotifier = ValueNotifier<String?>(null);
+  Timer? _hoverClearTimer;
+
+  void _setHoveredAnnotation(String? id, {bool delayClear = false}) {
+    _hoverClearTimer?.cancel();
+    if (id != null) {
+      _hoveredAnnotationIdNotifier.value = id;
+    } else if (delayClear) {
+      _hoverClearTimer = Timer(const Duration(milliseconds: 150), () {
+        if (mounted) {
+          _hoveredAnnotationIdNotifier.value = null;
+        }
+      });
+    } else {
+      _hoveredAnnotationIdNotifier.value = null;
+    }
+  }
+
   Offset? _pointerDownPosition;
   Offset? _lastDragPosition;
   bool _isDraggingToScroll = false;
@@ -556,6 +578,8 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   }
 
   void _handleMarkersVisibilityChange() {
+    _showComponentPaletteNotifier.value = widget.controller.isLayoutModeOpen ||
+        widget.controller.toolMode == AnnotationToolMode.design;
     final shouldShow = widget.controller.shouldShowMarkers;
     if (shouldShow == _lastShouldShowMarkers) return;
     _lastShouldShowMarkers = shouldShow;
@@ -609,6 +633,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     widget.controller.removeListener(_handleMarkersVisibilityChange);
     _markersExitTimer?.cancel();
     _hoverThrottleTimer?.cancel();
+    _hoverClearTimer?.cancel();
     _hoverPositionNotifier.dispose();
     _drawingNotifier.dispose();
     _activeMarqueeBoundsNotifier.dispose();
@@ -616,6 +641,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     _selectedTemplateNotifier.dispose();
     _activeRearrangeTargetNotifier.dispose();
     _activeRearrangeBoundsNotifier.dispose();
+    _draggedTemplateOffsetNotifier.dispose();
     _hoveredAnnotationIdNotifier.dispose();
     _scrollVersion.dispose();
     super.dispose();
@@ -640,6 +666,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     _isDraggingToScroll = false;
     _isMarqueeDragging = false;
     _activeMarqueeBoundsNotifier.value = null;
+    _draggedTemplateOffsetNotifier.value = null;
     widget.controller.clearCaches();
     if (widget.controller.hoveredResult != null) {
       widget.controller.setHoveredResult(null);
@@ -654,9 +681,16 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
       widget.controller.addListener(_handleMarkersVisibilityChange);
       _handleMarkersVisibilityChange();
     }
-    if (widget.controller.toolMode == AnnotationToolMode.design &&
-        oldWidget.controller.toolMode != AnnotationToolMode.design) {
+    if ((widget.controller.isLayoutModeOpen ||
+            widget.controller.toolMode == AnnotationToolMode.design) &&
+        (!oldWidget.controller.isLayoutModeOpen &&
+            oldWidget.controller.toolMode != AnnotationToolMode.design)) {
       _showComponentPaletteNotifier.value = true;
+    } else if (!widget.controller.isLayoutModeOpen &&
+        widget.controller.toolMode != AnnotationToolMode.design &&
+        (oldWidget.controller.isLayoutModeOpen ||
+            oldWidget.controller.toolMode == AnnotationToolMode.design)) {
+      _showComponentPaletteNotifier.value = false;
     }
   }
 
@@ -671,6 +705,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
   bool _isEventOnInteractiveOverlay(Offset position) {
     if (_isEventOnToolbar(position)) return true;
+    if (widget.controller.pendingPlacement != null) return true;
     final pBounds = widget.controller.popupBounds;
     if (pBounds != null && pBounds.inflate(8.0).contains(position)) return true;
     final fBounds = widget.controller.flyoutBounds;
@@ -682,61 +717,28 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     if (!widget.controller.isInspecting || widget.controller.isToolbarMinimized) return;
     if (_isEventOnInteractiveOverlay(event.position)) return;
 
+    final selectedTemplate = _selectedTemplateNotifier.value;
+    if (selectedTemplate != null) {
+      final scrollPos = _findScrollPositionAt(event.position) ?? _findAnyScrollPosition();
+      final treePlacement = widget.controller.engine.resolveTreePlacement(
+        event.position,
+        rootRenderObject: _hostRenderObject,
+        rootElement: _hostAppKey.currentContext as Element?,
+      );
+
+      _selectedTemplateNotifier.value = null;
+      widget.controller.promptPlacement(
+        template: selectedTemplate,
+        position: event.position,
+        treePlacement: treePlacement,
+        scrollPos: scrollPos,
+      );
+      return;
+    }
+
     final toolMode = widget.controller.toolMode;
 
     if (toolMode == AnnotationToolMode.design) {
-      final selectedTemplate = _selectedTemplateNotifier.value;
-      if (selectedTemplate != null) {
-        final scrollPos = _findScrollPositionAt(event.position) ?? _findAnyScrollPosition();
-        final treePlacement = widget.controller.engine.resolveTreePlacement(
-          event.position,
-          rootRenderObject: _hostRenderObject,
-          rootElement: _hostAppKey.currentContext as Element?,
-        );
-
-        final comment = widget.controller.engine.treePlacementResolver.formatComment(
-          action: 'Place',
-          targetLabel: selectedTemplate.label,
-          placement: treePlacement,
-        );
-
-        final placementData = selectedTemplate.toPlacementData();
-        final enrichedPlacement = PlacementData(
-          componentType: placementData.componentType,
-          width: placementData.width,
-          height: placementData.height,
-          text: placementData.text,
-          prompt: placementData.prompt,
-          parentWidget: treePlacement.parentWidget,
-          relativeTarget: treePlacement.relativeTarget,
-          direction: treePlacement.direction,
-          treePlacement: treePlacement.description,
-        );
-
-        widget.controller.createPlacementAnnotation(
-          placement: enrichedPlacement,
-          position: event.position,
-          comment: comment,
-          isFixed: scrollPos == null,
-          scrollY: scrollPos?.pixels,
-          metadata: {
-            'path': treePlacement.parentBreadcrumb != null
-                ? '${treePlacement.parentBreadcrumb} (${treePlacement.description})'
-                : treePlacement.description,
-            'parentWidget': treePlacement.parentWidget,
-            'direction': treePlacement.direction,
-            if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,
-            if (treePlacement.siblingBefore != null) 'siblingBefore': treePlacement.siblingBefore,
-            if (treePlacement.siblingAfter != null) 'siblingAfter': treePlacement.siblingAfter,
-            if (treePlacement.childIndex != null) 'childIndex': treePlacement.childIndex,
-            if (treePlacement.parentBreadcrumb != null) 'parentBreadcrumb': treePlacement.parentBreadcrumb,
-            'treePlacement': treePlacement.description,
-          },
-        );
-        _selectedTemplateNotifier.value = null;
-        return;
-      }
-
       try {
         final result = widget.controller.engine.inspectAt(
           event.position,
@@ -1440,6 +1442,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                         ),
                       ),
 
+
                     // Numbered spatial annotation markers, hover preview tooltip, and edit dialog
                     if (_markersVisible && !settings.hideUntilRestart)
                       ValueListenableBuilder<String?>(
@@ -1486,6 +1489,50 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                   ];
                                 })(),
 
+                              // 1b. Placed Component Live Visual Previews (Design Mode Skeletons)
+                              for (int i = 0; i < totalCount; i++) ...[
+                                () {
+                                  final ann = annotationsToRender[i];
+                                  if (ann.placement == null && ann.kind != AnnotationKind.placement) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final currentBounds = _resolveCurrentBounds(ann);
+                                  if (currentBounds == null) return const SizedBox.shrink();
+                                  final isHovered = !_isMarkersExiting && hoveredId == ann.id;
+                                  final isSelected = !_isMarkersExiting &&
+                                      widget.controller.activeAnnotation?.id == ann.id;
+
+                                  return Positioned(
+                                    key: ValueKey('agentation_placement_preview_${ann.id}'),
+                                    left: currentBounds.x,
+                                    top: currentBounds.y,
+                                    width: currentBounds.width,
+                                    height: currentBounds.height,
+                                    child: PlacedComponentPreview(
+                                      annotation: ann,
+                                      index: i + 1,
+                                      isDark: settings.isDarkMode,
+                                      accentColor: markerColor,
+                                      isHovered: isHovered,
+                                      isSelected: isSelected,
+                                      onTap: () {
+                                        if (_isMarkersExiting) return;
+                                        _hoveredAnnotationIdNotifier.value = null;
+                                        widget.controller.viewAnnotation(ann);
+                                      },
+                                      onHoverChanged: (hovering) {
+                                        if (_isMarkersExiting) return;
+                                        if (hovering) {
+                                          _hoveredAnnotationIdNotifier.value = ann.id;
+                                        } else if (_hoveredAnnotationIdNotifier.value == ann.id) {
+                                          _hoveredAnnotationIdNotifier.value = null;
+                                        }
+                                      },
+                                    ),
+                                  );
+                                }(),
+                              ],
+
                               // 2. The markers
                               for (int i = 0; i < totalCount; i++) ...[
                                 () {
@@ -1513,15 +1560,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                     isHovered: isHovered,
                                     onHoverChanged: (hovering) {
                                       if (_isMarkersExiting) return;
-                                      if (hovering) {
-                                        _hoveredAnnotationIdNotifier.value = ann.id;
-                                      } else if (_hoveredAnnotationIdNotifier.value == ann.id) {
-                                        _hoveredAnnotationIdNotifier.value = null;
-                                      }
+                                      _setHoveredAnnotation(hovering ? ann.id : null, delayClear: !hovering);
                                     },
                                     onTap: () {
                                       if (_isMarkersExiting) return;
-                                      _hoveredAnnotationIdNotifier.value = null;
+                                      _setHoveredAnnotation(null);
                                       widget.controller.viewAnnotation(ann);
                                     },
                                   );
@@ -1544,8 +1587,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                       annotation: hoveredAnn,
                                       bounds: hoveredBounds,
                                       isDark: settings.isDarkMode,
+                                      onHoverChanged: (hovering) {
+                                        if (_isMarkersExiting) return;
+                                        _setHoveredAnnotation(hovering ? hoveredAnn.id : null, delayClear: !hovering);
+                                      },
                                       onTap: () {
-                                        _hoveredAnnotationIdNotifier.value = null;
+                                        _setHoveredAnnotation(null);
                                         widget.controller.viewAnnotation(hoveredAnn);
                                       },
                                     ),
@@ -1607,11 +1654,24 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
               ),
 
             // Drop target for dragging wireframe skeletons from the palette
-            if (isInspecting && toolMode == AnnotationToolMode.design)
+            if (isInspecting && (widget.controller.isLayoutModeOpen || toolMode == AnnotationToolMode.design))
               Positioned.fill(
                 key: const ValueKey('agentation_skeleton_drop_target'),
                 child: DragTarget<SkeletonTemplate>(
+                  onWillAcceptWithDetails: (details) {
+                    _draggedTemplateOffsetNotifier.value = details.offset;
+                    return true;
+                  },
+                  onMove: (details) {
+                    if (_draggedTemplateOffsetNotifier.value != details.offset) {
+                      _draggedTemplateOffsetNotifier.value = details.offset;
+                    }
+                  },
+                  onLeave: (data) {
+                    _draggedTemplateOffsetNotifier.value = null;
+                  },
                   onAcceptWithDetails: (details) {
+                    _draggedTemplateOffsetNotifier.value = null;
                     final scrollPos = _findScrollPositionAt(details.offset) ?? _findAnyScrollPosition();
                     final treePlacement = widget.controller.engine.resolveTreePlacement(
                       details.offset,
@@ -1619,59 +1679,57 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                       rootElement: _hostAppKey.currentContext as Element?,
                     );
 
-                    final comment = widget.controller.engine.treePlacementResolver.formatComment(
-                      action: 'Place',
-                      targetLabel: details.data.label,
-                      placement: treePlacement,
-                    );
-
-                    final placementData = details.data.toPlacementData();
-                    final enrichedPlacement = PlacementData(
-                      componentType: placementData.componentType,
-                      width: placementData.width,
-                      height: placementData.height,
-                      text: placementData.text,
-                      prompt: placementData.prompt,
-                      parentWidget: treePlacement.parentWidget,
-                      relativeTarget: treePlacement.relativeTarget,
-                      direction: treePlacement.direction,
-                      treePlacement: treePlacement.description,
-                    );
-
-                    widget.controller.createPlacementAnnotation(
-                      placement: enrichedPlacement,
+                    widget.controller.promptPlacement(
+                      template: details.data,
                       position: details.offset,
-                      comment: comment,
-                      isFixed: scrollPos == null,
-                      scrollY: scrollPos?.pixels,
-                      metadata: {
-                        'path': treePlacement.parentBreadcrumb != null
-                            ? '${treePlacement.parentBreadcrumb} (${treePlacement.description})'
-                            : treePlacement.description,
-                        'parentWidget': treePlacement.parentWidget,
-                        'direction': treePlacement.direction,
-                        if (treePlacement.relativeTarget != null) 'relativeTarget': treePlacement.relativeTarget,
-                        if (treePlacement.siblingBefore != null) 'siblingBefore': treePlacement.siblingBefore,
-                        if (treePlacement.siblingAfter != null) 'siblingAfter': treePlacement.siblingAfter,
-                        if (treePlacement.childIndex != null) 'childIndex': treePlacement.childIndex,
-                        if (treePlacement.parentBreadcrumb != null) 'parentBreadcrumb': treePlacement.parentBreadcrumb,
-                        'treePlacement': treePlacement.description,
-                      },
+                      treePlacement: treePlacement,
+                      scrollPos: scrollPos,
                     );
                   },
                   builder: (context, candidateData, rejectedData) {
                     if (candidateData.isNotEmpty && candidateData.first != null) {
                       final template = candidateData.first!;
-                      return CustomPaint(
-                        painter: SpatialGuidePainter(
-                          activeBounds: WidgetBounds(
-                            x: 0,
-                            y: 0,
-                            width: template.defaultWidth,
-                            height: template.defaultHeight,
-                          ),
-                          guideColor: markerColor,
-                        ),
+                      return ValueListenableBuilder<Offset?>(
+                        valueListenable: _draggedTemplateOffsetNotifier,
+                        builder: (context, dragOffset, _) {
+                          if (dragOffset == null) return const SizedBox.shrink();
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              // Realistic component preview at the canvas drop coordinates
+                              Positioned(
+                                left: dragOffset.dx,
+                                top: dragOffset.dy,
+                                width: template.defaultWidth,
+                                height: template.defaultHeight,
+                                child: IgnorePointer(
+                                  child: Opacity(
+                                    opacity: 0.85,
+                                    child: RealisticSkeletonPreview(
+                                      template: template,
+                                      accentColor: markerColor,
+                                      isDark: settings.isDarkMode,
+                                    ),
+                                  ),
+                                ),
+                              ),
+
+                              // Alignment crosshairs and dimension badges
+                              CustomPaint(
+                                painter: SpatialGuidePainter(
+                                  activeBounds: WidgetBounds(
+                                    x: dragOffset.dx,
+                                    y: dragOffset.dy,
+                                    width: template.defaultWidth,
+                                    height: template.defaultHeight,
+                                  ),
+                                  guideColor: markerColor,
+                                  showFill: false,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       );
                     }
                     return const SizedBox.shrink();
@@ -1682,7 +1740,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
             // Wireframe skeleton palette panel (only shown if no toolbar overlay child manages it)
             if (widget.overlayChild == null &&
                 isInspecting &&
-                toolMode == AnnotationToolMode.design)
+                (widget.controller.isLayoutModeOpen || toolMode == AnnotationToolMode.design))
               ValueListenableBuilder<bool>(
                 key: const ValueKey('agentation_wireframe_palette'),
                 valueListenable: _showComponentPaletteNotifier,
@@ -1707,6 +1765,39 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
             // Additional overlay elements (e.g. toolbar)
             if (widget.overlayChild != null && !settings.hideUntilRestart)
               widget.overlayChild!,
+
+            // Interactive component placement configuration dialog (modal counter questions on top of everything)
+            ValueListenableBuilder<PendingPlacement?>(
+              valueListenable: widget.controller.pendingPlacementListenable,
+              builder: (context, pending, _) {
+                if (pending == null) return const SizedBox.shrink();
+                return Positioned.fill(
+                  key: const ValueKey('agentation_placement_dialog_layer'),
+                  child: RepaintBoundary(
+                    child: ComponentPlacementDialog(
+                      pendingPlacement: pending,
+                      isDark: settings.isDarkMode,
+                      accentColor: markerColor,
+                      onConfirm: (placement, comment, metadata) {
+                        final scrollPos = pending.scrollPos;
+                        widget.controller.createPlacementAnnotation(
+                          placement: placement,
+                          position: pending.position,
+                          comment: comment,
+                          isFixed: scrollPos == null,
+                          scrollY: scrollPos?.pixels,
+                          sourceLocation: pending.treePlacement.sourceLocation,
+                          sourceFile: pending.treePlacement.sourceLocation?.fileString,
+                          metadata: metadata,
+                        );
+                        widget.controller.cancelPlacement();
+                      },
+                      onCancel: widget.controller.cancelPlacement,
+                    ),
+                  ),
+                );
+              },
+            ),
           ],
         );
 

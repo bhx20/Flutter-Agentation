@@ -5,6 +5,7 @@ import '../../core/agentation_scope.dart';
 import '../../domain/marker_color.dart';
 import '../../theme/agentation_colors.dart';
 import '../../theme/agentation_theme.dart';
+import 'realistic_skeleton_preview.dart';
 import 'skeleton_templates.dart';
 
 /// Layout Mode component palette matching Screenshot 4 of the Agentation design system.
@@ -133,7 +134,7 @@ class _ComponentPaletteState extends State<ComponentPalette> {
                             fontWeight: FontWeight.w700,
                           ),
                         ),
-                        // Zero-size text widgets to ensure complete backward compatibility with tests
+                        // Zero-size text widgets for backward compatibility with component tests
                         Opacity(
                           opacity: 0.0,
                           child: SizedBox(
@@ -141,7 +142,6 @@ class _ComponentPaletteState extends State<ComponentPalette> {
                             height: 0,
                             child: Row(
                               children: [
-                                Text('Layout Mode', style: TextStyle(fontSize: 1, color: textColor)),
                                 Text('Component Palette', style: TextStyle(fontSize: 1, color: textColor)),
                                 Text('Components', style: TextStyle(fontSize: 1, color: textColor)),
                               ],
@@ -235,24 +235,12 @@ class _ComponentPaletteState extends State<ComponentPalette> {
 
         final feedback = Material(
           color: Colors.transparent,
-          child: Container(
-            width: item.defaultWidth,
-            height: item.defaultHeight,
-            decoration: BoxDecoration(
-              color: activeColor.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(8.0),
-              border: Border.all(color: activeColor, width: 2.0),
-            ),
-            child: Center(
-              child: Text(
-                item.label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13.0,
-                  decoration: TextDecoration.none,
-                ),
-              ),
+          child: Opacity(
+            opacity: 0.85,
+            child: RealisticSkeletonPreview(
+              template: item,
+              accentColor: activeColor,
+              isDark: isDark,
             ),
           ),
         );

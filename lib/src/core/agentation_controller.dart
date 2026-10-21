@@ -17,6 +17,9 @@ import '../domain/widget_bounds.dart';
 import '../domain/widget_context.dart';
 import '../domain/widget_identity.dart';
 import '../domain/widget_inspection_result.dart';
+import '../domain/pending_placement.dart';
+import '../inspection/widget_tree_placement_resolver.dart';
+import '../ui/design/skeleton_templates.dart';
 import '../storage/annotation_storage.dart';
 import '../storage/memory_annotation_storage.dart';
 import '../output/clipboard_exporter.dart';
@@ -100,6 +103,36 @@ class AgentationController extends ChangeNotifier {
 
   /// ValueNotifier indicating whether a copy feedback action was recently completed.
   final ValueNotifier<bool> isCopiedNotifier = ValueNotifier<bool>(false);
+
+  final ValueNotifier<PendingPlacement?> _pendingPlacementNotifier = ValueNotifier<PendingPlacement?>(null);
+
+  /// ValueListenable indicating an active pending component placement awaiting user configuration.
+  ValueListenable<PendingPlacement?> get pendingPlacementListenable => _pendingPlacementNotifier;
+
+  /// Active pending component placement awaiting user answers, or null if none.
+  PendingPlacement? get pendingPlacement => _pendingPlacementNotifier.value;
+
+  /// Prompts the user with a counter-question dialog for placing a wireframe component.
+  void promptPlacement({
+    required SkeletonTemplate template,
+    required Offset position,
+    required WidgetTreePlacement treePlacement,
+    ScrollPosition? scrollPos,
+  }) {
+    _pendingPlacementNotifier.value = PendingPlacement(
+      template: template,
+      position: position,
+      treePlacement: treePlacement,
+      scrollPos: scrollPos,
+    );
+    notifyListeners();
+  }
+
+  /// Cancels any active component placement prompt.
+  void cancelPlacement() {
+    _pendingPlacementNotifier.value = null;
+    notifyListeners();
+  }
 
   /// The underlying inspection engine.
   FlutterInspectionEngine get engine => _engine;
@@ -728,6 +761,8 @@ class AgentationController extends ChangeNotifier {
     bool? isFixed,
     double? scrollY,
     double? scrollX,
+    WidgetSourceLocation? sourceLocation,
+    String? sourceFile,
     Map<String, dynamic> metadata = const {},
   }) async {
     final bounds = WidgetBounds(
@@ -755,6 +790,8 @@ class AgentationController extends ChangeNotifier {
       isFixed: isFixed,
       scrollY: scrollY,
       scrollX: scrollX,
+      sourceLocation: sourceLocation,
+      sourceFile: sourceFile ?? sourceLocation?.fileString,
       targetResult: WidgetInspectionResult(
         identity: WidgetIdentity(
           id: 'placement_${DateTime.now().millisecondsSinceEpoch}',
@@ -1231,31 +1268,49 @@ class AgentationController extends ChangeNotifier {
   /// Toggles settings panel open state.
   void toggleSettings() => setSettingsOpen(!_state.isSettingsOpen);
 
-  /// Sets layout mode / component palette open state.
+  /// Sets component palette open state.
   void setLayoutModeOpen(bool open) {
     if (_state.isLayoutModeOpen == open) return;
-    _state = _state.copyWith(
-      isLayoutModeOpen: open,
-      isSettingsOpen: open ? false : _state.isSettingsOpen,
-      toolMode: open ? AnnotationToolMode.design : AnnotationToolMode.pointer,
-      flyoutBounds: open ? null : () => null,
-    );
     if (open) {
+      _state = _state.copyWith(
+        isLayoutModeOpen: true,
+        isSettingsOpen: false,
+        flyoutBounds: () => null,
+        isToolbarMinimized: false,
+        mode: InspectionMode.inspecting,
+      );
       clearSelection();
-      if (!_state.isInspecting) {
-        activate();
-      }
+    } else {
+      _state = _state.copyWith(
+        isLayoutModeOpen: false,
+        flyoutBounds: () => null,
+      );
     }
     notifyListeners();
   }
 
-  /// Opens layout mode.
+  /// Whether component palette is currently open.
+  bool get isComponentOpen => _state.isLayoutModeOpen;
+
+  /// Sets component palette open state.
+  void setComponentOpen(bool open) => setLayoutModeOpen(open);
+
+  /// Opens component palette.
+  void openComponent() => setLayoutModeOpen(true);
+
+  /// Closes component palette.
+  void closeComponent() => setLayoutModeOpen(false);
+
+  /// Toggles component palette open state.
+  void toggleComponent() => setLayoutModeOpen(!_state.isLayoutModeOpen);
+
+  /// Opens layout mode / component palette.
   void openLayoutMode() => setLayoutModeOpen(true);
 
-  /// Closes layout mode.
+  /// Closes layout mode / component palette.
   void closeLayoutMode() => setLayoutModeOpen(false);
 
-  /// Toggles layout mode open state.
+  /// Toggles layout mode / component palette open state.
   void toggleLayoutMode() => setLayoutModeOpen(!_state.isLayoutModeOpen);
 
   Timer? _copyTimer;
@@ -1300,6 +1355,7 @@ class AgentationController extends ChangeNotifier {
   void dispose() {
     _copyTimer?.cancel();
     isCopiedNotifier.dispose();
+    _pendingPlacementNotifier.dispose();
     _engine.clearCaches();
     super.dispose();
   }

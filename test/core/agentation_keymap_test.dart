@@ -283,7 +283,7 @@ void main() {
 
       expect(controller.isLayoutModeOpen, isTrue);
       expect(controller.isToolbarMinimized, isFalse);
-      expect(find.text('Layout Mode'), findsOneWidget);
+      expect(find.byType(ComponentPalette), findsOneWidget);
 
       // Press Escape
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
@@ -292,7 +292,7 @@ void main() {
       // Layout mode closes, but toolbar stays open
       expect(controller.isLayoutModeOpen, isFalse);
       expect(controller.isToolbarMinimized, isFalse);
-      expect(find.text('Layout Mode'), findsNothing);
+      expect(find.byType(ComponentPalette), findsNothing);
     });
 
     testWidgets('single-key shortcuts P, L, H, C, X match upstream Agentation specifications', (tester) async {
@@ -570,6 +570,74 @@ void main() {
 
       expect(wasSubmitted, isTrue);
     });
+
+    testWidgets("'L' shortcut toggles layout mode and unminimizes toolbar if minimized", (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              showToolbar: true,
+              initialToolbarMinimized: true,
+              child: const Center(child: Text('Inspectable Widget')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.isToolbarMinimized, isTrue);
+      expect(controller.isLayoutModeOpen, isFalse);
+
+      // Press 'L' to open layout mode even when toolbar was minimized
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+      await tester.pumpAndSettle();
+
+      expect(controller.isLayoutModeOpen, isTrue);
+      expect(controller.isToolbarMinimized, isFalse);
+      expect(controller.isInspecting, isTrue);
+
+      // Press 'L' again to close layout mode
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+      await tester.pumpAndSettle();
+
+      expect(controller.isLayoutModeOpen, isFalse);
+    });
+
+    testWidgets("Shift+'L' shortcut toggles layout mode", (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FlutterAgentation(
+              controller: controller,
+              showToolbar: true,
+              initialToolbarMinimized: false,
+              child: const Center(child: Text('Inspectable Widget')),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(controller.isLayoutModeOpen, isFalse);
+
+      // Press Shift + L
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+
+      expect(controller.isLayoutModeOpen, isTrue);
+
+      // Press Shift + L again to close
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyL);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      await tester.pumpAndSettle();
+
+      expect(controller.isLayoutModeOpen, isFalse);
+    });
   });
 }
+
 
