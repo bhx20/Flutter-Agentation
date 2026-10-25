@@ -3,11 +3,10 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
-import 'package:flutter_agentation/src/core/flutter_agentation.dart';
+import 'package:flutter_agentation/src/core/agentation_widget.dart';
 import 'package:flutter_agentation/src/ui/overlay/annotation_marker.dart';
 import 'package:flutter_test/flutter_test.dart';
-// ignore: avoid_relative_lib_imports
-import '../../example/lib/main.dart';
+import '../helpers/test_inspection_app.dart';
 
 void main() {
   group('Scroll Interaction During Inspection', () {

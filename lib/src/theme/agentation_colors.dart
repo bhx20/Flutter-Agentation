@@ -61,8 +61,34 @@ abstract final class AgentationColors {
 
   /// Sky & light blue accents.
   static const Color sky = Color(0xFF0284C7);
+  static const Color blue300 = Color(0xFF93C5FD);
   static const Color blue400 = Color(0xFF60A5FA);
   static const Color blue500 = Color(0xFF3B82F6);
+  static const Color blue600 = Color(0xFF2563EB);
+
+  // ── Connection & Live Status Accents (MCP, Webhooks, SSE) ──
+  /// Connected / live status accent (Tailwind green-500, #22C55E).
+  static const Color statusConnected = Color(0xFF22C55E);
+
+  /// Connecting / syncing status accent (Tailwind amber-500, #F59E0B).
+  static const Color statusConnecting = Color(0xFFF59E0B);
+
+  /// Disconnected / error status accent (Tailwind red-500, #EF4444).
+  static const Color statusDisconnected = Color(0xFFEF4444);
+
+  /// Emerald accent for successful ping/tests.
+  static const Color statusSuccessLight = Color(0xFF00E676);
+
+  // ── Neutral & Utility Tones ──
+  static const Color gray50 = Color(0xFFF9FAFB);
+  static const Color gray100 = Color(0xFFF3F4F6);
+  static const Color gray200 = Color(0xFFE5E7EB);
+  static const Color gray300 = Color(0xFFD1D5DB);
+  static const Color gray400 = Color(0xFF9CA3AF);
+  static const Color zinc100 = Color(0xFFF4F4F5);
+  static const Color zinc900 = Color(0xFF18181B);
+  static const Color darkRing = Color(0xFF1A1A1A);
+  static const Color lightDividerLight = Color(0xFFF1F2F4);
 
   /// Fuchsia / Magenta accents.
   static const Color fuchsia = Color(0xFFC026D3);

@@ -6,6 +6,7 @@ import '../../domain/marker_color.dart';
 import '../../domain/toolbar_settings.dart';
 import '../../theme/agentation_colors.dart';
 import '../../theme/agentation_theme.dart';
+import '../../theme/agentation_typography.dart';
 import 'agentation_icons.dart';
 import 'mcp_webhooks_panel.dart';
 
@@ -26,8 +27,11 @@ class SettingsPanel extends StatefulWidget {
 
 class _SettingsPanelState extends State<SettingsPanel> {
   final GlobalKey _panelKey = GlobalKey();
+  final GlobalKey _mainViewKey = GlobalKey();
   AgentationController? _controller;
-  bool _showMcpWebhooks = false;
+  final ValueNotifier<bool> _showMcpWebhooksNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isNavigatingForwardNotifier = ValueNotifier<bool>(true);
+  final ValueNotifier<double?> _mainPanelHeightNotifier = ValueNotifier<double?>(null);
 
   AgentationController get _ctrl =>
       widget.controller ?? AgentationScope.of(context);
@@ -54,11 +58,20 @@ class _SettingsPanelState extends State<SettingsPanel> {
         final bounds = Rect.fromLTWH(origin.dx, origin.dy, renderBox.size.width, renderBox.size.height);
         _controller?.updateFlyoutBounds(bounds);
       }
+      final mainBox = _mainViewKey.currentContext?.findRenderObject() as RenderBox?;
+      if (mainBox != null && mainBox.hasSize && mainBox.size.height > 100) {
+        if (_mainPanelHeightNotifier.value != mainBox.size.height) {
+          _mainPanelHeightNotifier.value = mainBox.size.height;
+        }
+      }
     });
   }
 
   @override
   void dispose() {
+    _showMcpWebhooksNotifier.dispose();
+    _isNavigatingForwardNotifier.dispose();
+    _mainPanelHeightNotifier.dispose();
     _controller?.updateFlyoutBounds(null);
     super.dispose();
   }
@@ -69,8 +82,16 @@ class _SettingsPanelState extends State<SettingsPanel> {
     final controller = _ctrl;
 
     return ListenableBuilder(
-      listenable: controller,
+      listenable: Listenable.merge([
+        controller,
+        _showMcpWebhooksNotifier,
+        _isNavigatingForwardNotifier,
+        _mainPanelHeightNotifier,
+      ]),
       builder: (context, _) {
+        final showMcpWebhooks = _showMcpWebhooksNotifier.value;
+        final isNavigatingForward = _isNavigatingForwardNotifier.value;
+        final mainPanelHeight = _mainPanelHeightNotifier.value;
         final settings = controller.settings;
         final isDark = settings.isDarkMode;
         final theme = AgentationThemeData.resolve(isDark: isDark);
@@ -86,30 +107,69 @@ class _SettingsPanelState extends State<SettingsPanel> {
             key: _panelKey,
             color: Colors.transparent,
             child: Container(
-              width: _showMcpWebhooks ? 280.0 : 253.0,
+              width: 260.0,
               decoration: BoxDecoration(
-              color: theme.panelBackground,
-              borderRadius: BorderRadius.circular(16.0),
-              border: Border.all(color: theme.panelBorderColor, width: 1.0),
-              boxShadow: theme.panelShadows,
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16.0),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14.0, 12.0, 14.0, 12.0),
-                child: _showMcpWebhooks
-                    ? McpWebhooksPanel(
-                        controller: controller,
-                        onBack: () {
-                          setState(() {
-                            _showMcpWebhooks = false;
-                          });
-                        },
-                      )
-                    : Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                color: theme.panelBackground,
+                borderRadius: BorderRadius.circular(16.0),
+                border: Border.all(color: theme.panelBorderColor, width: 1.0),
+                boxShadow: theme.panelShadows,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16.0),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14.0, 12.0, 14.0, 12.0),
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    layoutBuilder: (Widget? currentChild, List<Widget> previousChildren) {
+                      return Stack(
+                        alignment: Alignment.topCenter,
+                        children: <Widget>[
+                          ...previousChildren,
+                          ?currentChild,
+                        ],
+                      );
+                    },
+                    transitionBuilder: (Widget child, Animation<double> animation) {
+                      final isIncoming = (child.key == const ValueKey('settings_mcp_webhooks_view')) == showMcpWebhooks;
+                      final begin = isIncoming
+                          ? (isNavigatingForward ? const Offset(1.0, 0.0) : const Offset(-1.0, 0.0))
+                          : (isNavigatingForward ? const Offset(-1.0, 0.0) : const Offset(1.0, 0.0));
+                      return SlideTransition(
+                        position: Tween<Offset>(begin: begin, end: Offset.zero).animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: isIncoming ? Curves.easeOutCubic : Curves.easeInCubic,
+                          ),
+                        ),
+                        child: child,
+                      );
+                    },
+                    child: showMcpWebhooks
+                        ? KeyedSubtree(
+                            key: const ValueKey('settings_mcp_webhooks_view'),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: McpWebhooksPanel(
+                                controller: controller,
+                                targetHeight: mainPanelHeight,
+                                onBack: () {
+                                  _isNavigatingForwardNotifier.value = false;
+                                  _showMcpWebhooksNotifier.value = false;
+                                },
+                              ),
+                            ),
+                          )
+                        : KeyedSubtree(
+                            key: const ValueKey('settings_main_view'),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: Column(
+                                key: _mainViewKey,
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                     // ── Header: Agentation v0.0.1 + Moon/Sun Theme Toggle ──
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -126,10 +186,8 @@ class _SettingsPanelState extends State<SettingsPanel> {
                               children: [
                                 Text(
                                   'Flutter Agentation',
-                                  style: TextStyle(
+                                  style: AgentationTypography.titleSemiBold.copyWith(
                                     color: textColor,
-                                    fontSize: 14.0,
-                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 const SizedBox(width: 5.0),
@@ -137,10 +195,8 @@ class _SettingsPanelState extends State<SettingsPanel> {
                                   valueListenable: PackageVersion.versionNotifier,
                                   builder: (context, version, _) => Text(
                                     'v$version',
-                                    style: TextStyle(
+                                    style: AgentationTypography.subtext.copyWith(
                                       color: subtextColor,
-                                      fontSize: 12.0,
-                                      fontWeight: FontWeight.normal,
                                     ),
                                   ),
                                 ),
@@ -171,10 +227,8 @@ class _SettingsPanelState extends State<SettingsPanel> {
                               Flexible(
                                 child: Text(
                                   'Output Detail',
-                                  style: TextStyle(
+                                  style: AgentationTypography.body.copyWith(
                                     color: textColor,
-                                    fontSize: 13.0,
-                                    fontWeight: FontWeight.w400,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -230,10 +284,8 @@ class _SettingsPanelState extends State<SettingsPanel> {
                                   child: Text(
                                     _getDetailLabel(settings.outputDetail),
                                     key: ValueKey(settings.outputDetail),
-                                    style: TextStyle(
+                                    style: AgentationTypography.body.copyWith(
                                       color: textColor,
-                                      fontSize: 13.0,
-                                      fontWeight: FontWeight.normal,
                                     ),
                                   ),
                                 ),
@@ -265,10 +317,8 @@ class _SettingsPanelState extends State<SettingsPanel> {
                               Flexible(
                                 child: Text(
                                   'Hide Until Restart',
-                                  style: TextStyle(
+                                  style: AgentationTypography.body.copyWith(
                                     color: textColor,
-                                    fontSize: 13.0,
-                                    fontWeight: FontWeight.w400,
                                   ),
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -299,10 +349,9 @@ class _SettingsPanelState extends State<SettingsPanel> {
                     // ── Marker Color ──
                     Text(
                       'Marker Color',
-                      style: TextStyle(
+                      style: AgentationTypography.sectionHeader.copyWith(
                         color: subtextColor,
                         fontSize: 12.0,
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 8.0),
@@ -388,7 +437,9 @@ class _SettingsPanelState extends State<SettingsPanel> {
                                   Flexible(
                                     child: Text(
                                       'Clear on copy/send',
-                                      style: TextStyle(color: textColor, fontSize: 13.0),
+                                      style: AgentationTypography.body.copyWith(
+                                        color: textColor,
+                                      ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -429,7 +480,9 @@ class _SettingsPanelState extends State<SettingsPanel> {
                             Expanded(
                               child: Text(
                                 'Block page interactions',
-                                style: TextStyle(color: textColor, fontSize: 13.0),
+                                style: AgentationTypography.body.copyWith(
+                                  color: textColor,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -446,9 +499,8 @@ class _SettingsPanelState extends State<SettingsPanel> {
                     InkWell(
                       key: const ValueKey('settings_nav_mcp_webhooks'),
                       onTap: () {
-                        setState(() {
-                          _showMcpWebhooks = true;
-                        });
+                        _isNavigatingForwardNotifier.value = true;
+                        _showMcpWebhooksNotifier.value = true;
                       },
                       borderRadius: BorderRadius.circular(6.0),
                       child: Padding(
@@ -459,10 +511,8 @@ class _SettingsPanelState extends State<SettingsPanel> {
                             Expanded(
                               child: Text(
                                 'Manage MCP & Webhooks',
-                                style: TextStyle(
+                                style: AgentationTypography.body.copyWith(
                                   color: textColor,
-                                  fontSize: 13.0,
-                                  fontWeight: FontWeight.normal,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -470,14 +520,24 @@ class _SettingsPanelState extends State<SettingsPanel> {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (controller.mcpServer.isRunning)
+                                if (controller.mcpServer.isRunning || controller.syncClient?.endpoint.isNotEmpty == true)
                                   Container(
                                     width: 6.0,
                                     height: 6.0,
                                     margin: const EdgeInsets.only(right: 6.0),
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.greenAccent[400],
+                                      color: theme.statusConnected,
+                                    ),
+                                  )
+                                else if (controller.settings.mcpEnabled)
+                                  Container(
+                                    width: 6.0,
+                                    height: 6.0,
+                                    margin: const EdgeInsets.only(right: 6.0),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: theme.statusConnecting,
                                     ),
                                   ),
                                 Icon(
@@ -495,11 +555,14 @@ class _SettingsPanelState extends State<SettingsPanel> {
                 ),
               ),
             ),
-          ),
-        ),
-      );
-    },
-  );
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        );
+      },
+    );
   }
 
   Widget _buildCustomCheckbox({required bool checked, required AgentationThemeData theme}) {
@@ -591,12 +654,8 @@ class _HelpTooltipState extends State<_HelpTooltip> {
                   type: MaterialType.transparency,
                   child: Text(
                     widget.content,
-                    style: const TextStyle(
+                    style: AgentationTypography.helpTooltip.copyWith(
                       color: AgentationColors.darkTextTranslucent,
-                      fontSize: 11.0,
-                      fontWeight: FontWeight.w400,
-                      height: 1.35,
-                      fontFamily: 'Inter',
                     ),
                     textAlign: TextAlign.left,
                   ),

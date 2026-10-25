@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../domain/annotation.dart';
 import '../domain/toolbar_settings.dart';
@@ -36,6 +37,7 @@ class FlutterAgentation extends StatefulWidget {
     this.appName,
     this.copyToClipboard = true,
     this.enableKeyboardShortcuts = true,
+    this.debugOnly = true,
     this.onAnnotationAdd,
     this.onAnnotationDelete,
     this.onAnnotationUpdate,
@@ -48,6 +50,8 @@ class FlutterAgentation extends StatefulWidget {
     this.showToolbar = true,
     this.initialToolbarMinimized = true,
     this.initialCollapsed,
+    this.mcpEnabled,
+    this.mcpPort,
     this.initialToolbarAlignment = Alignment.bottomRight,
     this.highlightStyle = const HighlightStyle(),
     this.onWidgetSelected,
@@ -81,6 +85,7 @@ class FlutterAgentation extends StatefulWidget {
     String? appName,
     bool copyToClipboard = true,
     bool enableKeyboardShortcuts = true,
+    bool debugOnly = true,
     void Function(Annotation annotation)? onAnnotationAdd,
     void Function(Annotation annotation)? onAnnotationDelete,
     void Function(Annotation annotation)? onAnnotationUpdate,
@@ -93,6 +98,8 @@ class FlutterAgentation extends StatefulWidget {
     bool showToolbar = true,
     bool initialToolbarMinimized = true,
     bool? initialCollapsed,
+    bool? mcpEnabled,
+    int? mcpPort,
     Alignment initialToolbarAlignment = Alignment.bottomRight,
     HighlightStyle highlightStyle = const HighlightStyle(),
     void Function(WidgetInspectionResult result)? onWidgetSelected,
@@ -108,6 +115,7 @@ class FlutterAgentation extends StatefulWidget {
         appName: appName,
         copyToClipboard: copyToClipboard,
         enableKeyboardShortcuts: enableKeyboardShortcuts,
+        debugOnly: debugOnly,
         onAnnotationAdd: onAnnotationAdd,
         onAnnotationDelete: onAnnotationDelete,
         onAnnotationUpdate: onAnnotationUpdate,
@@ -120,6 +128,8 @@ class FlutterAgentation extends StatefulWidget {
         showToolbar: showToolbar,
         initialToolbarMinimized: initialToolbarMinimized,
         initialCollapsed: initialCollapsed,
+        mcpEnabled: mcpEnabled,
+        mcpPort: mcpPort,
         initialToolbarAlignment: initialToolbarAlignment,
         highlightStyle: highlightStyle,
         onWidgetSelected: onWidgetSelected,
@@ -191,11 +201,31 @@ class FlutterAgentation extends StatefulWidget {
   /// Deprecated alias for [initialToolbarMinimized].
   final bool? initialCollapsed;
 
+  /// Whether the embedded MCP (Model Context Protocol) server is enabled.
+  final bool? mcpEnabled;
+
+  /// The port on which the embedded MCP server listens (default: 4747).
+  final int? mcpPort;
+
   /// Initial screen quadrant alignment for the floating toolbar.
   final Alignment initialToolbarAlignment;
 
   /// Optional callback invoked whenever a widget is selected.
   final void Function(WidgetInspectionResult result)? onWidgetSelected;
+
+  /// Whether Flutter Agentation is restricted to debug mode only.
+  ///
+  /// Defaults to `true`. When `true` and the application is running in release
+  /// or profile mode (where [kDebugMode] is `false`), [FlutterAgentation]
+  /// completely disables all inspection overlays, shortcut handlers, background
+  /// listeners, and servers, returning [child] directly with zero overhead.
+  ///
+  /// Set to `false` if you want to intentionally test or run Agentation in release/profile builds.
+  final bool debugOnly;
+
+  /// For internal testing purposes only. Allows overriding [kDebugMode] in widget tests.
+  @visibleForTesting
+  static bool? debugModeOverride;
 
   @override
   State<FlutterAgentation> createState() => _FlutterAgentationState();
@@ -203,6 +233,9 @@ class FlutterAgentation extends StatefulWidget {
 
 class _FlutterAgentationState extends State<FlutterAgentation> {
   AgentationController? _internalController;
+
+  bool get _isActive =>
+      !widget.debugOnly || (FlutterAgentation.debugModeOverride ?? kDebugMode);
 
   AgentationController get _effectiveController =>
       widget.controller ?? (_internalController ??= AgentationController());
@@ -232,6 +265,9 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
   @override
   void initState() {
     super.initState();
+    if (!_isActive) {
+      return;
+    }
     _installWebFocusErrorProtection();
     _configureController();
     final shouldMinimize = widget.initialCollapsed ?? widget.initialToolbarMinimized;
@@ -273,9 +309,15 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
     controller.onSessionCreated = widget.onSessionCreated;
     controller.onOpenSource = widget.onOpenSource;
 
-    if (widget.endpoint != null || widget.webhookUrl != null || widget.sessionId != null) {
+    if (widget.mcpEnabled != null ||
+        widget.mcpPort != null ||
+        widget.endpoint != null ||
+        widget.webhookUrl != null ||
+        widget.sessionId != null) {
       controller.updateSettings(
         controller.settings.copyWith(
+          mcpEnabled: widget.mcpEnabled,
+          mcpPort: widget.mcpPort,
           mcpEndpoint: widget.endpoint,
           webhookUrl: widget.webhookUrl,
           sessionId: widget.sessionId,
@@ -290,6 +332,7 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
   @override
   void reassemble() {
     super.reassemble();
+    if (!_isActive) return;
     _effectiveController.clearCaches();
     if (_effectiveController.hoveredResult != null) {
       _effectiveController.setHoveredResult(null);
@@ -300,6 +343,11 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
   @override
   void didUpdateWidget(FlutterAgentation oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!_isActive) {
+      _internalController?.dispose();
+      _internalController = null;
+      return;
+    }
     if (widget.controller != oldWidget.controller) {
       if (oldWidget.controller == null) {
         _internalController?.dispose();
@@ -317,6 +365,10 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_isActive) {
+      return widget.child ?? const SizedBox.shrink();
+    }
+
     final controller = _effectiveController;
 
     final body = ListenableBuilder(

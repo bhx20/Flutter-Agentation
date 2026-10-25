@@ -225,6 +225,50 @@ class AgentationThemeData {
     );
   }
 
+  /// Connection status: connected (Tailwind green-500).
+  Color get statusConnected => AgentationColors.statusConnected;
+
+  /// Connection status: connecting (Tailwind amber-500).
+  Color get statusConnecting => AgentationColors.statusConnecting;
+
+  /// Connection status: disconnected (Tailwind red-500).
+  Color get statusDisconnected => AgentationColors.statusDisconnected;
+
+  /// Panel input background.
+  Color get panelInputBackground => isDark
+      ? Colors.white.withValues(alpha: 0.04)
+      : AgentationColors.gray50;
+
+  /// Panel input border.
+  Color get panelInputBorder => isDark
+      ? Colors.white.withValues(alpha: 0.12)
+      : AgentationColors.gray200;
+
+  /// Panel input placeholder / hint color.
+  Color get panelInputHint => isDark
+      ? Colors.white.withValues(alpha: 0.3)
+      : AgentationColors.gray400;
+
+  /// Auto-send active toggle text color.
+  Color get autoSendActiveColor => isDark
+      ? AgentationColors.blue300
+      : AgentationColors.blue400;
+
+  /// Sub-panel divider color.
+  Color get panelDividerColor => isDark
+      ? Colors.white.withValues(alpha: 0.08)
+      : AgentationColors.lightDividerLight;
+
+  /// Link text color.
+  Color get linkColor => isDark
+      ? AgentationColors.blue300
+      : AgentationColors.blue600;
+
+  /// Tooltip bubble background.
+  Color get tooltipBubbleBg => isDark
+      ? AgentationColors.zinc900
+      : AgentationColors.zinc100;
+
   /// Convenience resolver: returns dark or light theme based on [isDark].
   factory AgentationThemeData.resolve({required bool isDark}) {
     return isDark ? AgentationThemeData.dark() : AgentationThemeData.light();

@@ -8,6 +8,7 @@ import '../design/component_palette.dart';
 import '../../domain/marker_color.dart';
 import '../../theme/agentation_colors.dart';
 import '../../theme/agentation_theme.dart';
+import '../../theme/agentation_typography.dart';
 import 'agentation_icons.dart';
 import 'settings_panel.dart';
 import 'toolbar_toggle_icon.dart';
@@ -121,6 +122,26 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     await controller.copyFeedback();
   }
 
+  Future<void> _onSend(AgentationController controller) async {
+    final count = controller.annotations.length;
+    if (count == 0 || !controller.canSend || _sendStateNotifier.value == 'sending') {
+      return;
+    }
+
+    _sendStateNotifier.value = 'sending';
+    final success = await controller.submitAnnotations();
+    if (mounted) {
+      _sendStateNotifier.value = success ? 'sent' : 'failed';
+    }
+
+    _sendTimer?.cancel();
+    _sendTimer = Timer(const Duration(milliseconds: 2500), () {
+      if (mounted) {
+        _sendStateNotifier.value = 'idle';
+      }
+    });
+  }
+
   void _initInsetsIfNeeded(
     Size screenSize,
     EdgeInsets safePadding,
@@ -232,15 +253,17 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
   void _onPanEnd(DragEndDetails details) {
     final pos = _positionNotifier.value;
     final screenSize = MediaQuery.sizeOf(context);
+    final ctrl = _controller;
+    final pillWidth = ctrl.isToolbarMinimized ? 44.0 : (ctrl.canSend ? 336.0 : 296.0);
     final double currentLeft;
     if (pos.leftInset != null) {
       currentLeft = pos.leftInset!;
     } else if (pos.rightInset != null) {
-      currentLeft = screenSize.width - pos.rightInset! - 296.0;
+      currentLeft = screenSize.width - pos.rightInset! - pillWidth;
     } else {
-      currentLeft = (screenSize.width - 296.0) / 2.0;
+      currentLeft = (screenSize.width - pillWidth) / 2.0;
     }
-    final centerX = currentLeft + 148.0;
+    final centerX = currentLeft + pillWidth / 2.0;
     final newAnchor = centerX >= screenSize.width / 2.0 ? ToolbarAnchor.right : ToolbarAnchor.left;
     final anchorChanged = newAnchor != pos.anchor;
 
@@ -305,7 +328,8 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
 
         final theme = AgentationThemeData.resolve(isDark: isDark);
 
-        const double expandedWidth = 296.0;
+        final canSend = controller.canSend;
+        final double expandedWidth = canSend ? 336.0 : 296.0;
         final toolbarWidth = isMinimized ? 44.0 : expandedWidth;
         const double toolbarHeight = 44.0;
 
@@ -489,6 +513,10 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
     final isSettingsOpen = controller.isSettingsOpen;
     final isCopied = controller.isCopiedNotifier.value;
     final hasAnnotations = controller.annotations.isNotEmpty;
+    final sendState = _sendStateNotifier.value;
+    final canSend = controller.canSend;
+    final isMcpRunning = controller.mcpServer.isRunning;
+    final isMcpConnecting = controller.settings.mcpEnabled && !isMcpRunning;
 
     return SizedBox(
       height: 44.0,
@@ -602,7 +630,32 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                             onPressed: () => _onCopy(controller),
                           ),
 
-                          // 5. Delete / Trash (Trash can) - Screenshot 1
+                          // 5. Send Annotations (Paper plane) - Upstream IconSendArrow
+                          if (canSend)
+                            _ToolbarIconButton(
+                              buttonKey: const ValueKey('toolbar_send'),
+                              icon: AgentationIcons.send(
+                                size: 22.0,
+                                color: (sendState == 'sent' || sendState == 'failed')
+                                    ? (sendState == 'sent' ? theme.successColor : theme.destructiveColor)
+                                    : (hasAnnotations ? iconColor : theme.iconInactiveColor),
+                                state: sendState,
+                              ),
+                              badgeCount: (hasAnnotations && sendState == 'idle') ? count : null,
+                              tooltipLabel: 'Send Annotations',
+                              tooltipShortcut: controller.enableKeyboardShortcuts ? 'S' : null,
+                              isActive: sendState == 'sent' || sendState == 'failed',
+                              activeColor: sendState == 'sent'
+                                  ? theme.successColor.withValues(alpha: 0.15)
+                                  : theme.destructiveColor.withValues(alpha: 0.15),
+                              isEnabled: hasAnnotations && canSend && sendState != 'sending',
+                              preferBelow: isNearTop,
+                              isDark: theme.isDark,
+                              theme: theme,
+                              onPressed: () => _onSend(controller),
+                            ),
+
+                          // 6. Delete / Trash (Trash can) - Screenshot 1
                           _ToolbarIconButton(
                             buttonKey: const ValueKey('toolbar_clear'),
                             icon: AgentationIcons.trash(size: 22.0, color: iconColor),
@@ -619,7 +672,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                             onPressed: () => controller.clearAnnotations(),
                           ),
 
-                          // 6. Settings (Cog wheel) - Screenshot 1 & 3
+                          // 7. Settings (Cog wheel) - Screenshot 1 & 3
                           _ToolbarIconButton(
                             buttonKey: const ValueKey('toolbar_settings'),
                             icon: AgentationIcons.gear(
@@ -628,6 +681,25 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                                   ? (theme.isDark ? Colors.white : theme.textPrimary)
                                   : iconColor,
                             ),
+                            indicatorDot: (!isSettingsOpen && (isMcpRunning || controller.syncClient?.endpoint.isNotEmpty == true))
+                                ? Container(
+                                    width: 6.0,
+                                    height: 6.0,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFF22C55E),
+                                    ),
+                                  )
+                                : (!isSettingsOpen && isMcpConnecting
+                                    ? Container(
+                                        width: 6.0,
+                                        height: 6.0,
+                                        decoration: const BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Color(0xFFF59E0B),
+                                        ),
+                                      )
+                                    : null),
                             tooltipLabel: 'Settings',
                             tooltipShortcut: null,
                             showTooltip: !isSettingsOpen,
@@ -759,6 +831,8 @@ class _ToolbarIconButton extends StatefulWidget {
   final VoidCallback? onPressed;
 
   final AgentationThemeData? theme;
+  final int? badgeCount;
+  final Widget? indicatorDot;
 
   const _ToolbarIconButton({
     this.buttonKey,
@@ -777,6 +851,8 @@ class _ToolbarIconButton extends StatefulWidget {
     this.tooltipOnLeft = false,
     this.showTooltip = true,
     this.preferBelow = false,
+    this.badgeCount,
+    this.indicatorDot,
     this.onPressed,
   });
 
@@ -1028,22 +1104,16 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
                     children: [
                       Text(
                         widget.tooltipLabel,
-                        style: TextStyle(
+                        style: AgentationTypography.tooltipTitle.copyWith(
                           color: tooltipTextColor,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.normal,
-                          decoration: TextDecoration.none,
                         ),
                       ),
                       if (widget.tooltipShortcut != null) ...[
                         const SizedBox(width: 4.0),
                         Text(
                           widget.tooltipShortcut!,
-                          style: TextStyle(
+                          style: AgentationTypography.tooltipShortcut.copyWith(
                             color: tooltipShortcutColor,
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w500,
-                            decoration: TextDecoration.none,
                           ),
                         ),
                       ],
@@ -1096,9 +1166,7 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
       onExit: (_) {
         _isHovered.value = false;
         if (_suppressTooltipUntilMouseLeave) {
-          setState(() {
-            _suppressTooltipUntilMouseLeave = false;
-          });
+          _suppressTooltipUntilMouseLeave = false;
         }
         if (widget.tooltipOnLeft) _hideTooltip();
       },
@@ -1116,9 +1184,7 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
         onTap: isEnabled
             ? () {
                 if (widget.tooltipOnLeft) _hideTooltip(immediate: true);
-                setState(() {
-                  _suppressTooltipUntilMouseLeave = true;
-                });
+                _suppressTooltipUntilMouseLeave = true;
                 widget.onPressed?.call();
               }
             : null,
@@ -1177,6 +1243,61 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
               );
             }
 
+            if (widget.badgeCount != null && widget.badgeCount! > 0) {
+              buttonContent = Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  buttonContent,
+                  Positioned(
+                    top: -1.0,
+                    right: -1.0,
+                    child: Container(
+                      constraints: const BoxConstraints(minWidth: 16.0, minHeight: 16.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      decoration: BoxDecoration(
+                        color: theme.accentColor,
+                        borderRadius: BorderRadius.circular(8.0),
+                        border: Border.all(
+                          color: isDark ? AgentationColors.darkRing : Colors.white,
+                          width: 1.5,
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: AgentationColors.shadowSubtle,
+                            blurRadius: 3.0,
+                            offset: Offset(0, 1.0),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${widget.badgeCount}',
+                        style: AgentationTypography.toolbarBadge.copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }
+
+            if (widget.indicatorDot != null) {
+              buttonContent = Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  buttonContent,
+                  Positioned(
+                    top: 2.0,
+                    right: 2.0,
+                    child: widget.indicatorDot!,
+                  ),
+                ],
+              );
+            }
+
             return Center(child: buttonContent);
           },
         ),
@@ -1211,22 +1332,16 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
         children: [
           TextSpan(
             text: widget.tooltipLabel,
-            style: TextStyle(
+            style: AgentationTypography.tooltipTitle.copyWith(
               color: tooltipTextColor,
-              fontSize: 11.5,
-              fontWeight: FontWeight.normal,
-              decoration: TextDecoration.none,
             ),
           ),
           if (widget.tooltipShortcut != null) ...[
             const TextSpan(text: ' '),
             TextSpan(
               text: widget.tooltipShortcut!,
-              style: TextStyle(
+              style: AgentationTypography.tooltipShortcut.copyWith(
                 color: tooltipShortcutColor,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w500,
-                decoration: TextDecoration.none,
               ),
             ),
           ],

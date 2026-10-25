@@ -265,7 +265,7 @@ class AgentSyncClient {
     }
   }
 
-  /// Dispatches an event payload to a webhook URL.
+  /// Dispatches an event payload to a webhook URL matching agentation-main structure.
   Future<bool> dispatchWebhook(
     String targetUrl, {
     required String event,
@@ -273,11 +273,16 @@ class AgentSyncClient {
   }) async {
     try {
       final uri = Uri.parse(targetUrl);
-      final body = jsonEncode({
+      final bodyMap = <String, dynamic>{
         'event': event,
-        'timestamp': DateTime.now().toIso8601String(),
-        'data': payload,
-      });
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        ...payload,
+      };
+      // Keep 'data' alias for backward compatibility
+      if (!bodyMap.containsKey('data')) {
+        bodyMap['data'] = payload;
+      }
+      final body = jsonEncode(bodyMap);
 
       final deliveryId = 'del_${DateTime.now().millisecondsSinceEpoch}_${payload.hashCode.abs()}';
       final res = await _transport(
@@ -287,6 +292,7 @@ class AgentSyncClient {
           'Content-Type': 'application/json',
           'User-Agent': 'Agentation-Webhook/1.0',
           'X-Agentation-Delivery-Id': deliveryId,
+          'X-Agentation-Event': event,
         },
         body: body,
       );

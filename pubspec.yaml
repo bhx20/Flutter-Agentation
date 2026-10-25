@@ -17,6 +17,12 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+executables:
+  setupmcp: setupmcp
+  setup_mcp: setupmcp
+  mcp: setupmcp
+  flutter_agentation: setupmcp
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

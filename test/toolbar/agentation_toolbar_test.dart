@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
-import 'package:flutter_agentation/src/core/flutter_agentation.dart';
+import 'package:flutter_agentation/src/core/agentation_widget.dart';
 import 'package:flutter_agentation/src/core/package_version.dart';
 import 'package:flutter_agentation/src/ui/design/component_palette.dart';
 import 'package:flutter_agentation/src/ui/toolbar/agentation_toolbar.dart';

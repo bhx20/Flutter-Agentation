@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
-import 'package:flutter_agentation/src/core/flutter_agentation.dart';
+import 'package:flutter_agentation/src/core/agentation_widget.dart';
 import 'package:flutter_agentation/src/domain/widget_inspection_result.dart';
 import 'package:flutter_agentation/src/ui/overlay/annotation_popup.dart';
 import 'package:flutter_test/flutter_test.dart';

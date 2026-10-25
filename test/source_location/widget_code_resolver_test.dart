@@ -75,9 +75,9 @@ void main() {
 
     test('extracts exact source code from file when sourceLocation is available', () {
       const location = WidgetSourceLocation(
-        fileName: 'buttons_section.dart',
-        filePath: 'example/lib/sections/buttons_section.dart',
-        line: 53,
+        fileName: 'test_button.dart',
+        filePath: 'test/fixtures/test_button.dart',
+        line: 4,
       );
 
       const result = WidgetInspectionResult(
@@ -115,9 +115,9 @@ void main() {
 
     test('extracts multi-line WidgetCard declaration with nested children from layout_section.dart', () {
       const location = WidgetSourceLocation(
-        fileName: 'layout_section.dart',
-        filePath: 'example/lib/sections/layout_section.dart',
-        line: 23,
+        fileName: 'test_button.dart',
+        filePath: 'test/fixtures/test_button.dart',
+        line: 29,
       );
 
       const result = WidgetInspectionResult(

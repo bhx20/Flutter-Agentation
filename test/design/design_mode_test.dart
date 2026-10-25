@@ -14,7 +14,7 @@ import 'package:flutter_agentation/src/domain/rearrange_data.dart';
 import 'package:flutter_agentation/src/domain/widget_bounds.dart';
 import 'package:flutter_agentation/src/domain/widget_identity.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
-import 'package:flutter_agentation/src/core/flutter_agentation.dart';
+import 'package:flutter_agentation/src/core/agentation_widget.dart';
 
 void main() {
   group('Visual Design Mode & Skeletons Palette (User Story 5)', () {

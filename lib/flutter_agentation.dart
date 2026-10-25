@@ -7,7 +7,7 @@ export 'src/core/agentation_keymap.dart';
 export 'src/core/agentation_logger.dart';
 export 'src/core/agentation_scope.dart';
 export 'src/core/agentation_state.dart';
-export 'src/core/flutter_agentation.dart';
+export 'src/core/agentation_widget.dart';
 export 'src/core/package_version.dart';
 
 // ── Theme: Centralized Design Tokens & Theming ──
@@ -82,6 +82,8 @@ export 'src/storage/memory_annotation_storage.dart';
 
 // ── Networking: Remote Collaboration & Sync ──
 export 'src/networking/agent_sync_client.dart';
+export 'src/networking/mcp/flutter_mcp_server.dart';
+export 'src/networking/mcp/mcp_protocol.dart';
 
 // ── Output: Encoders & Export ──
 export 'src/output/agentation_format_adapter.dart';

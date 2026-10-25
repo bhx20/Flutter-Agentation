@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "flutter-agentation": {
+      "url": "http://127.0.0.1:4747/sse",
+      "description": "Flutter Agentation visual inspection and annotation server for AI coding agents"
+    }
+  }
+}

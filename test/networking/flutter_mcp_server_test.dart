@@ -173,5 +173,99 @@ void main() {
 
       client.close();
     });
+
+    test('tools/call agentation_create_annotation creates annotation on canvas', () async {
+      final client = HttpClient();
+      final createReq = await client.postUrl(Uri.parse('http://127.0.0.1:$testPort/mcp'));
+      createReq.headers.contentType = ContentType.json;
+      createReq.write(jsonEncode({
+        'jsonrpc': '2.0',
+        'id': 6,
+        'method': 'tools/call',
+        'params': {
+          'name': 'agentation_create_annotation',
+          'arguments': {
+            'comment': 'Check primary CTA button contrast ratio',
+            'x': 150.0,
+            'y': 250.0,
+            'severity': 'high',
+          },
+        },
+      }));
+      final createRes = await createReq.close();
+      final createBody = jsonDecode(await utf8.decoder.bind(createRes).join()) as Map<String, dynamic>;
+      expect(createBody['result']['content'][0]['text'], contains('Annotation created successfully'));
+
+      expect(controller.annotations.length, equals(1));
+      final created = controller.annotations.first;
+      expect(created.comment, equals('Check primary CTA button contrast ratio'));
+      expect(created.severity.name, equals('high'));
+
+      client.close();
+    });
+
+    test('tools/call agentation_get_app_info returns runtime platform and context', () async {
+      controller.setAppName('InspectionTestApp');
+
+      final client = HttpClient();
+      final infoReq = await client.postUrl(Uri.parse('http://127.0.0.1:$testPort/mcp'));
+      infoReq.headers.contentType = ContentType.json;
+      infoReq.write(jsonEncode({
+        'jsonrpc': '2.0',
+        'id': 7,
+        'method': 'tools/call',
+        'params': {
+          'name': 'agentation_get_app_info',
+          'arguments': {},
+        },
+      }));
+      final infoRes = await infoReq.close();
+      final infoBody = jsonDecode(await utf8.decoder.bind(infoRes).join()) as Map<String, dynamic>;
+      final appInfo = jsonDecode(infoBody['result']['content'][0]['text']) as Map<String, dynamic>;
+      expect(appInfo['appName'], equals('InspectionTestApp'));
+      expect(appInfo['platform'], isNotEmpty);
+      expect(appInfo['mcpPort'], equals(testPort));
+
+      client.close();
+    });
+
+    test('JSON-RPC notification returns 202 without body per JSON-RPC 2.0', () async {
+      final client = HttpClient();
+      final notifReq = await client.postUrl(Uri.parse('http://127.0.0.1:$testPort/mcp'));
+      notifReq.headers.contentType = ContentType.json;
+      notifReq.write(jsonEncode({
+        'jsonrpc': '2.0',
+        'method': 'notifications/initialized',
+        'params': {},
+      }));
+      final notifRes = await notifReq.close();
+      expect(notifRes.statusCode, equals(HttpStatus.accepted));
+      final body = await utf8.decoder.bind(notifRes).join();
+      expect(body, isEmpty);
+
+      client.close();
+    });
+
+    test('Resources read agentation://annotations/markdown and agentation://app-info', () async {
+      await controller.createAnnotation(comment: 'Test resource markdown');
+
+      final client = HttpClient();
+      final resReq = await client.postUrl(Uri.parse('http://127.0.0.1:$testPort/mcp'));
+      resReq.headers.contentType = ContentType.json;
+      resReq.write(jsonEncode({
+        'jsonrpc': '2.0',
+        'id': 8,
+        'method': 'resources/read',
+        'params': {
+          'uri': 'agentation://annotations/markdown',
+        },
+      }));
+      final resRes = await resReq.close();
+      final resBody = jsonDecode(await utf8.decoder.bind(resRes).join()) as Map<String, dynamic>;
+      final content = resBody['result']['contents'][0]['text'] as String;
+      expect(content, contains('Test resource markdown'));
+
+      client.close();
+    });
   });
 }

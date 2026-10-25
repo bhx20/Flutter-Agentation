@@ -159,7 +159,15 @@ class AgentationController extends ChangeNotifier {
   /// The optional MCP synchronization client.
   AgentSyncClient? get syncClient => _syncClient;
 
-  late final FlutterMcpServer _mcpServer = FlutterMcpServer(this);
+  bool _isDisposed = false;
+  bool get isDisposed => _isDisposed;
+
+  late final FlutterMcpServer _mcpServer = FlutterMcpServer(this)
+    ..onStatusChanged = () {
+      if (!_isDisposed) {
+        notifyListeners();
+      }
+    };
 
   /// Embedded Model Context Protocol (MCP) server for local AI agents (Antigravity, Claude, Cursor).
   FlutterMcpServer get mcpServer => _mcpServer;
@@ -427,16 +435,27 @@ class AgentationController extends ChangeNotifier {
     return null;
   }
 
-  /// Dispatches an event to the configured webhook URL.
-  Future<bool> notifyWebhook(String event, Map<String, dynamic> payload) async {
+  /// Dispatches an event to the configured webhook URL matching official Agentation behavior.
+  /// If [force] is false (default), webhooks only fire when [ToolbarSettings.autoSendWebhook] is enabled.
+  Future<bool> notifyWebhook(
+    String event,
+    Map<String, dynamic> payload, {
+    bool force = false,
+  }) async {
     final webhookUrl = _state.settings.webhookUrl ?? _syncClient?.webhookUrl;
     if (webhookUrl == null || webhookUrl.isEmpty) return false;
+    if (!force && !_state.settings.autoSendWebhook && _syncClient?.webhookUrl == null) return false;
+
+    final enrichedPayload = <String, dynamic>{
+      'url': '/',
+      ...payload,
+    };
 
     if (_syncClient != null) {
-      return _syncClient!.dispatchWebhook(webhookUrl, event: event, payload: payload);
+      return _syncClient!.dispatchWebhook(webhookUrl, event: event, payload: enrichedPayload);
     } else {
       final tempClient = AgentSyncClient(endpoint: '', webhookUrl: webhookUrl);
-      return tempClient.dispatchWebhook(webhookUrl, event: event, payload: payload);
+      return tempClient.dispatchWebhook(webhookUrl, event: event, payload: enrichedPayload);
     }
   }
 
@@ -487,8 +506,9 @@ class AgentationController extends ChangeNotifier {
       if (_syncClient != null) {
         _syncClient!.deleteAnnotation(last.id);
       }
-      notifyWebhook('annotation.deleted', {
-        'annotationId': last.id,
+      _mcpServer.broadcastAfsEvent('annotation.deleted', {'id': last.id});
+      notifyWebhook('annotation.delete', {
+        'annotation': last.toJson(),
       });
       AgentationLogger.debug('Undid annotation: ${last.id}');
       notifyListeners();
@@ -767,6 +787,7 @@ class AgentationController extends ChangeNotifier {
 
     onAnnotationAdd?.call(annotation);
     _mcpServer.broadcastUpdate();
+    _mcpServer.broadcastAfsEvent('annotation.created', annotation.toJson(), sessionId: activeSessionId);
     notifyListeners();
     return annotation;
   }
@@ -984,6 +1005,7 @@ class AgentationController extends ChangeNotifier {
 
     onAnnotationUpdate?.call(updated);
     _mcpServer.broadcastUpdate();
+    _mcpServer.broadcastAfsEvent('annotation.updated', updated.toJson(), sessionId: activeSessionId);
     notifyListeners();
     return updated;
   }
@@ -1004,7 +1026,13 @@ class AgentationController extends ChangeNotifier {
       if (target != null) {
         onAnnotationDelete?.call(target);
       }
+      notifyWebhook('annotation.deleted', {
+        'id': id,
+        'annotation': target?.toJson() ?? {'id': id},
+        if (target?.sessionId != null) 'sessionId': target!.sessionId,
+      });
       _mcpServer.broadcastUpdate();
+      _mcpServer.broadcastAfsEvent('annotation.deleted', {'id': id}, sessionId: target?.sessionId);
       notifyListeners();
     }
     return success;
@@ -1058,9 +1086,12 @@ class AgentationController extends ChangeNotifier {
       'sessionId': ?activeSessionId,
       'annotationId': annotationId,
       'message': newMessage.toJson(),
+      'annotation': updated.toJson(),
     });
 
     onAnnotationUpdate?.call(updated);
+    _mcpServer.broadcastUpdate();
+    _mcpServer.broadcastAfsEvent('annotation.updated', updated.toJson(), sessionId: activeSessionId);
     notifyListeners();
     return updated;
   }
@@ -1126,16 +1157,25 @@ class AgentationController extends ChangeNotifier {
     bool webhookSuccess = true;
     if (_hasWebhookTarget) {
       try {
-        webhookSuccess = await notifyWebhook('submit', {
-          'output': output,
-          'annotations': _annotations.map((a) => a.toJson()).toList(),
-          'sessionId': _state.settings.sessionId,
-        });
+        webhookSuccess = await notifyWebhook(
+          'submit',
+          {
+            'output': output,
+            'annotations': _annotations.map((a) => a.toJson()).toList(),
+            'sessionId': _state.settings.sessionId,
+          },
+          force: true,
+        );
       } catch (e, stack) {
         AgentationLogger.error('Webhook submit failed', e, stack);
         webhookSuccess = false;
       }
     }
+
+    _mcpServer.broadcastAfsEvent('action.requested', {
+      'output': output,
+      'annotations': _annotations.map((a) => a.toJson()).toList(),
+    });
 
     final overallSuccess = callbackSuccess && (syncSuccess || onSubmit != null || webhookSuccess);
 
@@ -1154,12 +1194,14 @@ class AgentationController extends ChangeNotifier {
     _annotations = [];
     _activeAnnotation = null;
     notifyWebhook('annotations.cleared', {
+      'annotations': cleared.map((a) => a.toJson()).toList(),
       'count': count,
     });
     if (cleared.isNotEmpty) {
       onAnnotationsClear?.call(cleared);
     }
     _mcpServer.broadcastUpdate();
+    _mcpServer.broadcastAfsEvent('annotations.cleared', {'count': count});
     notifyListeners();
   }
 
@@ -1375,6 +1417,8 @@ class AgentationController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _isDisposed = true;
+    _mcpServer.onStatusChanged = null;
     _mcpServer.dispose();
     _copyTimer?.cancel();
     isCopiedNotifier.dispose();

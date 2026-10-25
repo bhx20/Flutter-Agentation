@@ -126,6 +126,68 @@ class McpProtocol {
         'required': ['annotationId', 'message'],
       },
     },
+    {
+      'name': 'agentation_watch_annotations',
+      'description':
+          'Block until new annotations appear, then collect a batch and return them. '
+          'Triggers automatically when annotations are created in the Flutter app. '
+          'Use in a loop for hands-free processing.',
+      'inputSchema': {
+        'type': 'object',
+        'properties': {
+          'sessionId': {
+            'type': 'string',
+            'description': 'Optional session ID to filter. If not provided, watches ALL sessions.',
+          },
+          'batchWindowSeconds': {
+            'type': 'number',
+            'description': 'Seconds to wait after first annotation before returning batch (default: 10, max: 60).',
+          },
+          'timeoutSeconds': {
+            'type': 'number',
+            'description': 'Max seconds to wait for first annotation (default: 120, max: 300).',
+          },
+        },
+        'required': [],
+      },
+    },
+    {
+      'name': 'agentation_create_annotation',
+      'description':
+          'Creates a new UI annotation pin on the Flutter app screen with a comment, optional logical coordinates (x, y), and optional severity level.',
+      'inputSchema': {
+        'type': 'object',
+        'properties': {
+          'comment': {
+            'type': 'string',
+            'description': 'The feedback comment or suggestion text.',
+          },
+          'x': {
+            'type': 'number',
+            'description': 'Optional X screen coordinate in logical pixels.',
+          },
+          'y': {
+            'type': 'number',
+            'description': 'Optional Y screen coordinate in logical pixels.',
+          },
+          'severity': {
+            'type': 'string',
+            'enum': ['info', 'warning', 'critical'],
+            'description': 'Optional severity level (defaults to info).',
+          },
+        },
+        'required': ['comment'],
+      },
+    },
+    {
+      'name': 'agentation_get_app_info',
+      'description':
+          'Returns runtime environment information about the running Flutter app, including app name, platform, viewport size, theme, and annotation statistics.',
+      'inputSchema': {
+        'type': 'object',
+        'properties': {},
+      },
+    },
 
     // ── Direct / Generic Tool Aliases ──
     {
@@ -181,8 +243,20 @@ class McpProtocol {
   static final List<Map<String, dynamic>> resources = [
     {
       'uri': 'agentation://annotations',
-      'name': 'Active Flutter UI Annotations',
-      'description': 'Current live list of UI feedback pins, comments, and placed skeletons.',
+      'name': 'Active Flutter UI Annotations (JSON)',
+      'description': 'Current live list of UI feedback pins, comments, and placed skeletons formatted as JSON.',
+      'mimeType': 'application/json',
+    },
+    {
+      'uri': 'agentation://annotations/markdown',
+      'name': 'Active Flutter UI Annotations (Markdown)',
+      'description': 'Current live list of UI feedback pins formatted as structured Markdown.',
+      'mimeType': 'text/markdown',
+    },
+    {
+      'uri': 'agentation://app-info',
+      'name': 'Flutter Application Environment Info',
+      'description': 'Runtime info including platform, screen dimensions, theme, and inspection mode.',
       'mimeType': 'application/json',
     },
   ];

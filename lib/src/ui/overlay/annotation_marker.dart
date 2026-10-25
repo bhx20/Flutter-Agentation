@@ -306,25 +306,53 @@ class AnnotationHoverPreviewCard extends StatelessWidget {
     const cardMaxWidth = 240.0;
     const cardMinWidth = 120.0;
 
-    // Determine the element's actual bounding box on screen
-    final elementTop = bounds.y;
-    final elementBottom = bounds.y + (bounds.height > 0 ? bounds.height : 24.0);
-    final elementCenterX = (bounds.width > 0)
-        ? (bounds.x + (bounds.width / 2.0))
-        : (annotation.tapPosition?.dx ?? bounds.x);
+    // Determine the marker's actual location on screen
+    final double markerLeft;
+    final double markerTop;
+    if (annotation.tapPosition != null) {
+      final relX = annotation.tapPosition!.dx - annotation.bounds.x;
+      final relY = annotation.tapPosition!.dy - annotation.bounds.y;
+      markerLeft = bounds.x + relX - 12.0;
+      markerTop = bounds.y + relY - 12.0;
+    } else {
+      markerLeft = bounds.x - 10.0;
+      markerTop = bounds.y - 10.0;
+    }
+    final markerCenterX = markerLeft + 12.0;
+    final markerBottom = markerTop + 24.0;
 
-    // Approximate card height based on comment text length so it never overlaps the hovered element
+    // Approximate card height based on comment text length so it never overlaps the hovered marker or widget
     final approxLines = (annotation.comment.length / 28.0).ceil().clamp(1, 14);
     final estimatedCardHeight = 48.0 + (approxLines * 18.0);
 
-    // Prefer positioning cleanly below the element; if not enough room at bottom of viewport, position cleanly above
-    final preferredTop = elementBottom + 8.0;
-    final top = (preferredTop + estimatedCardHeight < screenSize.height - 8.0)
-        ? preferredTop
-        : math.max(8.0, elementTop - estimatedCardHeight - 8.0);
+    // If the annotated widget is full-screen or excessively large (e.g. FreezeOverlay, Scaffold, root view),
+    // anchoring to the widget's bounds would push the card off-screen and cause it to flip to top: 8.0.
+    // In that case, anchor cleanly to the marker pin itself.
+    final isHugeOrFullScreenWidget = bounds.height >= screenSize.height * 0.65 ||
+        (bounds.y <= 0.0 && bounds.height >= screenSize.height - 80.0);
 
-    // Center horizontally aligned with the element
-    final left = (elementCenterX - (cardMaxWidth / 2.0))
+    final double anchorTop;
+    final double anchorBottom;
+    final double anchorCenterX;
+
+    if (isHugeOrFullScreenWidget) {
+      anchorTop = markerTop;
+      anchorBottom = markerBottom;
+      anchorCenterX = markerCenterX;
+    } else {
+      anchorTop = bounds.y;
+      anchorBottom = bounds.y + bounds.height;
+      anchorCenterX = bounds.x + (bounds.width / 2.0);
+    }
+
+    // Prefer positioning below the anchor; if not enough room at the bottom of the viewport, position above.
+    final preferredTopBelow = anchorBottom + 8.0;
+    final top = (preferredTopBelow + estimatedCardHeight < screenSize.height - 8.0)
+        ? preferredTopBelow
+        : math.max(8.0, anchorTop - estimatedCardHeight - 8.0);
+
+    // Center horizontally aligned with the anchor
+    final left = (anchorCenterX - (cardMaxWidth / 2.0))
         .clamp(8.0, math.max(8.0, screenSize.width - cardMaxWidth - 8.0))
         .toDouble();
 

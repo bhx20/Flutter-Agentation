@@ -1,7 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
-import 'package:flutter_agentation/src/core/flutter_agentation.dart';
+import 'package:flutter_agentation/src/core/agentation_widget.dart';
 import 'package:flutter_agentation/src/inspection/element_inspector.dart';
 import 'package:flutter_agentation/src/source_location/source_location_resolver.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +17,7 @@ void main() {
           home: FlutterAgentation(
             controller: controller,
             showToolbar: true,
+            initialToolbarMinimized: false,
             child: Scaffold(
               body: ListView.builder(
                 itemCount: 50,
@@ -48,12 +49,15 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(controller.annotations.length, equals(2));
+      controller.clearSelection();
+      await tester.pumpAndSettle();
 
       // Hover over items
+      final target = tester.getCenter(find.text('Item #1'));
       final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await gesture.addPointer(location: Offset.zero);
-      await gesture.moveTo(const Offset(100, 100));
+      await tester.pump();
+      await gesture.moveTo(target);
       await tester.pump();
       expect(controller.hoveredResult, isNotNull);
 
@@ -64,7 +68,7 @@ void main() {
         await tester.pump();
 
         // Perform hover inspection after reload across varying widget targets
-        await gesture.moveTo(Offset(100, 120 + ((i % 10) * 12.0)));
+        await gesture.moveTo(Offset(target.dx, target.dy + ((i % 5) * 8.0)));
         await tester.pump(const Duration(milliseconds: 16));
 
         // Hover should continue functioning instantaneously

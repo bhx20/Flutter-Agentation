@@ -111,10 +111,18 @@ class AgentationIcons {
   }
 
   /// Send arrow icon matching upstream Agentation IconSendArrow.
-  static Widget send({double size = 20.0, Color color = Colors.white}) {
+  /// Supports states: 'idle', 'sending', 'sent', 'failed'.
+  static Widget send({
+    double size = 20.0,
+    Color color = Colors.white,
+    String state = 'idle',
+  }) {
     return CustomPaint(
       size: Size(size, size),
-      painter: _SendIconPainter(color: color),
+      painter: _SendIconPainter(
+        color: color,
+        state: state,
+      ),
     );
   }
 
@@ -709,41 +717,89 @@ class _WireframeIconPainter extends CustomPainter {
 }
 
 class _SendIconPainter extends CustomPainter {
-  const _SendIconPainter({required this.color});
+  const _SendIconPainter({
+    required this.color,
+    this.state = 'idle',
+  });
   final Color color;
+  final String state;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final strokePaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
     final scale = size.width / 24.0;
     canvas.save();
     canvas.scale(scale);
 
-    final path = Path()
-      ..moveTo(9.875, 14.125)
-      ..lineTo(12.3506, 19.6951)
-      ..cubicTo(12.7184, 20.5227, 13.9091, 20.4741, 14.2083, 19.6193)
-      ..lineTo(18.8139, 6.46032)
-      ..cubicTo(19.0907, 5.6695, 18.3305, 4.90933, 17.5397, 5.18611)
-      ..lineTo(4.38072, 9.79174)
-      ..cubicTo(3.52589, 10.0909, 3.47731, 11.2816, 4.30494, 11.6494)
-      ..lineTo(9.875, 14.125)
-      ..close()
-      ..moveTo(9.875, 14.125)
-      ..lineTo(13.375, 10.625);
+    if (state == 'sent') {
+      final successPaint = Paint()
+        ..color = AgentationColors.statusConnected
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
 
-    canvas.drawPath(path, strokePaint);
+      // Circle
+      canvas.drawCircle(const Offset(12.0, 12.0), 8.0, successPaint);
+
+      // Checkmark
+      final checkPath = Path()
+        ..moveTo(9.25, 12.25)
+        ..lineTo(11.0, 14.25)
+        ..lineTo(15.0, 10.0);
+      canvas.drawPath(checkPath, successPaint);
+    } else if (state == 'failed') {
+      final errorPaint = Paint()
+        ..color = AgentationColors.statusDisconnected
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      // Circle
+      canvas.drawCircle(const Offset(12.0, 12.0), 8.0, errorPaint);
+
+      // Exclamation line
+      canvas.drawLine(const Offset(12.0, 8.0), const Offset(12.0, 12.0), errorPaint);
+
+      // Exclamation dot
+      final dotPaint = Paint()
+        ..color = AgentationColors.statusDisconnected
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(const Offset(12.0, 15.0), 0.75, dotPaint);
+    } else {
+      final strokePaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      if (state == 'sending') {
+        strokePaint.color = color.withValues(alpha: 0.6);
+      }
+
+      final path = Path()
+        ..moveTo(9.875, 14.125)
+        ..lineTo(12.3506, 19.6951)
+        ..cubicTo(12.7184, 20.5227, 13.9091, 20.4741, 14.2083, 19.6193)
+        ..lineTo(18.8139, 6.46032)
+        ..cubicTo(19.0907, 5.6695, 18.3305, 4.90933, 17.5397, 5.18611)
+        ..lineTo(4.38072, 9.79174)
+        ..cubicTo(3.52589, 10.0909, 3.47731, 11.2816, 4.30494, 11.6494)
+        ..lineTo(9.875, 14.125)
+        ..close()
+        ..moveTo(9.875, 14.125)
+        ..lineTo(13.375, 10.625);
+
+      canvas.drawPath(path, strokePaint);
+    }
+
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_SendIconPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(_SendIconPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.state != state;
 }
 
 class _ListSparkleIconPainter extends CustomPainter {

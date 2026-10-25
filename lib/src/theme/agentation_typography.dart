@@ -223,4 +223,87 @@ abstract final class AgentationTypography {
     fontFamily: fontFamily,
     fontSize: 10.0,
   );
+
+  // ── Panel & Toolbar Dedicated Styles ──
+  /// Navigation & page header style (13.5, w500).
+  static const TextStyle panelHeader = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 13.5,
+    fontWeight: FontWeight.w500,
+  );
+
+  /// Section title in settings and automation panels (13.0, w500).
+  static const TextStyle sectionHeader = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 13.0,
+    fontWeight: FontWeight.w500,
+  );
+
+  /// Panel description and explainer text (11.5, normal weight, height 1.35).
+  static const TextStyle panelDescription = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 11.5,
+    fontWeight: FontWeight.normal,
+    height: 1.35,
+  );
+
+  /// Link text style inside panels (11.5, normal weight, underline, height 1.35).
+  static const TextStyle panelLink = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 11.5,
+    fontWeight: FontWeight.normal,
+    height: 1.35,
+    decoration: TextDecoration.underline,
+    decorationStyle: TextDecorationStyle.dotted,
+  );
+
+  /// Auto-send toggle label (11.5, w500).
+  static const TextStyle autoSendLabel = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 11.5,
+    fontWeight: FontWeight.w500,
+  );
+
+  /// Input text style for webhook and settings fields (12.0, normal weight).
+  static const TextStyle panelInput = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 12.0,
+    fontWeight: FontWeight.normal,
+  );
+
+  /// Input hint / placeholder text (12.0, normal weight).
+  static const TextStyle panelInputHint = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 12.0,
+    fontWeight: FontWeight.normal,
+  );
+
+  /// Small chip and action tag label (10.5, w500).
+  static const TextStyle panelActionTag = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 10.5,
+    fontWeight: FontWeight.w500,
+  );
+
+  /// Monospace code / URL snippet in panels (10.5, monospace).
+  static const TextStyle panelCodeSnippet = TextStyle(
+    fontFamily: monospaceFamily,
+    fontSize: 10.5,
+  );
+
+  /// Standard panel tooltip message (10.5, normal weight).
+  static const TextStyle panelTooltipText = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 10.5,
+    fontWeight: FontWeight.normal,
+  );
+
+  /// Send button badge counter (9.5, w600, height 1.0).
+  static const TextStyle toolbarBadge = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 9.5,
+    fontWeight: FontWeight.w600,
+    height: 1.0,
+    decoration: TextDecoration.none,
+  );
 }

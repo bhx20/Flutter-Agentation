@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_agentation/src/core/flutter_agentation.dart';
+import 'package:flutter_agentation/src/core/agentation_widget.dart';
 import 'package:flutter_agentation/src/inspection/widget_path_resolver.dart';
 import '../helpers/inspection_test_harness.dart';
 

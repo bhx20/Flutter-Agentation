@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/flutter_agentation.dart';
-// ignore: avoid_relative_lib_imports
-import '../../example/lib/main.dart';
+import '../helpers/test_inspection_app.dart';
 
 void main() {
   group('Block Page Interactions & Hide Until Restart', () {

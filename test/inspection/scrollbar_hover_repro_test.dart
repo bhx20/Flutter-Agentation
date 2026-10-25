@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_agentation/src/inspection/flutter_inspection_engine.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
-// ignore: avoid_relative_lib_imports
-import '../../example/lib/main.dart';
+import '../helpers/test_inspection_app.dart';
 
 void main() {
   testWidgets('Verify individual widgets are selected on hover and Scrollbar is never resolved', (tester) async {

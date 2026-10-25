@@ -174,8 +174,11 @@ void main() {
       // Verify React Components is removed (Flutter widgets always inspected by default)
       expect(find.text('React Components'), findsNothing);
 
-      // Verify MCP & Webhook controls are completely removed
-      expect(find.text('Manage MCP & Webhooks'), findsNothing);
+      // Verify Manage MCP & Webhooks nav link is present
+      expect(find.text('Manage MCP & Webhooks'), findsOneWidget);
+      expect(find.byKey(const ValueKey('settings_nav_mcp_webhooks')), findsOneWidget);
+
+      // Verify legacy removed widgets are not present
       expect(find.text('Automations & MCP Sync'), findsNothing);
       expect(find.byKey(const ValueKey('manage_mcp_webhooks_tile')), findsNothing);
       expect(find.byKey(const ValueKey('mcp_endpoint_input')), findsNothing);
