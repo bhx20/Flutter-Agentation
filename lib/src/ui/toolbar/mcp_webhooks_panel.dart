@@ -245,19 +245,26 @@ class _McpWebhooksPanelState extends State<McpWebhooksPanel> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Header: Back button + Manage MCP & Webhooks ──
-            InkWell(
-              onTap: widget.onBack,
-              borderRadius: BorderRadius.circular(6.0),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 2.0,
-                  vertical: 3.0,
+            Row(
+              children: [
+                _PanelHoverIconButton(
+                  key: const ValueKey('mcp_back_button'),
+                  icon: Icons.chevron_left,
+                  size: 26.0,
+                  iconSize: 20.0,
+                  isDark: isDark,
+                  onTap: widget.onBack,
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.chevron_left, size: 19.0, color: subtextColor),
-                    const SizedBox(width: 4.0),
-                    Expanded(
+                const SizedBox(width: 4.0),
+                Expanded(
+                  child: InkWell(
+                    onTap: widget.onBack,
+                    borderRadius: BorderRadius.circular(6.0),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4.0,
+                        vertical: 4.0,
+                      ),
                       child: Text(
                         'Manage MCP & Webhooks',
                         style: AgentationTypography.panelHeader.copyWith(
@@ -266,9 +273,9 @@ class _McpWebhooksPanelState extends State<McpWebhooksPanel> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
 
             const SizedBox(height: 10.0),
@@ -283,6 +290,25 @@ class _McpWebhooksPanelState extends State<McpWebhooksPanel> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      _PanelTooltip(
+                        message: mcpStatusMessage,
+                        child: Container(
+                          width: 8.0,
+                          height: 8.0,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: mcpStatusColor,
+                            boxShadow: [
+                              BoxShadow(
+                                color: mcpStatusColor.withValues(alpha: 0.4),
+                                blurRadius: 4.0,
+                                spreadRadius: 1.0,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8.0),
                       Flexible(
                         child: Text(
                           'MCP Connection',
@@ -301,35 +327,11 @@ class _McpWebhooksPanelState extends State<McpWebhooksPanel> {
                   ),
                 ),
                 const SizedBox(width: 6.0),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _PanelTooltip(
-                      message: mcpStatusMessage,
-                      child: Container(
-                        width: 8.0,
-                        height: 8.0,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: mcpStatusColor,
-                          boxShadow: [
-                            BoxShadow(
-                              color: mcpStatusColor.withValues(alpha: 0.4),
-                              blurRadius: 4.0,
-                              spreadRadius: 1.0,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8.0),
-                    _PanelSwitch(
-                      key: const ValueKey('toggle_mcp_server'),
-                      value: settings.mcpEnabled,
-                      isDark: isDark,
-                      onChanged: isToggling ? null : _handleToggleMcp,
-                    ),
-                  ],
+                _PanelSwitch(
+                  key: const ValueKey('toggle_mcp_server'),
+                  value: settings.mcpEnabled,
+                  isDark: isDark,
+                  onChanged: isToggling ? null : _handleToggleMcp,
                 ),
               ],
             ),
@@ -349,8 +351,8 @@ class _McpWebhooksPanelState extends State<McpWebhooksPanel> {
                 Text(
                   'Auto-Send',
                   style: AgentationTypography.autoSendLabel.copyWith(
-                    color: !isMcpRunning
-                        ? subtextColor.withValues(alpha: 0.5)
+                    color: !settings.mcpEnabled
+                        ? subtextColor.withValues(alpha: 0.4)
                         : (settings.autoSendMcp ? autoSendColor : subtextColor),
                   ),
                 ),
@@ -358,11 +360,13 @@ class _McpWebhooksPanelState extends State<McpWebhooksPanel> {
                   key: const ValueKey('toggle_mcp_autosend'),
                   value: settings.autoSendMcp,
                   isDark: isDark,
-                  onChanged: (val) {
-                    widget.controller.updateSettings(
-                      widget.controller.settings.copyWith(autoSendMcp: val),
-                    );
-                  },
+                  onChanged: settings.mcpEnabled
+                      ? (val) {
+                          widget.controller.updateSettings(
+                            widget.controller.settings.copyWith(autoSendMcp: val),
+                          );
+                        }
+                      : null,
                 ),
               ],
             ),
@@ -556,6 +560,70 @@ class _PanelTooltip extends StatelessWidget {
   }
 }
 
+class _PanelHoverIconButton extends StatefulWidget {
+  const _PanelHoverIconButton({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    required this.isDark,
+    this.size = 26.0,
+    this.iconSize = 20.0,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool isDark;
+  final double size;
+  final double iconSize;
+
+  @override
+  State<_PanelHoverIconButton> createState() => _PanelHoverIconButtonState();
+}
+
+class _PanelHoverIconButtonState extends State<_PanelHoverIconButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalColor = widget.isDark
+        ? AgentationColors.darkTextSecondary
+        : AgentationColors.lightTextSecondary;
+    final hoverColor = widget.isDark
+        ? AgentationColors.darkTextPrimary
+        : AgentationColors.lightTextPrimary;
+    final hoverBg = widget.isDark
+        ? AgentationColors.darkHoverBg
+        : AgentationColors.lightHoverBg;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            color: _isHovered ? hoverBg : Colors.transparent,
+            borderRadius: BorderRadius.circular(6.0),
+          ),
+          child: Center(
+            child: Icon(
+              widget.icon,
+              size: widget.iconSize,
+              color: _isHovered ? hoverColor : normalColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _PanelSwitch extends StatelessWidget {
   const _PanelSwitch({
     super.key,
@@ -578,14 +646,28 @@ class _PanelSwitch extends StatelessWidget {
     final activeColor = isDark
         ? AgentationColors.blue400
         : AgentationColors.blue300;
-    final trackColor = value
-        ? activeColor
+    final disabledTrackOnColor = isDark
+        ? const Color(0xFF3A3A3C)
+        : const Color(0xFFCDCDD0);
+    final disabledTrackOffColor = isDark
+        ? Colors.white.withValues(alpha: 0.12)
+        : AgentationColors.gray200;
+    final trackColor = isEnabled
+        ? (value
+            ? activeColor
+            : (isDark
+                  ? Colors.white.withValues(alpha: 0.15)
+                  : AgentationColors.gray200))
+        : (value ? disabledTrackOnColor : disabledTrackOffColor);
+
+    final thumbColor = isEnabled
+        ? Colors.white
         : (isDark
-              ? Colors.white.withValues(alpha: 0.15)
-              : AgentationColors.gray200);
+            ? Colors.white.withValues(alpha: 0.65)
+            : Colors.white);
 
     return Opacity(
-      opacity: isEnabled ? 1.0 : 0.4,
+      opacity: isEnabled ? 1.0 : 0.55,
       child: MouseRegion(
         cursor: isEnabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
         child: GestureDetector(
@@ -606,16 +688,18 @@ class _PanelSwitch extends StatelessWidget {
               child: Container(
                 width: thumbSize,
                 height: thumbSize,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: thumbColor,
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AgentationColors.shadowSubtle,
-                      blurRadius: 2.0,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
+                  boxShadow: isEnabled
+                      ? const [
+                          BoxShadow(
+                            color: AgentationColors.shadowSubtle,
+                            blurRadius: 2.0,
+                            offset: Offset(0, 1),
+                          ),
+                        ]
+                      : null,
                 ),
               ),
             ),

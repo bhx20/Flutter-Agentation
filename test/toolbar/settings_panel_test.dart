@@ -4,6 +4,7 @@ import 'package:flutter_agentation/src/core/agentation_controller.dart';
 import 'package:flutter_agentation/src/core/agentation_scope.dart';
 import 'package:flutter_agentation/src/core/package_version.dart';
 import 'package:flutter_agentation/src/domain/marker_color.dart';
+import 'package:flutter_agentation/src/domain/toolbar_settings.dart';
 import 'package:flutter_agentation/src/storage/memory_annotation_storage.dart';
 import 'package:flutter_agentation/src/ui/design/component_palette.dart';
 import 'package:flutter_agentation/src/ui/toolbar/agentation_toolbar.dart';
@@ -15,12 +16,14 @@ void main() {
     late AgentationController controller;
 
     setUp(() {
+      AgentationController.resetPersistedMarkerColor();
       storage = MemoryAnnotationStorage();
       controller = AgentationController(storage: storage);
     });
 
     tearDown(() {
       controller.dispose();
+      AgentationController.resetPersistedMarkerColor();
     });
 
     testWidgets('renders theme toggle, all 7 marker color swatches, and behavior switches',
@@ -66,7 +69,7 @@ void main() {
         ),
       );
 
-      expect(controller.settings.markerColorId, equals('indigo'));
+      expect(controller.settings.markerColorId, equals('blue'));
 
       // Tap Emerald swatch
       final emeraldFinder = find.byTooltip('Emerald');
@@ -83,6 +86,71 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(controller.settings.markerColorId, equals('rose'));
+
+      // Simulate app restart by instantiating a new controller:
+      // The last selected marker color ('rose') stays preserved!
+      final restartedController = AgentationController();
+      expect(restartedController.settings.markerColorId, equals('rose'));
+      restartedController.dispose();
+    });
+
+    test('all flutter-agentation settings persist across restart', () {
+      expect(controller.settings.isDarkMode, isTrue);
+      expect(controller.settings.outputDetail, OutputDetailLevel.standard);
+      expect(controller.settings.copyFormat, CopyFormat.feedback);
+      expect(controller.settings.markerColorId, 'blue');
+      expect(controller.settings.autoClearAfterCopy, isFalse);
+      expect(controller.settings.blockInteractions, isTrue);
+      expect(controller.settings.mcpEnabled, isFalse);
+      expect(controller.settings.autoSendMcp, isTrue);
+      expect(controller.settings.autoSendWebhook, isFalse);
+
+      // Modify all settings
+      controller.toggleTheme(); // isDarkMode -> false
+      controller.setDetailLevel(OutputDetailLevel.forensic);
+      controller.setCopyFormat(CopyFormat.json);
+      controller.setMarkerColorId('amber');
+      controller.updateSettings(
+        controller.settings.copyWith(
+          autoClearAfterCopy: true,
+          blockInteractions: false,
+          mcpEnabled: true,
+          webhookUrl: 'https://example.com/agent-hook',
+          autoSendWebhook: true,
+          autoSendMcp: false,
+          hideUntilRestart: true,
+        ),
+      );
+
+      // Verify mutated in-memory state
+      expect(controller.settings.isDarkMode, isFalse);
+      expect(controller.settings.outputDetail, OutputDetailLevel.forensic);
+      expect(controller.settings.copyFormat, CopyFormat.json);
+      expect(controller.settings.markerColorId, 'amber');
+      expect(controller.settings.autoClearAfterCopy, isTrue);
+      expect(controller.settings.blockInteractions, isFalse);
+      expect(controller.settings.mcpEnabled, isTrue);
+      expect(controller.settings.webhookUrl, 'https://example.com/agent-hook');
+      expect(controller.settings.autoSendWebhook, isTrue);
+      expect(controller.settings.autoSendMcp, isFalse);
+      expect(controller.settings.hideUntilRestart, isTrue);
+
+      // Re-instantiate controller to simulate restart
+      final restarted = AgentationController();
+      expect(restarted.settings.isDarkMode, isFalse);
+      expect(restarted.settings.outputDetail, OutputDetailLevel.forensic);
+      expect(restarted.settings.copyFormat, CopyFormat.json);
+      expect(restarted.settings.markerColorId, 'amber');
+      expect(restarted.settings.autoClearAfterCopy, isTrue);
+      expect(restarted.settings.blockInteractions, isFalse);
+      expect(restarted.settings.mcpEnabled, isTrue);
+      expect(restarted.settings.webhookUrl, 'https://example.com/agent-hook');
+      expect(restarted.settings.autoSendWebhook, isTrue);
+      expect(restarted.settings.autoSendMcp, isFalse);
+      // hideUntilRestart must reset to false upon restart!
+      expect(restarted.settings.hideUntilRestart, isFalse);
+
+      restarted.dispose();
     });
 
     testWidgets('toggling theme updates controller dark mode setting', (tester) async {

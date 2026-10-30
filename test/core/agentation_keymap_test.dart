@@ -543,6 +543,9 @@ void main() {
 
     testWidgets("'S' shortcut triggers annotation submission when canSend is true", (tester) async {
       bool wasSubmitted = false;
+      controller.updateSettings(
+        controller.settings.copyWith(mcpEnabled: true, autoSendMcp: false),
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -551,6 +554,7 @@ void main() {
               controller: controller,
               showToolbar: true,
               initialToolbarMinimized: false,
+              mcpEnabled: true,
               onSubmit: (output, annotations) async {
                 wasSubmitted = true;
               },

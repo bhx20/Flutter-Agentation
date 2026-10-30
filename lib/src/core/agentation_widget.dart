@@ -317,7 +317,8 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
 
     bool isTestBinding = false;
     try {
-      isTestBinding = WidgetsBinding.instance.runtimeType.toString().contains('Test');
+      isTestBinding =
+          WidgetsBinding.instance.runtimeType.toString().contains('Test');
     } catch (_) {}
     final bool effectiveMcpEnabled = widget.mcpEnabled ?? !isTestBinding;
 

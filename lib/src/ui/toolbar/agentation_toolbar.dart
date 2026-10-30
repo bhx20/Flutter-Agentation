@@ -534,12 +534,14 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                 alignment: Alignment.centerRight,
                 children: [
                   // ── 1. Controls Content (Visible when expanded, smoothly scales/fades) ──
-                  Positioned(
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 360),
+                    curve: const Cubic(0.19, 1.0, 0.22, 1.0),
                     right: 44.0,
-              top: 0,
-              bottom: 0,
-              width: expandedWidth - 44.0,
-              child: AnimatedScale(
+                    top: 0,
+                    bottom: 0,
+                    width: expandedWidth - 44.0,
+                    child: AnimatedScale(
                 scale: isMinimized ? 0.4 : 1.0,
                 duration: isMinimized
                     ? const Duration(milliseconds: 360)
@@ -630,30 +632,45 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                             onPressed: () => _onCopy(controller),
                           ),
 
-                          // 5. Send Annotations (Paper plane) - Upstream IconSendArrow
-                          if (canSend)
-                            _ToolbarIconButton(
-                              buttonKey: const ValueKey('toolbar_send'),
-                              icon: AgentationIcons.send(
-                                size: 22.0,
-                                color: (sendState == 'sent' || sendState == 'failed')
-                                    ? (sendState == 'sent' ? theme.successColor : theme.destructiveColor)
-                                    : (hasAnnotations ? iconColor : theme.iconInactiveColor),
-                                state: sendState,
-                              ),
-                              badgeCount: (hasAnnotations && sendState == 'idle') ? count : null,
-                              tooltipLabel: 'Send Annotations',
-                              tooltipShortcut: controller.enableKeyboardShortcuts ? 'S' : null,
-                              isActive: sendState == 'sent' || sendState == 'failed',
-                              activeColor: sendState == 'sent'
-                                  ? theme.successColor.withValues(alpha: 0.15)
-                                  : theme.destructiveColor.withValues(alpha: 0.15),
-                              isEnabled: hasAnnotations && canSend && sendState != 'sending',
-                              preferBelow: isNearTop,
-                              isDark: theme.isDark,
-                              theme: theme,
-                              onPressed: () => _onSend(controller),
-                            ),
+                          // 5. Send Annotations (Paper plane) - Upstream IconSendArrow with fluid show/hide animation
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 320),
+                            curve: const Cubic(0.19, 1.0, 0.22, 1.0),
+                            child: canSend
+                                ? AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 240),
+                                    curve: Curves.easeInOut,
+                                    opacity: canSend ? 1.0 : 0.0,
+                                    child: AnimatedScale(
+                                      duration: const Duration(milliseconds: 280),
+                                      curve: const Cubic(0.19, 1.0, 0.22, 1.0),
+                                      scale: canSend ? 1.0 : 0.6,
+                                      child: _ToolbarIconButton(
+                                        buttonKey: const ValueKey('toolbar_send'),
+                                        icon: AgentationIcons.send(
+                                          size: 22.0,
+                                          color: (sendState == 'sent' || sendState == 'failed')
+                                              ? (sendState == 'sent' ? theme.successColor : theme.destructiveColor)
+                                              : (hasAnnotations ? iconColor : theme.iconInactiveColor),
+                                          state: sendState,
+                                        ),
+                                        badgeCount: (hasAnnotations && sendState == 'idle') ? count : null,
+                                        tooltipLabel: 'Send Annotations',
+                                        tooltipShortcut: controller.enableKeyboardShortcuts ? 'S' : null,
+                                        isActive: sendState == 'sent' || sendState == 'failed',
+                                        activeColor: sendState == 'sent'
+                                            ? theme.successColor.withValues(alpha: 0.15)
+                                            : theme.destructiveColor.withValues(alpha: 0.15),
+                                        isEnabled: hasAnnotations && canSend && sendState != 'sending',
+                                        preferBelow: isNearTop,
+                                        isDark: theme.isDark,
+                                        theme: theme,
+                                        onPressed: () => _onSend(controller),
+                                      ),
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
 
                           // 6. Delete / Trash (Trash can) - Screenshot 1
                           _ToolbarIconButton(

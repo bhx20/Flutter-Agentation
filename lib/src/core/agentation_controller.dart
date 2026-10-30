@@ -22,6 +22,7 @@ import '../inspection/widget_tree_placement_resolver.dart';
 import '../ui/design/skeleton_templates.dart';
 import '../storage/annotation_storage.dart';
 import '../storage/memory_annotation_storage.dart';
+import '../storage/settings_storage.dart';
 import '../output/clipboard_exporter.dart';
 import '../networking/agent_sync_client.dart';
 import '../networking/mcp/flutter_mcp_server.dart';
@@ -49,23 +50,40 @@ class AgentationController extends ChangeNotifier {
     this.onOpenSource,
     bool copyToClipboard = true,
     this.enableKeyboardShortcuts = true,
-  })  : _engine = engine ?? FlutterInspectionEngine(),
-        _storage = storage ?? MemoryAnnotationStorage(),
-        _state = AgentationState(mode: initialMode),
-        shouldCopyToClipboard = copyToClipboard {
+  }) : _engine = engine ?? FlutterInspectionEngine(),
+       _storage = storage ?? MemoryAnnotationStorage(),
+       _state = AgentationState(mode: initialMode),
+       shouldCopyToClipboard = copyToClipboard {
     _appName = appName;
     _platformName = platform;
     _screenSize = screenSize;
     try {
       WidgetsFlutterBinding.ensureInitialized();
     } catch (_) {}
+    final storedMap = loadStoredSettings();
+    ToolbarSettings effectiveSettings = _state.settings;
+    if (storedMap != null) {
+      effectiveSettings = effectiveSettings.mergeFromJson(storedMap);
+    } else if (_persistedSettings != null) {
+      effectiveSettings = _persistedSettings!;
+    } else {
+      final savedColor = loadStoredMarkerColor();
+      if (savedColor != null && savedColor.isNotEmpty) {
+        effectiveSettings = effectiveSettings.copyWith(markerColorId: savedColor);
+      }
+    }
+    effectiveSettings = effectiveSettings.copyWith(hideUntilRestart: false);
+    _persistedSettings = effectiveSettings;
+    _state = _state.copyWith(settings: effectiveSettings);
     if (syncClient != null) {
       _syncClient = syncClient;
     }
     if (_state.settings.mcpEnabled) {
       bool isTest = false;
       try {
-        isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
+        isTest = WidgetsBinding.instance.runtimeType.toString().contains(
+          'Test',
+        );
       } catch (_) {}
       if (!isTest) {
         _mcpServer.start(port: _state.settings.mcpPort);
@@ -89,7 +107,8 @@ class AgentationController extends ChangeNotifier {
   void Function(String output)? onCopy;
 
   /// Callback fired when "Send Annotations" is clicked.
-  FutureOr<void> Function(String output, List<Annotation> annotations)? onSubmit;
+  FutureOr<void> Function(String output, List<Annotation> annotations)?
+  onSubmit;
 
   /// Callback fired when a new session is created.
   void Function(String sessionId)? onSessionCreated;
@@ -117,10 +136,12 @@ class AgentationController extends ChangeNotifier {
   /// ValueNotifier indicating whether a copy feedback action was recently completed.
   final ValueNotifier<bool> isCopiedNotifier = ValueNotifier<bool>(false);
 
-  final ValueNotifier<PendingPlacement?> _pendingPlacementNotifier = ValueNotifier<PendingPlacement?>(null);
+  final ValueNotifier<PendingPlacement?> _pendingPlacementNotifier =
+      ValueNotifier<PendingPlacement?>(null);
 
   /// ValueListenable indicating an active pending component placement awaiting user configuration.
-  ValueListenable<PendingPlacement?> get pendingPlacementListenable => _pendingPlacementNotifier;
+  ValueListenable<PendingPlacement?> get pendingPlacementListenable =>
+      _pendingPlacementNotifier;
 
   /// Active pending component placement awaiting user answers, or null if none.
   PendingPlacement? get pendingPlacement => _pendingPlacementNotifier.value;
@@ -233,7 +254,9 @@ class AgentationController extends ChangeNotifier {
     if (_screenSize != null) return _screenSize;
     try {
       final view = WidgetsBinding.instance.platformDispatcher.views.firstOrNull;
-      if (view != null && view.physicalSize.width > 0 && view.physicalSize.height > 0) {
+      if (view != null &&
+          view.physicalSize.width > 0 &&
+          view.physicalSize.height > 0) {
         final dpr = view.devicePixelRatio > 0 ? view.devicePixelRatio : 1.0;
         return view.physicalSize / dpr;
       }
@@ -342,8 +365,9 @@ class AgentationController extends ChangeNotifier {
 
   /// Toggles selection of a widget within multi-select mode.
   void toggleMultiSelection(WidgetInspectionResult target) {
-    final existingIndex = _multiSelection
-        .indexWhere((item) => item.identity == target.identity);
+    final existingIndex = _multiSelection.indexWhere(
+      (item) => item.identity == target.identity,
+    );
     if (existingIndex >= 0) {
       _multiSelection.removeAt(existingIndex);
     } else {
@@ -359,20 +383,40 @@ class AgentationController extends ChangeNotifier {
     notifyListeners();
   }
 
+  static ToolbarSettings? _persistedSettings;
+
+  /// Visible for testing only: resets the persisted settings cache and storage.
+  @visibleForTesting
+  static void resetPersistedSettings() {
+    _persistedSettings = null;
+    clearStoredSettings();
+  }
+
+  /// Visible for testing only: resets the persisted marker color cache and storage.
+  @visibleForTesting
+  static void resetPersistedMarkerColor() {
+    resetPersistedSettings();
+  }
+
   /// Updates overlay and toolbar preferences.
   void updateSettings(ToolbarSettings settings) {
     if (_state.settings == settings) return;
+    _persistedSettings = settings.copyWith(hideUntilRestart: false);
+    saveStoredSettings(settings.toJson());
     final oldMcp = _state.settings.mcpEndpoint;
     final oldWebhook = _state.settings.webhookUrl;
     final oldMcpEnabled = _state.settings.mcpEnabled;
     final oldMcpPort = _state.settings.mcpPort;
     _state = _state.copyWith(settings: settings);
 
-    if (settings.mcpEnabled != oldMcpEnabled || settings.mcpPort != oldMcpPort) {
+    if (settings.mcpEnabled != oldMcpEnabled ||
+        settings.mcpPort != oldMcpPort) {
       if (settings.mcpEnabled) {
         bool isTest = false;
         try {
-          isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
+          isTest = WidgetsBinding.instance.runtimeType.toString().contains(
+            'Test',
+          );
         } catch (_) {}
         if (!isTest) {
           _mcpServer.start(port: settings.mcpPort);
@@ -420,7 +464,8 @@ class AgentationController extends ChangeNotifier {
       return customSessionId;
     }
 
-    if (_state.settings.sessionId != null && _state.settings.sessionId!.isNotEmpty) {
+    if (_state.settings.sessionId != null &&
+        _state.settings.sessionId!.isNotEmpty) {
       return _state.settings.sessionId;
     }
 
@@ -459,18 +504,27 @@ class AgentationController extends ChangeNotifier {
   }) async {
     final webhookUrl = _state.settings.webhookUrl ?? _syncClient?.webhookUrl;
     if (webhookUrl == null || webhookUrl.isEmpty) return false;
-    if (!force && !_state.settings.autoSendWebhook && _syncClient?.webhookUrl == null) return false;
+    if (!force &&
+        !_state.settings.autoSendWebhook &&
+        _syncClient?.webhookUrl == null) {
+      return false;
+    }
 
-    final enrichedPayload = <String, dynamic>{
-      'url': '/',
-      ...payload,
-    };
+    final enrichedPayload = <String, dynamic>{'url': '/', ...payload};
 
     if (_syncClient != null) {
-      return _syncClient!.dispatchWebhook(webhookUrl, event: event, payload: enrichedPayload);
+      return _syncClient!.dispatchWebhook(
+        webhookUrl,
+        event: event,
+        payload: enrichedPayload,
+      );
     } else {
       final tempClient = AgentSyncClient(endpoint: '', webhookUrl: webhookUrl);
-      return tempClient.dispatchWebhook(webhookUrl, event: event, payload: enrichedPayload);
+      return tempClient.dispatchWebhook(
+        webhookUrl,
+        event: event,
+        payload: enrichedPayload,
+      );
     }
   }
 
@@ -486,25 +540,26 @@ class AgentationController extends ChangeNotifier {
 
   /// Toggles between dark and light themes.
   void toggleTheme() {
-    updateSettings(_state.settings.copyWith(
-      isDarkMode: !_state.settings.isDarkMode,
-    ));
+    updateSettings(
+      _state.settings.copyWith(isDarkMode: !_state.settings.isDarkMode),
+    );
   }
 
   /// Cycles through output detail levels: compact -> standard -> detailed -> forensic.
   void cycleDetailLevel() {
-    final nextIndex = (_state.settings.outputDetail.index + 1) %
+    final nextIndex =
+        (_state.settings.outputDetail.index + 1) %
         OutputDetailLevel.values.length;
-    updateSettings(_state.settings.copyWith(
-      outputDetail: OutputDetailLevel.values[nextIndex],
-    ));
+    updateSettings(
+      _state.settings.copyWith(
+        outputDetail: OutputDetailLevel.values[nextIndex],
+      ),
+    );
   }
 
   /// Updates the active marker color ID.
   void setMarkerColorId(String id) {
-    updateSettings(_state.settings.copyWith(
-      markerColorId: id,
-    ));
+    updateSettings(_state.settings.copyWith(markerColorId: id));
   }
 
   /// Undoes the creation of the most recent annotation.
@@ -524,9 +579,7 @@ class AgentationController extends ChangeNotifier {
       if (_state.settings.autoSendMcp) {
         _mcpServer.broadcastAfsEvent('annotation.deleted', {'id': last.id});
       }
-      notifyWebhook('annotation.delete', {
-        'annotation': last.toJson(),
-      });
+      notifyWebhook('annotation.delete', {'annotation': last.toJson()});
       AgentationLogger.debug('Undid annotation: ${last.id}');
       notifyListeners();
     }
@@ -569,7 +622,11 @@ class AgentationController extends ChangeNotifier {
 
   /// Activates inspection mode, optionally freezing animations atomically.
   void activate({bool freeze = false}) {
-    if (_state.mode == InspectionMode.inspecting && !_state.isToolbarMinimized && (!freeze || _state.isFrozen)) return;
+    if (_state.mode == InspectionMode.inspecting &&
+        !_state.isToolbarMinimized &&
+        (!freeze || _state.isFrozen)) {
+      return;
+    }
     AgentationLogger.debug('Inspection mode activated (freeze: $freeze)');
     _state = _state.copyWith(
       mode: InspectionMode.inspecting,
@@ -581,7 +638,10 @@ class AgentationController extends ChangeNotifier {
 
   /// Deactivates inspection mode and clears highlights, unfreezing animations by default.
   void deactivate({bool unfreeze = true}) {
-    if (_state.mode == InspectionMode.inactive && (!unfreeze || !_state.isFrozen)) return;
+    if (_state.mode == InspectionMode.inactive &&
+        (!unfreeze || !_state.isFrozen)) {
+      return;
+    }
     AgentationLogger.debug('Inspection mode deactivated (unfreeze: $unfreeze)');
     _state = _state.copyWith(
       mode: InspectionMode.inactive,
@@ -620,24 +680,25 @@ class AgentationController extends ChangeNotifier {
   void resume() {
     if (_state.mode == InspectionMode.inspecting) return;
     AgentationLogger.debug('Inspection resumed');
-    _state = _state.copyWith(
-      mode: InspectionMode.inspecting,
-    );
+    _state = _state.copyWith(mode: InspectionMode.inspecting);
     notifyListeners();
   }
 
   /// Sets the active multi-level hierarchy.
   void setActiveHierarchy(HierarchicalInspectionResult? hierarchy) {
     if (_state.activeHierarchy == hierarchy) return;
-    _state = _state.copyWith(
-      activeHierarchy: () => hierarchy,
-    );
+    _state = _state.copyWith(activeHierarchy: () => hierarchy);
     notifyListeners();
   }
 
   /// Atomically selects a target and updates its active hierarchy in a single notification pass.
-  void selectTargetHierarchy(WidgetInspectionResult result, HierarchicalInspectionResult hierarchy) {
-    if (_state.selectedResult == result && _state.activeHierarchy == hierarchy) return;
+  void selectTargetHierarchy(
+    WidgetInspectionResult result,
+    HierarchicalInspectionResult hierarchy,
+  ) {
+    if (_state.selectedResult == result && _state.activeHierarchy == hierarchy) {
+      return;
+    }
     _state = _state.copyWith(
       selectedResult: () => result,
       activeHierarchy: () => hierarchy,
@@ -650,28 +711,24 @@ class AgentationController extends ChangeNotifier {
   /// updating the highlight and notifying listeners.
   void selectTarget(WidgetInspectionResult target) {
     if (_state.selectedResult == target) return;
-    AgentationLogger.debug('Retargeted selection to: ${target.identity.widgetType}');
-    _state = _state.copyWith(
-      selectedResult: () => target,
+    AgentationLogger.debug(
+      'Retargeted selection to: ${target.identity.widgetType}',
     );
+    _state = _state.copyWith(selectedResult: () => target);
     notifyListeners();
   }
 
   /// Selects a specific inspection result.
   void selectResult(WidgetInspectionResult? result) {
     if (_state.selectedResult == result) return;
-    _state = _state.copyWith(
-      selectedResult: () => result,
-    );
+    _state = _state.copyWith(selectedResult: () => result);
     notifyListeners();
   }
 
   /// Sets candidate hovered result.
   void setHoveredResult(WidgetInspectionResult? result) {
     if (_state.hoveredResult == result) return;
-    _state = _state.copyWith(
-      hoveredResult: () => result,
-    );
+    _state = _state.copyWith(hoveredResult: () => result);
     notifyListeners();
   }
 
@@ -730,20 +787,23 @@ class AgentationController extends ChangeNotifier {
     final bounds = result?.bounds ?? const WidgetBounds.zero();
 
     final isMulti = isMultiSelect ?? (_multiSelection.length > 1);
-    final boxes = elementBoundingBoxes ??
+    final boxes =
+        elementBoundingBoxes ??
         (_multiSelection.isNotEmpty
             ? _multiSelection.map((m) => m.bounds).toList()
             : (result != null ? [result.bounds] : const <WidgetBounds>[]));
 
     final resolvedSource = sourceLocation ?? result?.sourceLocation;
-    final resolvedSourceFile = sourceFile ??
+    final resolvedSourceFile =
+        sourceFile ??
         (resolvedSource?.filePath != null
             ? (resolvedSource!.line != null
-                ? '${resolvedSource.filePath}:${resolvedSource.line}'
-                : resolvedSource.filePath)
+                  ? '${resolvedSource.filePath}:${resolvedSource.line}'
+                  : resolvedSource.filePath)
             : null);
 
-    final resolvedIsFixed = isFixed ?? (result?.context.isFixed ?? (result == null));
+    final resolvedIsFixed =
+        isFixed ?? (result?.context.isFixed ?? (result == null));
     final resolvedScrollY = scrollY ?? (result?.context.scrollOffset ?? 0.0);
     final resolvedScrollX = scrollX ?? 0.0;
     final resolvedTapPosition = tapPosition ?? result?.tapPosition;
@@ -767,7 +827,11 @@ class AgentationController extends ChangeNotifier {
       rearrange: rearrange,
       sourceFile: resolvedSourceFile,
       sourceLocation: resolvedSource,
-      sessionId: sessionId ?? (_state.settings.sessionId?.isNotEmpty == true ? _state.settings.sessionId : null),
+      sessionId:
+          sessionId ??
+          (_state.settings.sessionId?.isNotEmpty == true
+              ? _state.settings.sessionId
+              : null),
       thread: thread ?? const [],
       isFixed: resolvedIsFixed,
       scrollY: resolvedScrollY,
@@ -778,8 +842,7 @@ class AgentationController extends ChangeNotifier {
           'path': result!.metadata['path']
         else if (result?.pathString != null)
           'path': result!.pathString,
-        if (result?.pathString != null)
-          'fullPath': result!.pathString,
+        if (result?.pathString != null) 'fullPath': result!.pathString,
         if (result?.ancestors != null && result!.ancestors.isNotEmpty)
           'flutterComponents': result.ancestors.join(' > '),
         if (result?.context.semanticsLabel != null)
@@ -794,7 +857,9 @@ class AgentationController extends ChangeNotifier {
     AgentationLogger.debug('Created annotation: ${annotation.id}');
 
     final activeSessionId = annotation.sessionId ?? _state.settings.sessionId;
-    if (_syncClient != null && activeSessionId != null && activeSessionId.isNotEmpty) {
+    if (_syncClient != null &&
+        activeSessionId != null &&
+        activeSessionId.isNotEmpty) {
       _syncClient!.syncAnnotation(activeSessionId, annotation);
     }
     notifyWebhook('annotation.created', {
@@ -805,7 +870,11 @@ class AgentationController extends ChangeNotifier {
     onAnnotationAdd?.call(annotation);
     if (_state.settings.autoSendMcp) {
       _mcpServer.broadcastUpdate();
-      _mcpServer.broadcastAfsEvent('annotation.created', annotation.toJson(), sessionId: activeSessionId);
+      _mcpServer.broadcastAfsEvent(
+        'annotation.created',
+        annotation.toJson(),
+        sessionId: activeSessionId,
+      );
     }
     notifyListeners();
     return annotation;
@@ -831,15 +900,16 @@ class AgentationController extends ChangeNotifier {
       height: placement.height,
     );
 
-    final resolvedPath = metadata['path'] as String? ??
+    final resolvedPath =
+        metadata['path'] as String? ??
         (metadata['parentBreadcrumb'] != null
             ? (metadata['treePlacement'] != null
-                ? '${metadata['parentBreadcrumb']} (${metadata['treePlacement']})'
-                : metadata['parentBreadcrumb'] as String)
+                  ? '${metadata['parentBreadcrumb']} (${metadata['treePlacement']})'
+                  : metadata['parentBreadcrumb'] as String)
             : (placement.treePlacement ??
-                (placement.parentWidget != null
-                    ? '${placement.parentWidget}${placement.direction != null ? ' (${placement.direction})' : ''}'
-                    : null)));
+                  (placement.parentWidget != null
+                      ? '${placement.parentWidget}${placement.direction != null ? ' (${placement.direction})' : ''}'
+                      : null)));
 
     return createAnnotation(
       comment: comment,
@@ -861,10 +931,7 @@ class AgentationController extends ChangeNotifier {
         ancestors: resolvedPath != null ? [resolvedPath] : const [],
       ),
       elementBoundingBoxes: [bounds],
-      metadata: {
-        'path': ?resolvedPath,
-        ...metadata,
-      },
+      metadata: {'path': ?resolvedPath, ...metadata},
     );
   }
 
@@ -911,7 +978,8 @@ class AgentationController extends ChangeNotifier {
     Size? viewport,
     ClipboardExporter exporter = const ClipboardExporter(),
   }) async {
-    final activeFormat = format ?? _mapCopyFormatToExportFormat(_state.settings.copyFormat);
+    final activeFormat =
+        format ?? _mapCopyFormatToExportFormat(_state.settings.copyFormat);
     final activeDetail = detailLevel ?? _state.settings.outputDetail;
     final activeAppName = appName ?? _appName;
     final activePlatform = platform ?? currentPlatformName;
@@ -998,7 +1066,9 @@ class AgentationController extends ChangeNotifier {
       severity: severity ?? target.severity,
       status: status ?? target.status,
       tapPosition: tapPosition ?? target.tapPosition,
-      metadata: metadata != null ? {...target.metadata, ...metadata} : target.metadata,
+      metadata: metadata != null
+          ? {...target.metadata, ...metadata}
+          : target.metadata,
     );
 
     await _storage.save(updated);
@@ -1008,7 +1078,9 @@ class AgentationController extends ChangeNotifier {
     }
 
     final activeSessionId = target.sessionId ?? _state.settings.sessionId;
-    if (_syncClient != null && activeSessionId != null && activeSessionId.isNotEmpty) {
+    if (_syncClient != null &&
+        activeSessionId != null &&
+        activeSessionId.isNotEmpty) {
       _syncClient!.updateAnnotation(id, {
         'comment': ?comment,
         'status': ?status?.name,
@@ -1025,7 +1097,11 @@ class AgentationController extends ChangeNotifier {
     onAnnotationUpdate?.call(updated);
     if (_state.settings.autoSendMcp) {
       _mcpServer.broadcastUpdate();
-      _mcpServer.broadcastAfsEvent('annotation.updated', updated.toJson(), sessionId: activeSessionId);
+      _mcpServer.broadcastAfsEvent(
+        'annotation.updated',
+        updated.toJson(),
+        sessionId: activeSessionId,
+      );
     }
     notifyListeners();
     return updated;
@@ -1054,7 +1130,9 @@ class AgentationController extends ChangeNotifier {
       });
       if (_state.settings.autoSendMcp) {
         _mcpServer.broadcastUpdate();
-        _mcpServer.broadcastAfsEvent('annotation.deleted', {'id': id}, sessionId: target?.sessionId);
+        _mcpServer.broadcastAfsEvent('annotation.deleted', {
+          'id': id,
+        }, sessionId: target?.sessionId);
       }
       notifyListeners();
     }
@@ -1091,9 +1169,7 @@ class AgentationController extends ChangeNotifier {
       timestamp: DateTime.now(),
     );
 
-    final updated = target.copyWith(
-      thread: [...target.thread, newMessage],
-    );
+    final updated = target.copyWith(thread: [...target.thread, newMessage]);
 
     await _storage.save(updated);
     _annotations = await _storage.getAll();
@@ -1102,7 +1178,9 @@ class AgentationController extends ChangeNotifier {
     }
 
     final activeSessionId = target.sessionId ?? _state.settings.sessionId;
-    if (_syncClient != null && activeSessionId != null && activeSessionId.isNotEmpty) {
+    if (_syncClient != null &&
+        activeSessionId != null &&
+        activeSessionId.isNotEmpty) {
       _syncClient!.syncAnnotation(activeSessionId, updated);
     }
     notifyWebhook('thread.message_added', {
@@ -1115,7 +1193,11 @@ class AgentationController extends ChangeNotifier {
     onAnnotationUpdate?.call(updated);
     if (_state.settings.autoSendMcp) {
       _mcpServer.broadcastUpdate();
-      _mcpServer.broadcastAfsEvent('annotation.updated', updated.toJson(), sessionId: activeSessionId);
+      _mcpServer.broadcastAfsEvent(
+        'annotation.updated',
+        updated.toJson(),
+        sessionId: activeSessionId,
+      );
     }
     notifyListeners();
     return updated;
@@ -1124,7 +1206,9 @@ class AgentationController extends ChangeNotifier {
   /// Requests the connected AI agent to act on active annotations via MCP /action endpoint.
   Future<Map<String, dynamic>?> sendToAgent() async {
     final sessionId = _state.settings.sessionId;
-    if (_syncClient == null || sessionId == null || sessionId.isEmpty) return null;
+    if (_syncClient == null || sessionId == null || sessionId.isEmpty) {
+      return null;
+    }
     final markdown = await exportAnnotations(format: ExportFormat.markdown);
     if (markdown == null) return null;
     final result = await _syncClient!.requestAction(sessionId, markdown);
@@ -1135,11 +1219,18 @@ class AgentationController extends ChangeNotifier {
     return result;
   }
 
+  /// Whether auto-send via MCP is currently active.
+  /// When active, annotations are dispatched automatically and the manual toolbar send icon is hidden.
+  bool get isAutoSendActive =>
+      _state.settings.mcpEnabled && _state.settings.autoSendMcp;
+
   /// Whether the "Send Annotations" button should be visible/active.
+  /// This button is strictly for manual MCP sending:
+  /// - When MCP is toggled off: hidden.
+  /// - When MCP is toggled on with Auto-Send on: hidden.
+  /// - When MCP is toggled on with Auto-Send off: visible.
   bool get canSend =>
-      onSubmit != null ||
-      _hasWebhookTarget ||
-      (_syncClient != null && _syncClient!.endpoint.isNotEmpty);
+      _state.settings.mcpEnabled && !_state.settings.autoSendMcp;
 
   bool get _hasWebhookTarget {
     final webhook = _state.settings.webhookUrl ?? _syncClient?.webhookUrl;
@@ -1148,7 +1239,7 @@ class AgentationController extends ChangeNotifier {
 
   /// Sends formatted annotations to configured `onSubmit` callback, agent MCP, or webhooks.
   Future<bool> submitAnnotations() async {
-    if (_annotations.isEmpty || !canSend) return false;
+    if (_annotations.isEmpty) return false;
 
     const exporter = ClipboardExporter();
     final output = exporter.formatAnnotations(
@@ -1170,7 +1261,8 @@ class AgentationController extends ChangeNotifier {
     }
 
     bool syncSuccess = true;
-    if (_syncClient != null && (_state.settings.sessionId?.isNotEmpty == true)) {
+    if (_syncClient != null &&
+        (_state.settings.sessionId?.isNotEmpty == true)) {
       try {
         await _syncClient!.requestAction(_state.settings.sessionId!, output);
       } catch (e, stack) {
@@ -1182,15 +1274,11 @@ class AgentationController extends ChangeNotifier {
     bool webhookSuccess = true;
     if (_hasWebhookTarget) {
       try {
-        webhookSuccess = await notifyWebhook(
-          'submit',
-          {
-            'output': output,
-            'annotations': _annotations.map((a) => a.toJson()).toList(),
-            'sessionId': _state.settings.sessionId,
-          },
-          force: true,
-        );
+        webhookSuccess = await notifyWebhook('submit', {
+          'output': output,
+          'annotations': _annotations.map((a) => a.toJson()).toList(),
+          'sessionId': _state.settings.sessionId,
+        }, force: true);
       } catch (e, stack) {
         AgentationLogger.error('Webhook submit failed', e, stack);
         webhookSuccess = false;
@@ -1202,8 +1290,17 @@ class AgentationController extends ChangeNotifier {
       'output': output,
       'annotations': _annotations.map((a) => a.toJson()).toList(),
     });
+    _mcpServer.broadcastAfsEvent('annotations.submitted', {
+      'output': output,
+      'annotations': _annotations.map((a) => a.toJson()).toList(),
+    });
 
-    final overallSuccess = callbackSuccess && (syncSuccess || onSubmit != null || webhookSuccess);
+    final overallSuccess =
+        callbackSuccess &&
+        (syncSuccess ||
+            onSubmit != null ||
+            webhookSuccess ||
+            _state.settings.mcpEnabled);
 
     if (overallSuccess && _state.settings.autoClearAfterCopy) {
       await clearAnnotations();
@@ -1257,35 +1354,27 @@ class AgentationController extends ChangeNotifier {
   /// Updates toolbar offset position.
   void updateToolbarOffset(Offset newOffset) {
     if (_state.toolbarOffset == newOffset) return;
-    _state = _state.copyWith(
-      toolbarOffset: newOffset,
-    );
+    _state = _state.copyWith(toolbarOffset: newOffset);
     notifyListeners();
   }
 
   /// Updates toolbar bounding box on screen.
   void updateToolbarBounds(Rect? newBounds) {
     if (_state.toolbarBounds == newBounds) return;
-    _state = _state.copyWith(
-      toolbarBounds: () => newBounds,
-    );
+    _state = _state.copyWith(toolbarBounds: () => newBounds);
     notifyListeners();
   }
 
   /// Updates annotation popup bounding box on screen.
   void updatePopupBounds(Rect? newBounds) {
     if (_state.popupBounds == newBounds) return;
-    _state = _state.copyWith(
-      popupBounds: () => newBounds,
-    );
+    _state = _state.copyWith(popupBounds: () => newBounds);
   }
 
   /// Updates flyout panel (Layout Mode or Settings panel) bounding box on screen.
   void updateFlyoutBounds(Rect? newBounds) {
     if (_state.flyoutBounds == newBounds) return;
-    _state = _state.copyWith(
-      flyoutBounds: () => newBounds,
-    );
+    _state = _state.copyWith(flyoutBounds: () => newBounds);
   }
 
   /// Sets toolbar minimized state. When minimized/collapsed, inspection is paused/inactive.
@@ -1325,18 +1414,14 @@ class AgentationController extends ChangeNotifier {
 
   /// Toggles visibility of comments and annotation pins on the page.
   void toggleCommentsVisibility() {
-    _state = _state.copyWith(
-      areCommentsVisible: !_state.areCommentsVisible,
-    );
+    _state = _state.copyWith(areCommentsVisible: !_state.areCommentsVisible);
     notifyListeners();
   }
 
   /// Sets visibility of comments and annotation pins on the page.
   void setCommentsVisibility(bool visible) {
     if (_state.areCommentsVisible == visible) return;
-    _state = _state.copyWith(
-      areCommentsVisible: visible,
-    );
+    _state = _state.copyWith(areCommentsVisible: visible);
     notifyListeners();
   }
 
@@ -1420,8 +1505,10 @@ class AgentationController extends ChangeNotifier {
       isCopiedNotifier.value = false;
     });
 
-    final activeFormat = format ?? _mapCopyFormatToExportFormat(_state.settings.copyFormat);
-    final markdown = await exportAnnotations(
+    final activeFormat =
+        format ?? _mapCopyFormatToExportFormat(_state.settings.copyFormat);
+    final markdown =
+        await exportAnnotations(
           format: activeFormat,
           detailLevel: detailLevel,
           platform: platform,
@@ -1455,4 +1542,3 @@ class AgentationController extends ChangeNotifier {
     super.dispose();
   }
 }
-

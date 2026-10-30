@@ -117,7 +117,7 @@ void main() {
       const settings = ToolbarSettings();
       expect(settings.outputDetail, equals(OutputDetailLevel.standard));
       expect(settings.isDarkMode, isTrue);
-      expect(settings.markerColorId, equals('indigo'));
+      expect(settings.markerColorId, equals('blue'));
       expect(settings.autoClearAfterCopy, isFalse);
       expect(settings.blockInteractions, isTrue);
       expect(settings.mcpEndpoint, isNull);

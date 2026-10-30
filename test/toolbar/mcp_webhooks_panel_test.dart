@@ -10,12 +10,14 @@ void main() {
     late AgentationController controller;
 
     setUp(() {
+      AgentationController.resetPersistedSettings();
       controller = AgentationController();
     });
 
     tearDown(() async {
       await controller.mcpServer.stop();
       controller.dispose();
+      AgentationController.resetPersistedSettings();
     });
 
     testWidgets('SettingsPanel navigates to Manage MCP & Webhooks and back', (
@@ -149,6 +151,9 @@ void main() {
     testWidgets(
       'Send Annotations button renders when canSend is true, displays badge and submits',
       (tester) async {
+        controller.updateSettings(
+          controller.settings.copyWith(mcpEnabled: true, autoSendMcp: false),
+        );
         bool submitCalled = false;
         String? submittedOutput;
         controller.onSubmit = (output, annotations) {
@@ -218,30 +223,86 @@ void main() {
         expect(find.text('Web Bridge Connected'), findsNothing);
         expect(find.text('Web Browser MCP Bridge'), findsNothing);
 
-        // Status indicator tooltip is present
+        // Status indicator tooltip is present and positioned leading MCP Connection
         final tooltips = tester.widgetList<Tooltip>(find.byType(Tooltip));
         expect(tooltips, isNotEmpty);
 
-        // Verify MCP on/off switch and Auto-Send switch are present
-        final mcpToggleFinder = find.byKey(const ValueKey('toggle_mcp_server'));
-        expect(mcpToggleFinder, findsOneWidget);
+        // Verify MCP back button with hover support
+        expect(find.byKey(const ValueKey('mcp_back_button')), findsOneWidget);
 
+        // Verify Auto-Send switch is initially disabled when MCP is OFF
         final autoSendMcpFinder = find.byKey(
           const ValueKey('toggle_mcp_autosend'),
         );
         expect(autoSendMcpFinder, findsOneWidget);
+        await tester.tap(autoSendMcpFinder);
+        await tester.pump();
+        // Since MCP is OFF, Auto-Send switch cannot be toggled
+        expect(controller.settings.autoSendMcp, isTrue);
 
-        // Tap MCP switch to toggle
+        // Verify MCP on/off switch is present
+        final mcpToggleFinder = find.byKey(const ValueKey('toggle_mcp_server'));
+        expect(mcpToggleFinder, findsOneWidget);
+
+        // Tap MCP switch to toggle ON
         await tester.tap(mcpToggleFinder);
         await tester.pump();
         expect(controller.settings.mcpEnabled, isTrue);
 
-        // Tap Auto-Send switch to toggle
+        // Now that MCP is ON, tap Auto-Send switch to toggle OFF
         await tester.tap(autoSendMcpFinder);
         await tester.pump();
         expect(controller.settings.autoSendMcp, isFalse);
 
         // Clean up server
+        await controller.mcpServer.stop();
+        await tester.pump();
+      },
+    );
+
+    testWidgets(
+      'Toolbar send button is hidden when autoSendMcp is active and appears when autoSendMcp is off',
+      (tester) async {
+        // When MCP is enabled and autoSendMcp is true, auto-send is active -> send button hidden
+        controller.updateSettings(
+          controller.settings.copyWith(mcpEnabled: true, autoSendMcp: true),
+        );
+        expect(controller.isAutoSendActive, isTrue);
+        expect(controller.canSend, isFalse);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Stack(
+                children: [AgentationToolbar(controller: controller)],
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Send button should be hidden
+        expect(find.byKey(const ValueKey('toolbar_send')), findsNothing);
+
+        // When autoSendMcp is toggled OFF, send button appears
+        controller.updateSettings(
+          controller.settings.copyWith(autoSendMcp: false),
+        );
+        expect(controller.isAutoSendActive, isFalse);
+        expect(controller.canSend, isTrue);
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const ValueKey('toolbar_send')), findsOneWidget);
+
+        // When MCP is toggled completely OFF, send button is also hidden
+        controller.updateSettings(
+          controller.settings.copyWith(mcpEnabled: false),
+        );
+        expect(controller.canSend, isFalse);
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('toolbar_send')), findsNothing);
+
+        // Clean up
         await controller.mcpServer.stop();
         await tester.pump();
       },

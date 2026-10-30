@@ -361,7 +361,8 @@ class _SettingsPanelState extends State<SettingsPanel> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: MarkerColor.values.map((swatch) {
-                        final isSelected = settings.markerColorId == swatch.id;
+                        final selectedColorId = MarkerColor.findById(settings.markerColorId).id;
+                        final isSelected = selectedColorId == swatch.id;
                         return Tooltip(
                           message: swatch.label,
                           triggerMode: TooltipTriggerMode.manual,
@@ -541,10 +542,16 @@ class _SettingsPanelState extends State<SettingsPanel> {
                                       color: theme.statusConnecting,
                                     ),
                                   ),
-                                Icon(
-                                  Icons.chevron_right,
-                                  size: 16.0,
-                                  color: subtextColor,
+                                _PanelHoverIconButton(
+                                  key: const ValueKey('settings_forward_mcp_webhooks'),
+                                  icon: Icons.chevron_right,
+                                  size: 22.0,
+                                  iconSize: 16.0,
+                                  isDark: isDark,
+                                  onTap: () {
+                                    _isNavigatingForwardNotifier.value = true;
+                                    _showMcpWebhooksNotifier.value = true;
+                                  },
                                 ),
                               ],
                             ),
@@ -832,4 +839,69 @@ class _ThemeToggleButtonState extends State<_ThemeToggleButton> {
 );
 }
 }
+
+class _PanelHoverIconButton extends StatefulWidget {
+  const _PanelHoverIconButton({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    required this.isDark,
+    this.size = 22.0,
+    this.iconSize = 16.0,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool isDark;
+  final double size;
+  final double iconSize;
+
+  @override
+  State<_PanelHoverIconButton> createState() => _PanelHoverIconButtonState();
+}
+
+class _PanelHoverIconButtonState extends State<_PanelHoverIconButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalColor = widget.isDark
+        ? AgentationColors.darkTextSecondary
+        : AgentationColors.lightTextSecondary;
+    final hoverColor = widget.isDark
+        ? AgentationColors.darkTextPrimary
+        : AgentationColors.lightTextPrimary;
+    final hoverBg = widget.isDark
+        ? AgentationColors.darkHoverBg
+        : AgentationColors.lightHoverBg;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOut,
+          width: widget.size,
+          height: widget.size,
+          decoration: BoxDecoration(
+            color: _isHovered ? hoverBg : Colors.transparent,
+            borderRadius: BorderRadius.circular(5.0),
+          ),
+          child: Center(
+            child: Icon(
+              widget.icon,
+              size: widget.iconSize,
+              color: _isHovered ? hoverColor : normalColor,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 

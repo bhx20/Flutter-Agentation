@@ -43,7 +43,7 @@ class ToolbarSettings {
     this.outputDetail = OutputDetailLevel.standard,
     this.copyFormat = CopyFormat.feedback,
     this.isDarkMode = true,
-    this.markerColorId = 'indigo',
+    this.markerColorId = 'blue',
     this.autoClearAfterCopy = false,
     this.blockInteractions = true,
     this.flutterComponentsEnabled = true,
@@ -137,6 +137,82 @@ class ToolbarSettings {
       autoSendWebhook: autoSendWebhook ?? this.autoSendWebhook,
       autoSendMcp: autoSendMcp ?? this.autoSendMcp,
     );
+  }
+
+  /// Converts settings to a JSON map for persistence.
+  /// Note: [hideUntilRestart] is excluded because it is only meant to hide the toolbar until the next restart.
+  Map<String, dynamic> toJson() {
+    return {
+      'outputDetail': outputDetail.name,
+      'copyFormat': copyFormat.name,
+      'isDarkMode': isDarkMode,
+      'markerColorId': markerColorId,
+      'autoClearAfterCopy': autoClearAfterCopy,
+      'blockInteractions': blockInteractions,
+      'flutterComponentsEnabled': flutterComponentsEnabled,
+      'mcpEnabled': mcpEnabled,
+      'mcpPort': mcpPort,
+      if (mcpEndpoint != null) 'mcpEndpoint': mcpEndpoint,
+      if (sessionId != null) 'sessionId': sessionId,
+      if (webhookUrl != null) 'webhookUrl': webhookUrl,
+      'autoSendWebhook': autoSendWebhook,
+      'autoSendMcp': autoSendMcp,
+    };
+  }
+
+  /// Creates a new [ToolbarSettings] by merging persisted JSON data into this instance.
+  ToolbarSettings mergeFromJson(Map<String, dynamic> json) {
+    OutputDetailLevel newOutputDetail = outputDetail;
+    if (json['outputDetail'] is String) {
+      for (final val in OutputDetailLevel.values) {
+        if (val.name == json['outputDetail']) {
+          newOutputDetail = val;
+          break;
+        }
+      }
+    }
+
+    CopyFormat newCopyFormat = copyFormat;
+    if (json['copyFormat'] is String) {
+      for (final val in CopyFormat.values) {
+        if (val.name == json['copyFormat']) {
+          newCopyFormat = val;
+          break;
+        }
+      }
+    }
+
+    return copyWith(
+      outputDetail: newOutputDetail,
+      copyFormat: newCopyFormat,
+      isDarkMode: json['isDarkMode'] as bool? ?? isDarkMode,
+      markerColorId: json['markerColorId'] as String? ?? markerColorId,
+      autoClearAfterCopy:
+          json['autoClearAfterCopy'] as bool? ?? autoClearAfterCopy,
+      blockInteractions:
+          json['blockInteractions'] as bool? ?? blockInteractions,
+      flutterComponentsEnabled:
+          json['flutterComponentsEnabled'] as bool? ?? flutterComponentsEnabled,
+      hideUntilRestart: false,
+      mcpEndpoint: json.containsKey('mcpEndpoint')
+          ? json['mcpEndpoint'] as String?
+          : mcpEndpoint,
+      sessionId: json.containsKey('sessionId')
+          ? json['sessionId'] as String?
+          : sessionId,
+      webhookUrl: json.containsKey('webhookUrl')
+          ? json['webhookUrl'] as String?
+          : webhookUrl,
+      mcpEnabled: json['mcpEnabled'] as bool? ?? mcpEnabled,
+      mcpPort: (json['mcpPort'] as num?)?.toInt() ?? mcpPort,
+      autoSendWebhook: json['autoSendWebhook'] as bool? ?? autoSendWebhook,
+      autoSendMcp: json['autoSendMcp'] as bool? ?? autoSendMcp,
+    );
+  }
+
+  /// Creates a [ToolbarSettings] from persisted JSON data.
+  factory ToolbarSettings.fromJson(Map<String, dynamic> json) {
+    return const ToolbarSettings().mergeFromJson(json);
   }
 
   @override
