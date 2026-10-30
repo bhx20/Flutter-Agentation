@@ -23,6 +23,7 @@ void main() {
         final mcpFile = File('${tempDir.path}/.flutter_agentation/mcp.json');
         expect(mcpFile.existsSync(), isTrue);
         final mcpData = jsonDecode(mcpFile.readAsStringSync());
+        expect(mcpData['mcpServers']['flutter-agentation']['command'], equals('dart'));
         expect(mcpData['mcpServers']['flutter-agentation']['url'], equals('http://127.0.0.1:4848/sse'));
 
         // 1b. .flutter_agentation/config.json
@@ -46,11 +47,39 @@ void main() {
         expect(instructionsContent, contains('agentation_get_all_pending'));
         expect(instructionsContent, contains('4848'));
 
-        // 2. Ensure NO external agent directories were created in root
+        // 1e. .flutter_agentation/SKILL.md & commands/
+        final skillFile = File('${tempDir.path}/.flutter_agentation/SKILL.md');
+        expect(skillFile.existsSync(), isTrue);
+        final skillContent = skillFile.readAsStringSync();
+        expect(skillContent, contains('flutter-agentation'));
+        expect(skillContent, contains('/flutter-agentation-review-feedback'));
+        expect(skillContent, contains('/flutter-agentation-update-status'));
+        expect(skillContent, contains('/flutter-agentation-watch'));
+        expect(skillContent, contains('/flutter-agentation-inspect'));
+
+        final reviewCommand = File('${tempDir.path}/.flutter_agentation/commands/flutter_agentation_review_feedback.md');
+        expect(reviewCommand.existsSync(), isTrue);
+        final updateCommand = File('${tempDir.path}/.flutter_agentation/commands/flutter_agentation_update_status.md');
+        expect(updateCommand.existsSync(), isTrue);
+        final watchCommand = File('${tempDir.path}/.flutter_agentation/commands/flutter_agentation_watch.md');
+        expect(watchCommand.existsSync(), isTrue);
+        final inspectCommand = File('${tempDir.path}/.flutter_agentation/commands/flutter_agentation_inspect.md');
+        expect(inspectCommand.existsSync(), isTrue);
+
+        final nestedSkillFile = File('${tempDir.path}/.flutter_agentation/skills/flutter-agentation/SKILL.md');
+        expect(nestedSkillFile.existsSync(), isTrue);
+
+        // 1f. .agents/skills/ for chat slash suggestions (Antigravity, Cursor, etc.)
+        expect(File('${tempDir.path}/.agents/skills/flutter-agentation/SKILL.md').existsSync(), isTrue);
+        expect(File('${tempDir.path}/.agents/skills/flutter-agentation-review-feedback/SKILL.md').existsSync(), isTrue);
+        expect(File('${tempDir.path}/.agents/skills/flutter-agentation-update-status/SKILL.md').existsSync(), isTrue);
+        expect(File('${tempDir.path}/.agents/skills/flutter-agentation-watch/SKILL.md').existsSync(), isTrue);
+        expect(File('${tempDir.path}/.agents/skills/flutter-agentation-inspect/SKILL.md').existsSync(), isTrue);
+
+        // 2. Ensure NO external IDE directories were created in root
         expect(Directory('${tempDir.path}/.cursor').existsSync(), isFalse);
         expect(Directory('${tempDir.path}/.vscode').existsSync(), isFalse);
         expect(Directory('${tempDir.path}/.windsurf').existsSync(), isFalse);
-        expect(Directory('${tempDir.path}/.agents').existsSync(), isFalse);
       } finally {
         Directory.current = originalDir;
         try {

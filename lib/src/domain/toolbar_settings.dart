@@ -54,6 +54,7 @@ class ToolbarSettings {
     this.mcpEnabled = false,
     this.mcpPort = 4747,
     this.autoSendWebhook = false,
+    this.autoSendMcp = true,
   });
 
   /// The active output detail level.
@@ -98,6 +99,9 @@ class ToolbarSettings {
   /// Whether annotations are automatically dispatched to the webhook URL on creation and updates.
   final bool autoSendWebhook;
 
+  /// Whether annotations are automatically broadcast to AI agents via MCP on creation and updates.
+  final bool autoSendMcp;
+
   ToolbarSettings copyWith({
     OutputDetailLevel? outputDetail,
     CopyFormat? copyFormat,
@@ -113,6 +117,7 @@ class ToolbarSettings {
     bool? mcpEnabled,
     int? mcpPort,
     bool? autoSendWebhook,
+    bool? autoSendMcp,
   }) {
     return ToolbarSettings(
       outputDetail: outputDetail ?? this.outputDetail,
@@ -130,6 +135,7 @@ class ToolbarSettings {
       mcpEnabled: mcpEnabled ?? this.mcpEnabled,
       mcpPort: mcpPort ?? this.mcpPort,
       autoSendWebhook: autoSendWebhook ?? this.autoSendWebhook,
+      autoSendMcp: autoSendMcp ?? this.autoSendMcp,
     );
   }
 
@@ -150,7 +156,8 @@ class ToolbarSettings {
         other.webhookUrl == webhookUrl &&
         other.mcpEnabled == mcpEnabled &&
         other.mcpPort == mcpPort &&
-        other.autoSendWebhook == autoSendWebhook;
+        other.autoSendWebhook == autoSendWebhook &&
+        other.autoSendMcp == autoSendMcp;
   }
 
   @override
@@ -167,5 +174,6 @@ class ToolbarSettings {
         mcpEnabled,
         mcpPort,
         autoSendWebhook,
+        autoSendMcp,
       );
 }

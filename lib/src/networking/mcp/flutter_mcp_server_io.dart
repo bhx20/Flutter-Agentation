@@ -742,6 +742,14 @@ class FlutterMcpServer {
       case 'resources/read':
         return _readResource(params['uri'] as String?);
 
+      case 'prompts/list':
+        return {'prompts': McpProtocol.prompts};
+
+      case 'prompts/get':
+        final promptName = params['name'] as String?;
+        final arguments = (params['arguments'] as Map<String, dynamic>?) ?? {};
+        return _getPrompt(promptName, arguments);
+
       case 'tools/call':
         final toolName = params['name'] as String?;
         final arguments = (params['arguments'] as Map<String, dynamic>?) ?? {};
@@ -801,6 +809,79 @@ class FlutterMcpServer {
       };
     }
     throw Exception('Resource not found: $uri');
+  }
+
+  Map<String, dynamic> _getPrompt(String? name, Map<String, dynamic> args) {
+    switch (name) {
+      case 'flutter-agentation-review-feedback':
+      case 'review-feedback':
+        final id = args['annotationId'];
+        return {
+          'description': 'Review pending Flutter Agentation UI annotations',
+          'messages': [
+            {
+              'role': 'user',
+              'content': {
+                'type': 'text',
+                'text': id != null
+                    ? 'Review and resolve visual feedback pin $id in the running Flutter app using flutter-agentation MCP tools.'
+                    : 'Fetch pending visual feedback annotations from the running Flutter app using agentation_get_all_pending, inspect the target widget hierarchy, modify the source code, and resolve the issues.',
+              },
+            },
+          ],
+        };
+
+      case 'flutter-agentation-update-status':
+      case 'update-status':
+        final id = args['annotationId'];
+        final status = args['status'] ?? 'resolved';
+        final message = args['message'] ?? '';
+        return {
+          'description': 'Update status or reply to Flutter Agentation annotation thread',
+          'messages': [
+            {
+              'role': 'user',
+              'content': {
+                'type': 'text',
+                'text': 'Update annotation $id status to "$status" with message: "$message" using flutter-agentation MCP tools.',
+              },
+            },
+          ],
+        };
+
+      case 'flutter-agentation-watch':
+      case 'watch-feedback':
+        return {
+          'description': 'Continuous hands-free Flutter Agentation pairing',
+          'messages': [
+            {
+              'role': 'user',
+              'content': {
+                'type': 'text',
+                'text': 'Start watching for annotations using agentation_watch_annotations and automatically apply code changes as visual pins are created in the app.',
+              },
+            },
+          ],
+        };
+
+      case 'flutter-agentation-inspect':
+      case 'inspect-widget':
+        return {
+          'description': 'Inspect Flutter application state and widgets',
+          'messages': [
+            {
+              'role': 'user',
+              'content': {
+                'type': 'text',
+                'text': 'Inspect the running Flutter app state and widget hierarchy using agentation_get_app_info and agentation_get_all_pending.',
+              },
+            },
+          ],
+        };
+
+      default:
+        throw Exception('Prompt not found: $name');
+    }
   }
 
   Future<Map<String, dynamic>> _callTool(

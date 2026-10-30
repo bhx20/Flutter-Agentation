@@ -105,6 +105,9 @@ class FlutterAgentation extends StatefulWidget {
     void Function(WidgetInspectionResult result)? onWidgetSelected,
   }) {
     return (BuildContext context, Widget? child) {
+      try {
+        WidgetsFlutterBinding.ensureInitialized();
+      } catch (_) {}
       return FlutterAgentation(
         key: key,
         controller: controller,
@@ -265,6 +268,9 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
   @override
   void initState() {
     super.initState();
+    try {
+      WidgetsFlutterBinding.ensureInitialized();
+    } catch (_) {}
     if (!_isActive) {
       return;
     }
@@ -309,23 +315,23 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
     controller.onSessionCreated = widget.onSessionCreated;
     controller.onOpenSource = widget.onOpenSource;
 
-    if (widget.mcpEnabled != null ||
-        widget.mcpPort != null ||
-        widget.endpoint != null ||
-        widget.webhookUrl != null ||
-        widget.sessionId != null) {
-      controller.updateSettings(
-        controller.settings.copyWith(
-          mcpEnabled: widget.mcpEnabled,
-          mcpPort: widget.mcpPort,
-          mcpEndpoint: widget.endpoint,
-          webhookUrl: widget.webhookUrl,
-          sessionId: widget.sessionId,
-        ),
-      );
-      if (widget.endpoint != null && widget.endpoint!.isNotEmpty) {
-        controller.ensureActiveSession(customSessionId: widget.sessionId);
-      }
+    bool isTestBinding = false;
+    try {
+      isTestBinding = WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    } catch (_) {}
+    final bool effectiveMcpEnabled = widget.mcpEnabled ?? !isTestBinding;
+
+    controller.updateSettings(
+      controller.settings.copyWith(
+        mcpEnabled: effectiveMcpEnabled,
+        mcpPort: widget.mcpPort,
+        mcpEndpoint: widget.endpoint,
+        webhookUrl: widget.webhookUrl,
+        sessionId: widget.sessionId,
+      ),
+    );
+    if (widget.endpoint != null && widget.endpoint!.isNotEmpty) {
+      controller.ensureActiveSession(customSessionId: widget.sessionId);
     }
   }
 

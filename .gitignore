@@ -32,6 +32,7 @@ doc/api/
 
 # Tooling and specifications
 .agents/
+.flutter_agentation/
 .specify/
 specs/
 

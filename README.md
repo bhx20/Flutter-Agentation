@@ -94,7 +94,7 @@ By default, `debugOnly: true` is configured out of the box on both `FlutterAgent
 
 You do **not** need to wrap your code in manual `if (kDebugMode)` checks. If you wish to test Agentation in a release build, set `debugOnly: false`.
 
-### Step 3: Run the MCP Setup Command (`setupmcp`)
+### Step 3: Run the MCP & Skill Setup Command (`setupmcp`)
 
 Run the `setupmcp` command in your workspace terminal:
 
@@ -102,13 +102,16 @@ Run the `setupmcp` command in your workspace terminal:
 dart run flutter_agentation:setupmcp
 ```
 
-This initializes a clean `.flutter_agentation/` directory directly in your project root containing:
-- `mcp.json`: The universal MCP server configuration ready for any agent.
-- `config.json`: Runtime port and endpoint metadata.
-- `tools.json`: LLM tool schemas for inspection and annotation operations.
-- `llm_instructions.md`: Ready-to-use prompt and system instructions for AI models.
+This single command sets up both MCP configuration and AI agent skills directly inside `.flutter_agentation/`:
+- `.flutter_agentation/mcp.json`: Universal MCP configuration ready for any agent.
+- `.flutter_agentation/config.json`: Runtime port and endpoint metadata.
+- `.flutter_agentation/tools.json`: LLM tool schemas for inspection and annotation operations.
+- `.flutter_agentation/llm_instructions.md`: Ready-to-use prompt and system instructions for AI models.
+- `.flutter_agentation/SKILL.md`: Spec-Kit-style agent skill defining the inspection lifecycle.
+- `.flutter_agentation/commands/review_feedback.md`: Slash command `/review-feedback`.
+- `.flutter_agentation/commands/update_status.md`: Slash command `/update-status`.
 
-No external IDE directories are created or modified—your project stays completely clean with only `.flutter_agentation/` added.
+Everything is isolated entirely in `.flutter_agentation/`—no `.agents/`, external IDE directories, or global configs are touched.
 
 *(Note: `dart run flutter_agentation:setup_mcp` and `dart run flutter_agentation:setup` are also supported as aliases.)*
 
@@ -124,18 +127,83 @@ A floating pill toolbar appears at the bottom-right of your screen. Click the ta
 
 ---
 
-## Working With AI Agents (The MCP Flow)
+## Working With AI Agents (The Spec-Kit Workflow)
 
-The Model Context Protocol (MCP) gives your AI agent direct access to your running Flutter app via Server-Sent Events (SSE).
+Flutter Agentation provides a complete spec-driven workflow inspired by GitHub Spec-Kit. When you run `setupmcp`, your AI agent receives predefined slash commands and skill instructions so it instantly knows how to review visual feedback, find the right code, apply fixes, and update pins without any manual prompt drafting.
 
-### How the Interaction Works
+### Available Slash Commands
+
+Once `setupmcp` is run, you can use these native Flutter Agentation slash commands directly in your AI coding agent chat:
+
+#### 1. `/flutter-agentation-review-feedback`
+Directs your agent to review pending visual annotations and apply code changes:
+
+```bash
+/flutter-agentation-review-feedback
+```
+*(Aliases: `/review-feedback`, `/flutter-agentation:review`)*
+
+Or review a specific pin by ID:
+
+```bash
+/flutter-agentation-review-feedback ann_1729864200000
+```
+
+When invoked, the agent executes the 6-stage review lifecycle:
+1. **Fetch**: Calls `agentation_get_all_pending` to retrieve pending UI feedback pins with widget paths, lines, and bounding boxes.
+2. **Context**: Examines widget hierarchy, parent tree, comments, sketches, and severity (`blocker`, `design`, `suggestion`).
+3. **Acknowledge**: Calls `agentation_acknowledge` to badge the pin as "In Progress" in the running Flutter app.
+4. **Edit**: Opens the source file at the exact line number and applies the requested modifications.
+5. **Verify**: Flutter Hot Reload immediately reflects changes on the running device/emulator.
+6. **Resolve**: Calls `agentation_resolve` to mark the issue complete and update the in-app UI.
+
+#### 2. `/flutter-agentation-update-status`
+Updates status or replies to in-app feedback threads:
+
+```bash
+/flutter-agentation-update-status ann_1729864200000 status=in-progress comment="Refactoring button styles"
+```
+*(Aliases: `/update-status`, `/flutter-agentation:update-status`, `/flutter-agentation-reply`)*
+
+Or mark feedback as resolved:
+
+```bash
+/flutter-agentation-update-status ann_1729864200000 status=resolved comment="Updated padding to 12px and styled as secondary button"
+```
+
+#### 3. `/flutter-agentation-watch`
+Hands-free continuous pairing mode:
+
+```bash
+/flutter-agentation-watch
+```
+*(Aliases: `/watch-feedback`, `/flutter-agentation:watch`)*
+
+The agent continuously listens for new visual pins in the background. As soon as you click and submit an annotation in your running app, the agent automatically wakes up, modifies the code, and resolves the issue without manual prompt switching.
+
+#### 4. `/flutter-agentation-inspect`
+Live application inspection:
+
+```bash
+/flutter-agentation-inspect
+```
+*(Aliases: `/inspect-widget`, `/flutter-agentation:inspect`)*
+
+Queries live application state, route, screen resolution, theme mode, and pending widget hierarchy via MCP.
+
+---
+
+### Step-by-Step Interactive Flow
 
 1. Ensure your Flutter app is running (`flutter run`).
-2. Run `dart run flutter_agentation:setupmcp` to generate `.flutter_agentation/mcp.json`.
+2. Run `dart run flutter_agentation:setupmcp` to generate `.flutter_agentation/mcp.json` and agent skills.
 3. In your app, click any widget and write your feedback (for example: *"Make this button secondary style with 12px horizontal padding"*).
-4. In your AI agent chat (Cursor, Claude, Windsurf, or VS Code), send:
-   > "Check the active annotations from flutter-agentation and apply the requested changes."
-5. The AI agent calls the `list_annotations` tool, reads the source file path and line number (e.g. `lib/views/login_view.dart:45`), and edits the code directly.
+4. In your AI agent chat, type:
+   ```
+   /flutter-agentation-review-feedback
+   ```
+5. Your agent queries the MCP server, navigates to the source code, applies the changes, hot reloads, and completes the task.
+5. Your agent queries the MCP server, navigates to the source code, applies the changes, hot reloads, and completes the task.
 
 ---
 
@@ -256,16 +324,22 @@ Flutter Agentation MCP server runs natively on all major operating systems:
 | **Android (Emulator & Device)** | `flutter run -d <device>` | Forward port via ADB: `adb forward tcp:4747 tcp:4747` |
 | **iOS Simulator** | `flutter run -d <simulator>` | Direct localhost (`http://127.0.0.1:4747/sse`) |
 | **iOS Physical Device** | `flutter run -d <device>` | Connect via local Wi-Fi IP (`http://<device-ip>:4747/sse`) |
-| **Web (Chrome / Edge)** | `flutter run -d chrome` | Run bridge: `dart run flutter_agentation:mcp` |
+| **Web (Chrome / Edge)** | `flutter run -d chrome` | Automated via MCP config (`command: dart run flutter_agentation:mcp`) |
 
-### Web Setup (Chrome / Edge)
-To use MCP while running your Flutter app in Chrome or Edge, launch the Universal MCP Bridge in your terminal:
-
-```bash
-dart run flutter_agentation:mcp
+### Web (Chrome / Edge) Zero-Config Automation
+When you run `dart run flutter_agentation:setupmcp`, the generated `.flutter_agentation/mcp.json` automatically includes the bridge launch command:
+```json
+{
+  "mcpServers": {
+    "flutter-agentation": {
+      "command": "dart",
+      "args": ["run", "flutter_agentation:mcp", "--port", "4747"],
+      "url": "http://127.0.0.1:4747/sse"
+    }
+  }
+}
 ```
-
-Your Flutter Web application automatically connects and syncs annotations with this local bridge. Cursor, Claude Desktop, Windsurf, and VS Code connect to `http://127.0.0.1:4747/sse` with full MCP capabilities.
+When your AI coding agent (Cursor, Claude Desktop, Antigravity, VS Code) connects, it launches the bridge process in the background automatically. You simply run your Flutter Web app (`flutter run -d chrome`), and it syncs annotations immediately with no extra terminal commands.
 
 ### Android Setup Tip
 When running on Android (emulator or physical phone over USB), run this once in your terminal so your desktop AI agent can reach the Android app:

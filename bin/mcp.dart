@@ -93,22 +93,85 @@ class StandaloneMcpServer {
     _server = bound;
     final actualPort = bound.port;
 
-    print('');
-    print('\x1B[1m\x1B[36m╭─────────────────────────────────────────────────────────────╮\x1B[0m');
-    print('\x1B[1m\x1B[36m│          Flutter Agentation Universal MCP Server & Bridge   │\x1B[0m');
-    print('\x1B[1m\x1B[36m╰─────────────────────────────────────────────────────────────╯\x1B[0m');
-    print('');
-    print('  Status:       \x1B[32mActive & Listening\x1B[0m');
-    print('  Port:         $actualPort');
-    print('  SSE Endpoint: \x1B[36mhttp://127.0.0.1:$actualPort/sse\x1B[0m');
-    print('  Web Bridge:   \x1B[36mhttp://127.0.0.1:$actualPort/sync\x1B[0m');
-    print('');
-    print('  Platforms:    Windows, macOS, Linux, Android, iOS, and Web (Chrome/Edge)');
-    print('  AI Agents:    Cursor, Claude Desktop, Windsurf, VS Code (Cline/Roo)');
-    print('');
-    print('Press Ctrl+C to stop.\n');
+    if (stdout.hasTerminal) {
+      print('');
+      print('\x1B[1m\x1B[36m╭─────────────────────────────────────────────────────────────╮\x1B[0m');
+      print('\x1B[1m\x1B[36m│          Flutter Agentation Universal MCP Server & Bridge   │\x1B[0m');
+      print('\x1B[1m\x1B[36m╰─────────────────────────────────────────────────────────────╯\x1B[0m');
+      print('');
+      print('  Status:       \x1B[32mActive & Listening\x1B[0m');
+      print('  Port:         $actualPort');
+      print('  SSE Endpoint: \x1B[36mhttp://127.0.0.1:$actualPort/sse\x1B[0m');
+      print('  Web Bridge:   \x1B[36mhttp://127.0.0.1:$actualPort/sync\x1B[0m');
+      print('');
+      print('  Platforms:    Windows, macOS, Linux, Android, iOS, and Web (Chrome/Edge)');
+      print('  AI Agents:    Cursor, Claude Desktop, Windsurf, VS Code (Cline/Roo)');
+      print('');
+      print('Press Ctrl+C to stop.\n');
+    }
 
     _server!.listen(_handleHttpRequest);
+    _startStdioListener();
+  }
+
+  void _startStdioListener() {
+    try {
+      stdin
+          .transform(utf8.decoder)
+          .transform(const LineSplitter())
+          .listen((line) {
+        if (line.trim().isEmpty) return;
+        try {
+          final json = jsonDecode(line) as Map<String, dynamic>;
+          final id = json['id'];
+          final method = json['method'] as String?;
+          final params = json['params'] as Map<String, dynamic>? ?? {};
+
+          dynamic result;
+          switch (method) {
+            case 'initialize':
+              result = {
+                'protocolVersion': '2024-11-05',
+                'capabilities': {
+                  'tools': {'listChanged': true},
+                },
+                'serverInfo': {
+                  'name': 'flutter-agentation',
+                  'version': '0.0.1',
+                },
+              };
+              break;
+
+            case 'notifications/initialized':
+              return;
+
+            case 'tools/list':
+              result = {'tools': _getMcpTools()};
+              break;
+
+            case 'tools/call':
+              final name = params['name'] as String?;
+              final args = params['arguments'] as Map<String, dynamic>? ?? {};
+              result = _executeTool(name, args);
+              break;
+
+            default:
+              stdout.writeln(jsonEncode({
+                'jsonrpc': '2.0',
+                'id': id,
+                'error': {'code': -32601, 'message': 'Method not found: $method'},
+              }));
+              return;
+          }
+
+          stdout.writeln(jsonEncode({
+            'jsonrpc': '2.0',
+            'id': id,
+            'result': result,
+          }));
+        } catch (_) {}
+      });
+    } catch (_) {}
   }
 
   void _applyCors(HttpResponse res) {

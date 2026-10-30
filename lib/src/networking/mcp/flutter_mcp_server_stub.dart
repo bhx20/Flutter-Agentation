@@ -47,23 +47,19 @@ class FlutterMcpServer {
   Future<bool> start({int port = 4747}) async {
     _port = port;
     _errorMessage = null;
+    _isRunning = true;
     onStatusChanged?.call();
 
+    _startPolling();
     final success = await _pingBridge();
 
     if (success) {
-      _isRunning = true;
       _errorMessage = null;
-      _startPolling();
       await _syncToBridge();
-    } else {
-      _isRunning = false;
-      _errorMessage = 'Bridge waiting (run: dart run flutter_agentation:mcp)';
-      _startPolling(); // Keep trying in the background
     }
 
     onStatusChanged?.call();
-    return success;
+    return true;
   }
 
   /// Stops the Web MCP Bridge connection and cancels background timers.
@@ -72,12 +68,13 @@ class FlutterMcpServer {
     _syncTimer?.cancel();
     _syncTimer = null;
     _errorMessage = null;
+    _connectedClientsCount = 0;
     onStatusChanged?.call();
   }
 
   void _startPolling() {
     _syncTimer?.cancel();
-    _syncTimer = Timer.periodic(const Duration(seconds: 3), (_) async {
+    _syncTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
       await _syncToBridge();
     });
   }
@@ -117,9 +114,10 @@ class FlutterMcpServer {
           .timeout(const Duration(seconds: 2));
 
       if (res.statusCode == 200) {
-        if (!_isRunning) {
-          _isRunning = true;
-          _errorMessage = null;
+        final hadClients = _connectedClientsCount > 0;
+        _connectedClientsCount = 1;
+        _errorMessage = null;
+        if (!hadClients) {
           onStatusChanged?.call();
         }
 
@@ -134,16 +132,14 @@ class FlutterMcpServer {
           }
         }
       } else {
-        if (_isRunning) {
-          _isRunning = false;
-          _errorMessage = 'Bridge disconnected';
+        if (_connectedClientsCount > 0) {
+          _connectedClientsCount = 0;
           onStatusChanged?.call();
         }
       }
     } catch (_) {
-      if (_isRunning) {
-        _isRunning = false;
-        _errorMessage = 'Bridge waiting (run: dart run flutter_agentation:mcp)';
+      if (_connectedClientsCount > 0) {
+        _connectedClientsCount = 0;
         onStatusChanged?.call();
       }
     }

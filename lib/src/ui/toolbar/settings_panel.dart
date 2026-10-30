@@ -8,6 +8,7 @@ import '../../theme/agentation_colors.dart';
 import '../../theme/agentation_theme.dart';
 import '../../theme/agentation_typography.dart';
 import 'agentation_icons.dart';
+import 'agentation_tooltip.dart';
 import 'mcp_webhooks_panel.dart';
 
 /// Settings panel matching the official Agentation design system without MCP.
@@ -604,87 +605,13 @@ class _SettingsPanelState extends State<SettingsPanel> {
   }
 }
 
-/// Help tooltip matching upstream Agentation style with dark rounded bubble anchored to the left.
-class _HelpTooltip extends StatefulWidget {
-  const _HelpTooltip({
-    required this.content,
-  });
-
+class _HelpTooltip extends StatelessWidget {
+  const _HelpTooltip({required this.content});
   final String content;
 
   @override
-  State<_HelpTooltip> createState() => _HelpTooltipState();
-}
-
-class _HelpTooltipState extends State<_HelpTooltip> {
-  final _portalController = OverlayPortalController();
-  final _layerLink = LayerLink();
-
-  @override
   Widget build(BuildContext context) {
-    const iconColor = AgentationColors.darkTextMuted;
-
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: OverlayPortal(
-        controller: _portalController,
-        overlayChildBuilder: (context) {
-          return CompositedTransformFollower(
-            link: _layerLink,
-            targetAnchor: Alignment.centerLeft,
-            followerAnchor: Alignment.centerRight,
-            offset: const Offset(-8.0, 0.0),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: Container(
-                width: 175.0,
-                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
-                decoration: BoxDecoration(
-                  color: AgentationColors.darkHelpTooltipBg,
-                  borderRadius: BorderRadius.circular(10.0),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: AgentationColors.shadowHelp,
-                      blurRadius: 8.0,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  type: MaterialType.transparency,
-                  child: Text(
-                    widget.content,
-                    style: AgentationTypography.helpTooltip.copyWith(
-                      color: AgentationColors.darkTextTranslucent,
-                    ),
-                    textAlign: TextAlign.left,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-        child: MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: (_) => _portalController.show(),
-          onExit: (_) => _portalController.hide(),
-          child: GestureDetector(
-            onTap: () {
-              if (_portalController.isShowing) {
-                _portalController.hide();
-              } else {
-                _portalController.show();
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.all(2.0),
-              child: AgentationIcons.help(size: 13.0, color: iconColor),
-            ),
-          ),
-        ),
-      ),
-    );
+    return AgentationTooltip.help(content: content);
   }
 }
 

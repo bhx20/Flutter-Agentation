@@ -270,6 +270,56 @@ class McpProtocol {
     };
   }
 
+  /// Standard MCP prompt definitions for agent chat slash suggestions.
+  static final List<Map<String, dynamic>> prompts = [
+    {
+      'name': 'flutter-agentation-review-feedback',
+      'description':
+          'Fetch active annotations from Flutter Agentation, inspect source code, apply code modifications, and resolve pins.',
+      'arguments': [
+        {
+          'name': 'annotationId',
+          'description': 'Optional specific annotation ID to review.',
+          'required': false,
+        },
+      ],
+    },
+    {
+      'name': 'flutter-agentation-update-status',
+      'description':
+          'Update status or post conversational updates/clarifications to visual annotations in Flutter Agentation.',
+      'arguments': [
+        {
+          'name': 'annotationId',
+          'description': 'Target annotation identifier.',
+          'required': true,
+        },
+        {
+          'name': 'status',
+          'description': 'New status (resolved, inProgress, rejected).',
+          'required': false,
+        },
+        {
+          'name': 'message',
+          'description': 'Resolution summary or message.',
+          'required': false,
+        },
+      ],
+    },
+    {
+      'name': 'flutter-agentation-watch',
+      'description':
+          'Continuously watch and listen for new visual feedback pins in the running Flutter app.',
+      'arguments': [],
+    },
+    {
+      'name': 'flutter-agentation-inspect',
+      'description':
+          'Inspect active Flutter application state, screen dimensions, theme mode, and widget hierarchy.',
+      'arguments': [],
+    },
+  ];
+
   /// Generates the standard JSON-RPC 2.0 error response.
   static Map<String, dynamic> error(dynamic id, int code, String message, [dynamic data]) {
     return {
@@ -293,6 +343,9 @@ class McpProtocol {
         },
         'resources': {
           'subscribe': false,
+          'listChanged': true,
+        },
+        'prompts': {
           'listChanged': true,
         },
       },
