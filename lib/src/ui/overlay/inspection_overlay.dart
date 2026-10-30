@@ -29,6 +29,8 @@ import 'freeze_overlay.dart';
 import 'highlight_style.dart';
 import 'placed_component_preview.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
+import '../../theme/agentation_typography.dart';
 import 'widget_highlight.dart';
 
 class _MarkersVisibilityState {
@@ -1325,7 +1327,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                             color: AgentationColors.success.withValues(alpha: 0.6),
                             width: 2.0,
                           ),
-                          borderRadius: BorderRadius.circular(4.0),
+                          borderRadius: AgentationRadii.br4,
                         ),
                       ),
                     ),
@@ -1367,7 +1369,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                         padding: const EdgeInsets.symmetric(horizontal: 7.5, vertical: 3.5),
                         decoration: BoxDecoration(
                           color: AgentationColors.shadowIntense, // rgba(0, 0, 0, 0.85)
-                          borderRadius: BorderRadius.circular(3.5),
+                          borderRadius: AgentationRadii.br3_5,
                           border: Border.all(
                             color: Colors.white.withValues(alpha: 0.2),
                             width: 1.0,
@@ -1382,10 +1384,8 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                         ),
                         child: Text(
                           label,
-                          style: const TextStyle(
+                          style: AgentationTypography.captionSemiBold.copyWith(
                             color: Colors.white,
-                            fontSize: 11.0,
-                            fontWeight: FontWeight.w600,
                             decoration: TextDecoration.none,
                             letterSpacing: -0.1,
                           ),
@@ -1512,7 +1512,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                               color: markerColor.withValues(alpha: 0.75),
                                               width: 1.5,
                                             ),
-                                            borderRadius: BorderRadius.circular(4.0),
+                                            borderRadius: AgentationRadii.br4,
                                           ),
                                         ),
                                       ),

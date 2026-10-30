@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 import '../../theme/agentation_typography.dart';
 import 'agentation_icons.dart';
 
@@ -132,7 +133,7 @@ class _AgentationTooltipState extends State<AgentationTooltip> {
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
       decoration: BoxDecoration(
         color: AgentationColors.darkHelpTooltipBg,
-        borderRadius: BorderRadius.circular(10.0),
+        borderRadius: AgentationRadii.br10,
         boxShadow: const [
           BoxShadow(
             color: AgentationColors.shadowHelp,
@@ -165,7 +166,7 @@ class _AgentationTooltipState extends State<AgentationTooltip> {
           ),
           decoration: BoxDecoration(
             color: AgentationColors.darkTooltipBg,
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: AgentationRadii.br8,
             boxShadow: const [
               BoxShadow(
                 color: AgentationColors.shadowDark,
@@ -179,22 +180,17 @@ class _AgentationTooltipState extends State<AgentationTooltip> {
             children: [
               Text(
                 widget.message,
-                style: const TextStyle(
+                style: AgentationTypography.tooltipMessage.copyWith(
                   color: Colors.white,
-                  fontSize: 12.0,
-                  fontWeight: FontWeight.normal,
-                  decoration: TextDecoration.none,
                 ),
               ),
               if (widget.shortcut != null) ...[
                 const SizedBox(width: 6.0),
                 Text(
                   widget.shortcut!,
-                  style: const TextStyle(
+                  style: AgentationTypography.tooltipShortcut.copyWith(
                     color: AgentationColors.lightTextGray,
                     fontSize: 12.0,
-                    fontWeight: FontWeight.w500,
-                    decoration: TextDecoration.none,
                   ),
                 ),
               ],

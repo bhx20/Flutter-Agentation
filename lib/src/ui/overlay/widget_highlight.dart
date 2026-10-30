@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../domain/widget_inspection_result.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_typography.dart';
 import 'highlight_style.dart';
 
 /// Visual bounding box and identity badge rendered over an inspected widget.
@@ -95,22 +96,18 @@ class WidgetHighlight extends StatelessWidget {
                     children: [
                       Text(
                         res.identity.widgetType,
-                        style: const TextStyle(
+                        style: AgentationTypography.captionSemiBold.copyWith(
                           color: AgentationColors.pureWhite,
-                          fontSize: 11.0,
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.none,
                           letterSpacing: 0.2,
+                          decoration: TextDecoration.none,
                         ),
                       ),
                       if (!isHover && keyString != null && keyString.isNotEmpty) ...[
                         const SizedBox(width: 4.0),
                         Text(
                           keyString,
-                          style: TextStyle(
+                          style: AgentationTypography.footnote.copyWith(
                             color: AgentationColors.pureWhite.withValues(alpha: 0.8),
-                            fontSize: 10.0,
-                            fontWeight: FontWeight.normal,
                             decoration: TextDecoration.none,
                           ),
                         ),

@@ -306,4 +306,82 @@ abstract final class AgentationTypography {
     height: 1.0,
     decoration: TextDecoration.none,
   );
+
+  // ── Dialog & Config Section Styles ──
+  /// Section title for dialog configuration groups (11.0, normal weight).
+  static const TextStyle dialogSectionTitle = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 11.0,
+    fontWeight: FontWeight.normal,
+  );
+
+  /// Config item primary label (12.5, w500).
+  static const TextStyle dialogItemTitle = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 12.5,
+    fontWeight: FontWeight.w500,
+  );
+
+  /// Config item secondary subtitle / path description (10.5, normal weight).
+  static const TextStyle dialogItemSubtitle = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 10.5,
+    fontWeight: FontWeight.normal,
+  );
+
+  /// Dialog button / action text (11.0, normal weight).
+  static const TextStyle dialogAction = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 11.0,
+    fontWeight: FontWeight.normal,
+  );
+
+  // ── Preview & Realistic Mock Styles ──
+  /// Heading style for preview cards and mock blocks (13.0, bold, decoration: none).
+  static const TextStyle previewHeading = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 13.0,
+    fontWeight: FontWeight.bold,
+    decoration: TextDecoration.none,
+  );
+
+  /// Body style for preview cards (11.0, normal weight, decoration: none).
+  static const TextStyle previewBody = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 11.0,
+    fontWeight: FontWeight.normal,
+    decoration: TextDecoration.none,
+  );
+
+  /// Caption style for preview cards (10.0, normal weight, decoration: none).
+  static const TextStyle previewCaption = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 10.0,
+    fontWeight: FontWeight.normal,
+    decoration: TextDecoration.none,
+  );
+
+  /// Small subtitle style for preview cards (9.5, normal weight, decoration: none).
+  static const TextStyle previewSmall = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 9.5,
+    fontWeight: FontWeight.normal,
+    decoration: TextDecoration.none,
+  );
+
+  /// Bold button style for preview components (11.0, bold, decoration: none).
+  static const TextStyle previewButton = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 11.0,
+    fontWeight: FontWeight.bold,
+    decoration: TextDecoration.none,
+  );
+
+  /// Price / numeric callout for preview cards (13.0, bold, decoration: none).
+  static const TextStyle previewPrice = TextStyle(
+    fontFamily: fontFamily,
+    fontSize: 13.0,
+    fontWeight: FontWeight.bold,
+    decoration: TextDecoration.none,
+  );
 }

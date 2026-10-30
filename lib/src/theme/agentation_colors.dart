@@ -79,6 +79,12 @@ abstract final class AgentationColors {
   /// Emerald accent for successful ping/tests.
   static const Color statusSuccessLight = Color(0xFF00E676);
 
+  /// Emerald-500 indicator for live active status / avatar dots.
+  static const Color onlineGreen = Color(0xFF10B981);
+
+  /// Amber-500 rating star color.
+  static const Color starAmber = Color(0xFFF59E0B);
+
   // ── Neutral & Utility Tones ──
   static const Color gray50 = Color(0xFFF9FAFB);
   static const Color gray100 = Color(0xFFF3F4F6);
@@ -89,6 +95,20 @@ abstract final class AgentationColors {
   static const Color zinc900 = Color(0xFF18181B);
   static const Color darkRing = Color(0xFF1A1A1A);
   static const Color lightDividerLight = Color(0xFFF1F2F4);
+
+  /// Dark preview and skeleton container surfaces.
+  static const Color darkPreviewSurface = Color(0xFF1E202B);
+  static const Color darkPreviewContainer = Color(0xFF222430);
+  static const Color darkPreviewContainerAlt = Color(0xFF232530);
+  static const Color darkPreviewUploader = Color(0xFF1C1D26);
+  static const Color darkPreviewAvatarRing = Color(0xFF181920);
+  static const Color darkPreviewCard = Color(0xFF1E1F2B);
+  static const Color lightPreviewSlate = Color(0xFFF1F5F9);
+  static const Color lightPreviewUploader = Color(0xFFF8FAFC);
+
+  /// Disabled switch / toggle track colors.
+  static const Color darkDisabledTrack = Color(0xFF3A3A3C);
+  static const Color lightDisabledTrack = Color(0xFFCDCDD0);
 
   /// Fuchsia / Magenta accents.
   static const Color fuchsia = Color(0xFFC026D3);

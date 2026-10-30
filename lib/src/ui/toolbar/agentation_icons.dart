@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 import 'toolbar_toggle_icon.dart';
 
 /// Pixel-perfect vector icons matching the official Agentation design system.
@@ -182,7 +183,7 @@ class _ComponentIconPainter extends CustomPainter {
     canvas.save();
     canvas.scale(scale);
 
-    const radius = Radius.circular(2.0);
+    const radius = AgentationRadii.r2;
     // 4 modular component tiles in a 2x2 grid
     // Top-left tile
     canvas.drawRRect(
@@ -232,7 +233,7 @@ class _LayoutIconPainter extends CustomPainter {
     // Outer rect: x="3" y="3" width="18" height="18" rx="2"
     final rect = RRect.fromRectAndRadius(
       const Rect.fromLTWH(3.0, 3.0, 18.0, 18.0),
-      const Radius.circular(2.0),
+      AgentationRadii.r2,
     );
     canvas.drawRRect(rect, strokePaint);
 

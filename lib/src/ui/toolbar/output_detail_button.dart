@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../domain/toolbar_settings.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
+import '../../theme/agentation_typography.dart';
 
 /// Interactive button cycling between the 4 output detail levels with animated dot indicators.
 class OutputDetailButton extends StatelessWidget {
@@ -48,12 +50,12 @@ class OutputDetailButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: _handleCycle,
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: AgentationRadii.br8,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
           decoration: BoxDecoration(
             color: AgentationColors.darkSlateBg,
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: AgentationRadii.br8,
             border: Border.all(
               color: Colors.white.withValues(alpha: 0.12),
               width: 1.0,
@@ -64,10 +66,8 @@ class OutputDetailButton extends StatelessWidget {
             children: [
               Text(
                 _labelFor(detailLevel),
-                style: const TextStyle(
+                style: AgentationTypography.captionSemiBold.copyWith(
                   color: Colors.white,
-                  fontSize: 11.0,
-                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(width: 6.0),

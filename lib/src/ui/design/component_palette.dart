@@ -4,7 +4,9 @@ import '../../core/agentation_controller.dart';
 import '../../core/agentation_scope.dart';
 import '../../domain/marker_color.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 import '../../theme/agentation_theme.dart';
+import '../../theme/agentation_typography.dart';
 import 'realistic_skeleton_preview.dart';
 import 'skeleton_templates.dart';
 
@@ -111,7 +113,7 @@ class _ComponentPaletteState extends State<ComponentPalette> {
             padding: EdgeInsets.symmetric(horizontal: isMobile ? 12.0 : 14.0, vertical: isMobile ? 10.0 : 14.0),
             decoration: BoxDecoration(
               color: cardBg,
-              borderRadius: BorderRadius.circular(16.0),
+              borderRadius: AgentationRadii.br16,
               border: Border.all(color: borderColor, width: 1.0),
               boxShadow: theme.panelShadows,
             ),
@@ -128,10 +130,9 @@ class _ComponentPaletteState extends State<ComponentPalette> {
                       children: [
                         Text(
                           'Component',
-                          style: TextStyle(
+                          style: AgentationTypography.header.copyWith(
                             color: textColor,
                             fontSize: isMobile ? 14.0 : 15.0,
-                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         // Zero-size text widgets for backward compatibility with component tests
@@ -142,8 +143,8 @@ class _ComponentPaletteState extends State<ComponentPalette> {
                             height: 0,
                             child: Row(
                               children: [
-                                Text('Component Palette', style: TextStyle(fontSize: 1, color: textColor)),
-                                Text('Components', style: TextStyle(fontSize: 1, color: textColor)),
+                                Text('Component Palette', style: AgentationTypography.caption.copyWith(fontSize: 1, color: textColor)),
+                                Text('Components', style: AgentationTypography.caption.copyWith(fontSize: 1, color: textColor)),
                               ],
                             ),
                           ),
@@ -164,10 +165,9 @@ class _ComponentPaletteState extends State<ComponentPalette> {
                 // ── Subtitle Description ──
                 Text(
                   'Drag the component to the page',
-                  style: TextStyle(
+                  style: AgentationTypography.panelDescription.copyWith(
                     color: subtextColor,
                     fontSize: isMobile ? 10.5 : 11.5,
-                    height: 1.35,
                   ),
                 ),
                 SizedBox(height: isMobile ? 8.0 : 12.0),
@@ -194,10 +194,8 @@ class _ComponentPaletteState extends State<ComponentPalette> {
                             padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 2.0),
                             child: Text(
                               'Blocks',
-                              style: TextStyle(
+                              style: AgentationTypography.captionSemiBold.copyWith(
                                 color: subtextColor,
-                                fontSize: 11.0,
-                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -257,7 +255,7 @@ class _ComponentPaletteState extends State<ComponentPalette> {
           hoverColor: Colors.transparent,
           splashColor: Colors.transparent,
           highlightColor: Colors.transparent,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
           child: _buildItemRow(item, isDark, textColor, subtextColor, isHovered),
         );
 
@@ -309,7 +307,7 @@ class _ComponentPaletteState extends State<ComponentPalette> {
       padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: isMobile ? 4.0 : 6.0),
       decoration: BoxDecoration(
         color: isHovered ? hoverBg : Colors.transparent,
-        borderRadius: BorderRadius.circular(6.0),
+        borderRadius: AgentationRadii.br6,
       ),
       child: Row(
         children: [
@@ -322,10 +320,9 @@ class _ComponentPaletteState extends State<ComponentPalette> {
           Expanded(
             child: Text(
               item.label,
-              style: TextStyle(
+              style: AgentationTypography.bodyMedium.copyWith(
                 color: itemTextColor,
                 fontSize: isMobile ? 11.5 : 12.5,
-                fontWeight: FontWeight.w500,
               ),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
@@ -391,7 +388,7 @@ class _PaletteCloseButtonState extends State<_PaletteCloseButton> {
               height: 24.0,
               decoration: BoxDecoration(
                 color: backgroundColor,
-                borderRadius: BorderRadius.circular(6.0),
+                borderRadius: AgentationRadii.br6,
               ),
               alignment: Alignment.center,
               child: Icon(

@@ -11,7 +11,9 @@ import '../../domain/marker_color.dart';
 import '../../domain/widget_inspection_result.dart';
 import '../../source_location/widget_code_resolver.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 import '../../theme/agentation_theme.dart';
+import '../../theme/agentation_typography.dart';
 import '../toolbar/agentation_icons.dart';
 
 /// Annotation creation popup matching the Agentation design system.
@@ -445,12 +447,12 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                 key: _cardKey,
                 color: Colors.transparent,
                 elevation: 16.0,
-                borderRadius: BorderRadius.circular(16.0),
+                borderRadius: AgentationRadii.br16,
                 child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
                 decoration: BoxDecoration(
                   color: cardBg,
-                  borderRadius: BorderRadius.circular(16.0),
+                  borderRadius: AgentationRadii.br16,
                   border: Border.all(color: borderColor, width: 1.0),
                   boxShadow: theme.cardShadows,
                 ),
@@ -466,7 +468,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                       },
                       child: InkWell(
                         onTap: (widget.showWidgetCode && hasCode) ? _toggleCodeExpanded : null,
-                        borderRadius: BorderRadius.circular(6.0),
+                        borderRadius: AgentationRadii.br6,
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 2.0, horizontal: 2.0),
                           child: Row(
@@ -480,13 +482,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                 const SizedBox(width: 2.0),
                                 Text(
                                   elementLabel,
-                                  style: TextStyle(
-                                    color: subtextColor,
-                                    fontStyle: FontStyle.italic,
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.normal,
-                                    decoration: TextDecoration.none,
-                                  ),
+                                  style: AgentationTypography.italicLabel.copyWith(color: subtextColor),
                                 ),
                               ] else ...[
                                 if (widget.showWidgetCode && hasCode) ...[
@@ -524,11 +520,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                       children: [
                                         Text(
                                           elementLabel,
-                                          style: TextStyle(
-                                            color: textColor,
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.w600,
-                                          ),
+                                          style: AgentationTypography.elementLabel.copyWith(color: textColor),
                                         ),
                                         if (widget.result.sourceLocation?.isAvailable == true) ...[
                                           const SizedBox(width: 6.0),
@@ -536,15 +528,11 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                             padding: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 1.5),
                                             decoration: BoxDecoration(
                                               color: isDark ? AgentationColors.darkCodeTagBg : AgentationColors.lightBorderSlate,
-                                              borderRadius: BorderRadius.circular(4.0),
+                                              borderRadius: AgentationRadii.br4,
                                             ),
                                             child: Text(
                                               '${widget.result.sourceLocation!.fileString}:${widget.result.sourceLocation!.lineString}',
-                                              style: TextStyle(
-                                                color: subtextColor,
-                                                fontSize: 10.0,
-                                                fontFamily: 'monospace',
-                                              ),
+                                              style: AgentationTypography.codeLocation.copyWith(color: subtextColor),
                                             ),
                                           ),
                                         ],
@@ -570,7 +558,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                               if (controller?.activeHierarchy != null) ...[
                                 for (final ancestor in controller!.activeHierarchy!.ancestors) ...[
                                   ActionChip(
-                                    label: Text(ancestor.identity.widgetType, style: const TextStyle(fontSize: 10.0)),
+                                    label: Text(ancestor.identity.widgetType, style: AgentationTypography.chip),
                                     visualDensity: VisualDensity.compact,
                                     padding: EdgeInsets.zero,
                                     onPressed: () {
@@ -585,7 +573,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                       child.text != null && child.text!.isNotEmpty
                                           ? '${child.identity.widgetType} "${child.text!.length > 12 ? "${child.text!.substring(0, 12)}…" : child.text}"'
                                           : child.identity.widgetType,
-                                      style: const TextStyle(fontSize: 10.0),
+                                      style: AgentationTypography.chip,
                                     ),
                                     visualDensity: VisualDensity.compact,
                                     padding: EdgeInsets.zero,
@@ -598,7 +586,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                               ] else ...[
                                 for (final ancestorName in widget.result.ancestors.where((a) => a != widget.result.identity.widgetType)) ...[
                                   ActionChip(
-                                    label: Text(ancestorName, style: const TextStyle(fontSize: 10.0)),
+                                    label: Text(ancestorName, style: AgentationTypography.chip),
                                     visualDensity: VisualDensity.compact,
                                     padding: EdgeInsets.zero,
                                     onPressed: () {},
@@ -628,14 +616,14 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: isDark ? AgentationColors.darkCodeBg : AgentationColors.lightCodeBg,
-                                  borderRadius: BorderRadius.circular(8.0),
+                                  borderRadius: AgentationRadii.br8,
                                   border: Border.all(
                                     color: isDark ? AgentationColors.darkCodeBorder : AgentationColors.lightBorderSlate,
                                     width: 1.0,
                                   ),
                                 ),
                                 child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(7.0),
+                                  borderRadius: AgentationRadii.br7,
                                   child: Column(
                                     mainAxisSize: MainAxisSize.min,
                                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -656,12 +644,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                           children: [
                                             Text(
                                               'WIDGET CODE',
-                                              style: TextStyle(
-                                                color: subtextColor,
-                                                fontSize: 9.5,
-                                                fontWeight: FontWeight.w700,
-                                                letterSpacing: 0.6,
-                                              ),
+                                              style: AgentationTypography.codeHeader.copyWith(color: subtextColor),
                                             ),
                                             const Spacer(),
                                             ValueListenableBuilder<bool>(
@@ -676,7 +659,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                                       if (mounted) _isCodeCopiedNotifier.value = false;
                                                     });
                                                   },
-                                                  borderRadius: BorderRadius.circular(4.0),
+                                                  borderRadius: AgentationRadii.br4,
                                                   child: Padding(
                                                     padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.5),
                                                     child: Row(
@@ -690,11 +673,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                                         const SizedBox(width: 3.0),
                                                         Text(
                                                           isCopied ? 'Copied' : 'Copy',
-                                                          style: TextStyle(
-                                                            color: isCopied ? AgentationColors.emerald : subtextColor,
-                                                            fontSize: 10.0,
-                                                            fontWeight: FontWeight.w500,
-                                                          ),
+                                                          style: AgentationTypography.shortcut.copyWith(color: isCopied ? AgentationColors.emerald : subtextColor),
                                                         ),
                                                       ],
                                                     ),
@@ -718,11 +697,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                               valueListenable: _asyncLoadedCodeNotifier,
                                               builder: (context, _, _) => SelectableText.rich(
                                                 _buildSyntaxHighlightedSpan(_displayCode, isDark),
-                                                style: const TextStyle(
-                                                  fontFamily: 'monospace',
-                                                  fontSize: 11.0,
-                                                  height: 1.4,
-                                                ),
+                                                style: AgentationTypography.codeCompact,
                                               ),
                                             ),
                                           ),
@@ -748,7 +723,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                       return Container(
                         decoration: BoxDecoration(
                           color: inputBg,
-                          borderRadius: BorderRadius.circular(8.0),
+                          borderRadius: AgentationRadii.br8,
                           border: Border.all(
                             color: activeColor,
                             width: 1.5,
@@ -788,21 +763,13 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                             maxLines: 3,
                             minLines: 1,
                             textInputAction: TextInputAction.send,
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 13.0,
-                              fontWeight: FontWeight.w400,
-                            ),
+                            style: AgentationTypography.input.copyWith(color: textColor),
                             cursorColor: activeColor,
                             decoration: InputDecoration(
                               contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
                               isDense: true,
                               hintText: placeholder,
-                              hintStyle: TextStyle(
-                                color: subtextColor,
-                                fontSize: 13.0,
-                                fontWeight: FontWeight.normal,
-                              ),
+                              hintStyle: AgentationTypography.inputHint.copyWith(color: subtextColor),
                               border: InputBorder.none,
                             ),
                             onSubmitted: (_) {
@@ -860,17 +827,12 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                         children: [
                           InkWell(
                             onTap: widget.onClose,
-                            borderRadius: BorderRadius.circular(4.0),
+                            borderRadius: AgentationRadii.br4,
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                               child: Text(
                                 'Cancel',
-                                style: TextStyle(
-                                  color: isDark ? AgentationColors.darkTextSubtle : AgentationColors.lightTextSecondary,
-                                  fontSize: 13.0,
-                                  fontWeight: FontWeight.w500,
-                                  decoration: TextDecoration.none,
-                                ),
+                                style: AgentationTypography.button.copyWith(color: isDark ? AgentationColors.darkTextSubtle : AgentationColors.lightTextSecondary),
                               ),
                             ),
                           ),
@@ -891,7 +853,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                   disabledForegroundColor: Colors.white70,
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20.0),
+                                    borderRadius: AgentationRadii.br20,
                                   ),
                                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                                   fixedSize: const Size.fromHeight(32.0),
@@ -911,10 +873,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                                     : Text(
                                         widget.submitLabel ??
                                             (isArea || widget.onDelete != null ? 'Save' : 'Add'),
-                                        style: const TextStyle(
-                                          fontSize: 13.0,
-                                          fontWeight: FontWeight.normal,
-                                        ),
+                                        style: AgentationTypography.body,
                                       ),
                               );
                             },
@@ -957,7 +916,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
 
     return InkWell(
       onTap: () => _selectedIntentNotifier.value = intent,
-      borderRadius: BorderRadius.circular(6.0),
+      borderRadius: AgentationRadii.br6,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
         decoration: BoxDecoration(
@@ -966,7 +925,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
                   ? intentColor.withValues(alpha: 0.25)
                   : intentColor.withValues(alpha: 0.15))
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(6.0),
+          borderRadius: AgentationRadii.br6,
           border: Border.all(
             color: isSelected
                 ? intentColor
@@ -976,13 +935,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            color: isSelected
-                ? intentColor
-                : (isDark ? AgentationColors.darkTextMuted : AgentationColors.darkIconInactive),
-            fontSize: 11.0,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          ),
+          style: (isSelected ? AgentationTypography.captionSemiBold : AgentationTypography.caption).copyWith(color: isSelected ? intentColor : (isDark ? AgentationColors.darkTextMuted : AgentationColors.darkIconInactive)),
         ),
       ),
     );
@@ -1017,27 +970,27 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
       if (match.start > lastEnd) {
         spans.add(TextSpan(
           text: code.substring(lastEnd, match.start),
-          style: TextStyle(color: defaultColor),
+          style: AgentationTypography.codeCompact.copyWith(color: defaultColor),
         ));
       }
 
       final matchText = match.group(0)!;
       if (match.group(1) != null) {
-        spans.add(TextSpan(text: matchText, style: TextStyle(color: commentColor, fontStyle: FontStyle.italic)));
+        spans.add(TextSpan(text: matchText, style: AgentationTypography.codeCompact.copyWith(color: commentColor, fontStyle: FontStyle.italic)));
       } else if (match.group(2) != null) {
-        spans.add(TextSpan(text: matchText, style: TextStyle(color: stringColor)));
+        spans.add(TextSpan(text: matchText, style: AgentationTypography.codeCompact.copyWith(color: stringColor)));
       } else if (match.group(3) != null) {
-        spans.add(TextSpan(text: matchText, style: TextStyle(color: keywordColor, fontWeight: FontWeight.w600)));
+        spans.add(TextSpan(text: matchText, style: AgentationTypography.codeCompact.copyWith(color: keywordColor, fontWeight: FontWeight.w600)));
       } else if (match.group(4) != null) {
-        spans.add(TextSpan(text: matchText, style: TextStyle(color: propertyColor)));
+        spans.add(TextSpan(text: matchText, style: AgentationTypography.codeCompact.copyWith(color: propertyColor)));
       } else if (match.group(5) != null) {
-        spans.add(TextSpan(text: matchText, style: TextStyle(color: typeColor, fontWeight: FontWeight.w600)));
+        spans.add(TextSpan(text: matchText, style: AgentationTypography.codeCompact.copyWith(color: typeColor, fontWeight: FontWeight.w600)));
       } else if (match.group(6) != null) {
-        spans.add(TextSpan(text: matchText, style: TextStyle(color: numberColor)));
+        spans.add(TextSpan(text: matchText, style: AgentationTypography.codeCompact.copyWith(color: numberColor)));
       } else if (match.group(7) != null) {
-        spans.add(TextSpan(text: matchText, style: TextStyle(color: punctuationColor)));
+        spans.add(TextSpan(text: matchText, style: AgentationTypography.codeCompact.copyWith(color: punctuationColor)));
       } else {
-        spans.add(TextSpan(text: matchText, style: TextStyle(color: defaultColor)));
+        spans.add(TextSpan(text: matchText, style: AgentationTypography.codeCompact.copyWith(color: defaultColor)));
       }
 
       lastEnd = match.end;
@@ -1046,7 +999,7 @@ class _AnnotationPopupState extends State<AnnotationPopup> {
     if (lastEnd < code.length) {
       spans.add(TextSpan(
         text: code.substring(lastEnd),
-        style: TextStyle(color: defaultColor),
+        style: AgentationTypography.codeCompact.copyWith(color: defaultColor),
       ));
     }
 
@@ -1093,7 +1046,7 @@ class _CardDeleteIconButtonState extends State<_CardDeleteIconButton> {
             return InkWell(
               key: const ValueKey('agentation_card_delete_button'),
               onTap: widget.onDelete,
-              borderRadius: BorderRadius.circular(6.0),
+              borderRadius: AgentationRadii.br6,
               hoverColor: widget.hoverColor.withValues(alpha: 0.15),
               child: Padding(
                 padding: const EdgeInsets.all(5.0),

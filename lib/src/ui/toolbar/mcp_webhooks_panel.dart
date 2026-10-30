@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/agentation_controller.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 import '../../theme/agentation_theme.dart';
 import '../../theme/agentation_typography.dart';
 import 'agentation_tooltip.dart';
@@ -178,7 +179,7 @@ class _McpWebhooksPanelState extends State<McpWebhooksPanel> {
         final inputWidget = Container(
           decoration: BoxDecoration(
             color: theme.panelInputBackground,
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: AgentationRadii.br8,
             border: Border.all(color: theme.panelInputBorder, width: 1.0),
           ),
           child: TextField(
@@ -259,7 +260,7 @@ class _McpWebhooksPanelState extends State<McpWebhooksPanel> {
                 Expanded(
                   child: InkWell(
                     onTap: widget.onBack,
-                    borderRadius: BorderRadius.circular(6.0),
+                    borderRadius: AgentationRadii.br6,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 4.0,
@@ -473,7 +474,7 @@ class _McpWebhooksPanelState extends State<McpWebhooksPanel> {
                     const Spacer(),
                   InkWell(
                     onTap: isTestingWebhook ? null : _testWebhook,
-                    borderRadius: BorderRadius.circular(6.0),
+                    borderRadius: AgentationRadii.br6,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8.0,
@@ -483,7 +484,7 @@ class _McpWebhooksPanelState extends State<McpWebhooksPanel> {
                         color: isDark
                             ? Colors.white.withValues(alpha: 0.08)
                             : Colors.black.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(6.0),
+                        borderRadius: AgentationRadii.br6,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -545,7 +546,7 @@ class _PanelTooltip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AgentationColors.darkHelpTooltipBg,
-        borderRadius: BorderRadius.circular(10.0),
+        borderRadius: AgentationRadii.br10,
         boxShadow: const [
           BoxShadow(
             color: AgentationColors.shadowHelp,
@@ -618,7 +619,7 @@ class _PanelHoverIconButtonState extends State<_PanelHoverIconButton> {
               height: widget.size,
               decoration: BoxDecoration(
                 color: isHovered ? hoverBg : Colors.transparent,
-                borderRadius: BorderRadius.circular(6.0),
+                borderRadius: AgentationRadii.br6,
               ),
               child: Center(
                 child: Icon(
@@ -658,8 +659,8 @@ class _PanelSwitch extends StatelessWidget {
         ? AgentationColors.blue400
         : AgentationColors.blue300;
     final disabledTrackOnColor = isDark
-        ? const Color(0xFF3A3A3C)
-        : const Color(0xFFCDCDD0);
+        ? AgentationColors.darkDisabledTrack
+        : AgentationColors.lightDisabledTrack;
     final disabledTrackOffColor = isDark
         ? Colors.white.withValues(alpha: 0.12)
         : AgentationColors.gray200;
@@ -692,7 +693,7 @@ class _PanelSwitch extends StatelessWidget {
             padding: const EdgeInsets.all(2.0),
             decoration: BoxDecoration(
               color: trackColor,
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: AgentationRadii.br8,
             ),
             child: Align(
               alignment: value ? Alignment.centerRight : Alignment.centerLeft,

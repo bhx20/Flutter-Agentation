@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
+import '../../theme/agentation_typography.dart';
 
 /// An interactive action button within the Agentation floating toolbar.
 class ToolbarActionButton extends StatelessWidget {
@@ -44,7 +46,7 @@ class ToolbarActionButton extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20.0),
+          borderRadius: AgentationRadii.br20,
           onTap: onPressed,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
@@ -52,7 +54,7 @@ class ToolbarActionButton extends StatelessWidget {
             padding: const EdgeInsets.all(8.0),
             decoration: BoxDecoration(
               color: isActive ? activeColor.withValues(alpha: 0.2) : Colors.transparent,
-              borderRadius: BorderRadius.circular(20.0),
+              borderRadius: AgentationRadii.br20,
               border: isActive
                   ? Border.all(color: activeColor.withValues(alpha: 0.6), width: 1.0)
                   : null,
@@ -73,14 +75,12 @@ class ToolbarActionButton extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 1.0),
                       decoration: BoxDecoration(
                         color: activeColor,
-                        borderRadius: BorderRadius.circular(6.0),
+                        borderRadius: AgentationRadii.br6,
                       ),
                       child: Text(
                         badgeText!,
-                        style: const TextStyle(
+                        style: AgentationTypography.badge.copyWith(
                           color: Colors.white,
-                          fontSize: 8.0,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),

@@ -7,6 +7,7 @@ import '../../core/agentation_state.dart';
 import '../design/component_palette.dart';
 import '../../domain/marker_color.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 import '../../theme/agentation_theme.dart';
 import '../../theme/agentation_typography.dart';
 import 'agentation_icons.dart';
@@ -462,7 +463,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
               padding: EdgeInsets.zero,
               decoration: BoxDecoration(
                 color: theme.toolbarBackground,
-                borderRadius: BorderRadius.circular(22.0),
+                borderRadius: AgentationRadii.br22,
                 border: Border.all(
                   color: theme.borderColor,
                   width: 1.0,
@@ -526,7 +527,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
         children: [
           // ── Clipped Toolbar Interior (Controls & Toggle Button) ──
           ClipRRect(
-            borderRadius: BorderRadius.circular(22.0),
+            borderRadius: AgentationRadii.br22,
             child: SizedBox(
               height: 44.0,
               child: Stack(
@@ -704,7 +705,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                                     height: 6.0,
                                     decoration: const BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Color(0xFF22C55E),
+                                      color: AgentationColors.statusConnected,
                                     ),
                                   )
                                 : (!isSettingsOpen && isMcpConnecting
@@ -713,7 +714,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                                         height: 6.0,
                                         decoration: const BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: Color(0xFFF59E0B),
+                                          color: AgentationColors.statusConnecting,
                                         ),
                                       )
                                     : null),
@@ -798,7 +799,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                   padding: const EdgeInsets.symmetric(horizontal: 4.0),
                   decoration: BoxDecoration(
                     color: markerColor,
-                    borderRadius: BorderRadius.circular(9.0),
+                    borderRadius: AgentationRadii.br9,
                     boxShadow: const [
                       BoxShadow(
                         color: AgentationColors.shadowHeavy,
@@ -810,12 +811,10 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                   alignment: Alignment.center,
                   child: Text(
                     '$count',
-                    style: const TextStyle(
+                    style: AgentationTypography.captionBold.copyWith(
                       color: Colors.white,
                       fontSize: 10.0,
-                      fontWeight: FontWeight.bold,
                       height: 1.0,
-                      decoration: TextDecoration.none,
                     ),
                   ),
                 ),
@@ -931,22 +930,16 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
       children: [
         TextSpan(
           text: widget.tooltipLabel,
-          style: TextStyle(
+          style: AgentationTypography.tooltipTitle.copyWith(
             color: tooltipTextColor,
-            fontSize: 11.5,
-            fontWeight: FontWeight.normal,
-            decoration: TextDecoration.none,
           ),
         ),
         if (widget.tooltipShortcut != null) ...[
           const TextSpan(text: ' '),
           TextSpan(
             text: widget.tooltipShortcut!,
-            style: TextStyle(
+            style: AgentationTypography.tooltipShortcut.copyWith(
               color: tooltipShortcutColor,
-              fontSize: 11.5,
-              fontWeight: FontWeight.w500,
-              decoration: TextDecoration.none,
             ),
           ),
         ],
@@ -1274,7 +1267,7 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
                       padding: const EdgeInsets.symmetric(horizontal: 4.0),
                       decoration: BoxDecoration(
                         color: theme.accentColor,
-                        borderRadius: BorderRadius.circular(8.0),
+                        borderRadius: AgentationRadii.br8,
                         border: Border.all(
                           color: isDark ? AgentationColors.darkRing : Colors.white,
                           width: 1.5,

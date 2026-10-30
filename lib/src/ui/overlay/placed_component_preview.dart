@@ -2,7 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../domain/annotation.dart';
 import '../../domain/placement_data.dart';
+import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 import '../../theme/agentation_theme.dart';
+import '../../theme/agentation_typography.dart';
 import '../design/realistic_skeleton_preview.dart';
 
 /// Interactive visual preview widget that renders the exact look of a placed wireframe component
@@ -94,7 +97,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
                       color: widget.isSelected
                           ? accent.withValues(alpha: 0.08)
                           : (isEffectiveHover ? accent.withValues(alpha: 0.04) : Colors.transparent),
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: AgentationRadii.br8,
                       border: Border.all(
                         color: widget.isSelected
                             ? accent
@@ -134,7 +137,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
                           padding: const EdgeInsets.symmetric(horizontal: 5.0, vertical: 1.0),
                           decoration: BoxDecoration(
                             color: accent,
-                            borderRadius: BorderRadius.circular(4.0),
+                            borderRadius: AgentationRadii.br4,
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.2),
@@ -144,12 +147,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
                           ),
                           child: Text(
                             placement.label ?? placement.componentType,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9.0,
-                              fontWeight: FontWeight.w500,
-                              decoration: TextDecoration.none,
-                            ),
+                            style: AgentationTypography.previewSmall.copyWith(color: Colors.white, fontWeight: FontWeight.w500),
                           ),
                         ),
                       ),
@@ -285,11 +283,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
       content = Center(
         child: Text(
           source,
-          style: TextStyle(
-            color: accent,
-            fontWeight: FontWeight.bold,
-            fontSize: size * 0.38,
-          ),
+          style: AgentationTypography.previewHeading.copyWith(color: accent, fontSize: size * 0.38),
         ),
       );
     } else {
@@ -308,8 +302,8 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
               height: size,
               decoration: BoxDecoration(
                 shape: isCircular ? BoxShape.circle : BoxShape.rectangle,
-                borderRadius: isCircular ? null : BorderRadius.circular(10.0),
-                color: widget.isDark ? const Color(0xFF232530) : const Color(0xFFE2E8F0),
+                borderRadius: isCircular ? null : AgentationRadii.br10,
+                color: widget.isDark ? AgentationColors.darkPreviewContainerAlt : AgentationColors.lightBorderSlate,
                 border: Border.all(
                   color: widget.isSelected ? accent : (widget.isDark ? Colors.white24 : Colors.black12),
                   width: 1.5,
@@ -333,10 +327,10 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
                   width: size * 0.28,
                   height: size * 0.28,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981),
+                    color: AgentationColors.onlineGreen,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: widget.isDark ? const Color(0xFF1E1F2B) : Colors.white,
+                      color: widget.isDark ? AgentationColors.darkPreviewCard : Colors.white,
                       width: 2.0,
                     ),
                   ),
@@ -410,7 +404,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
         padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
           border: border,
           boxShadow: (!isOutlined && !isTextBtn)
               ? [
@@ -443,11 +437,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
             Flexible(
               child: Text(
                 label,
-                style: TextStyle(
-                  color: fg,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AgentationTypography.previewButton.copyWith(color: fg, fontSize: 12.5, fontWeight: FontWeight.w500),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -461,7 +451,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
     final props = placement.properties;
     final isRounded = props['rounded'] != false;
     final source = (placement.source ?? placement.text ?? '').trim();
-    final borderRadius = isRounded ? BorderRadius.circular(10.0) : BorderRadius.zero;
+    final borderRadius = isRounded ? AgentationRadii.br10 : BorderRadius.zero;
 
     Widget content;
     if (source.startsWith('http://') || source.startsWith('https://')) {
@@ -488,7 +478,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
 
   Widget _buildFallbackImageBox(String source, AgentationThemeData theme, Color accent) {
     return Container(
-      color: widget.isDark ? const Color(0xFF1E202B) : const Color(0xFFE2E8F0),
+      color: widget.isDark ? AgentationColors.darkPreviewSurface : AgentationColors.lightBorderSlate,
       padding: const EdgeInsets.all(8.0),
       child: Center(
         child: Column(
@@ -498,10 +488,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
             const SizedBox(height: 4.0),
             Text(
               source.isNotEmpty ? source : 'Image Preview',
-              style: TextStyle(
-                color: theme.textSecondary,
-                fontSize: 10.0,
-              ),
+              style: AgentationTypography.previewCaption.copyWith(color: theme.textSecondary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -523,7 +510,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
         decoration: BoxDecoration(
           color: theme.inputBackground,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
           border: Border.all(
             color: widget.isSelected ? accent : theme.borderTranslucentColor,
             width: 1.0,
@@ -538,11 +525,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
             Expanded(
               child: Text(
                 hint,
-                style: TextStyle(
-                  color: theme.textMuted,
-                  fontSize: 12.0,
-                  fontWeight: FontWeight.normal,
-                ),
+                style: AgentationTypography.panelInputHint.copyWith(color: theme.textMuted),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -589,11 +572,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
       child: Text(
         content,
         textAlign: align,
-        style: TextStyle(
-          fontSize: fontSize,
-          fontWeight: fontWeight,
-          color: textColor,
-        ),
+        style: AgentationTypography.body.copyWith(fontSize: fontSize, fontWeight: fontWeight, color: textColor),
         overflow: TextOverflow.ellipsis,
       ),
     );
@@ -616,7 +595,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
           padding: const EdgeInsets.all(2.5),
           decoration: BoxDecoration(
             color: isChecked ? accent : (widget.isDark ? Colors.white24 : Colors.black26),
-            borderRadius: BorderRadius.circular(14.0),
+            borderRadius: AgentationRadii.br14,
             boxShadow: [
               BoxShadow(
                 color: (isChecked ? accent : Colors.black).withValues(alpha: 0.25),
@@ -654,7 +633,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
           height: 22.0,
           decoration: BoxDecoration(
             color: isChecked ? accent : Colors.transparent,
-            borderRadius: BorderRadius.circular(4.0),
+            borderRadius: AgentationRadii.br4,
             border: Border.all(
               color: isChecked ? accent : (widget.isDark ? Colors.white54 : Colors.black54),
               width: 2.0,
@@ -702,7 +681,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
         decoration: BoxDecoration(
           color: theme.cardBackground,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
           border: Border.all(
             color: widget.isSelected ? accent : theme.borderTranslucentColor,
             width: 1.0,
@@ -714,11 +693,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
             Expanded(
               child: Text(
                 label,
-                style: TextStyle(
-                  color: theme.textPrimary,
-                  fontSize: 12.0,
-                  fontWeight: FontWeight.normal,
-                ),
+                style: AgentationTypography.subtext.copyWith(color: theme.textPrimary),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -742,7 +717,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
                 padding: const EdgeInsets.all(2.0),
                 decoration: BoxDecoration(
                   color: isChecked ? accent : (widget.isDark ? Colors.white24 : Colors.black26),
-                  borderRadius: BorderRadius.circular(11.0),
+                  borderRadius: AgentationRadii.br11,
                 ),
                 child: Align(
                   alignment: isChecked ? Alignment.centerRight : Alignment.centerLeft,
@@ -772,7 +747,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
         decoration: BoxDecoration(
           color: theme.inputBackground,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
           border: Border.all(
             color: widget.isSelected ? accent : theme.borderTranslucentColor,
             width: 1.0,
@@ -788,27 +763,19 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
                 Expanded(
                   child: Text(
                     label,
-                    style: TextStyle(
-                      color: theme.textPrimary,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.normal,
-                    ),
+                    style: AgentationTypography.subtext.copyWith(color: theme.textPrimary, fontSize: 11.5),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 Text(
                   '${val.round()}%',
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: 11.0,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AgentationTypography.captionSemiBold.copyWith(color: accent),
                 ),
               ],
             ),
             const SizedBox(height: 4.0),
             ClipRRect(
-              borderRadius: BorderRadius.circular(2.0),
+              borderRadius: AgentationRadii.br2,
               child: LinearProgressIndicator(
                 value: (val / 100.0).clamp(0.0, 1.0),
                 backgroundColor: widget.isDark ? Colors.white12 : Colors.black12,
@@ -829,7 +796,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: AgentationRadii.br12,
         border: Border.all(
           color: widget.isSelected ? accent : theme.borderTranslucentColor,
           width: 1.0,
@@ -846,11 +813,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(
-                    color: theme.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AgentationTypography.elementLabel.copyWith(color: theme.textPrimary),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -862,7 +825,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
             width: double.infinity,
             decoration: BoxDecoration(
               color: widget.isDark ? Colors.white.withValues(alpha: 0.05) : Colors.black.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(3.0),
+              borderRadius: AgentationRadii.br3,
             ),
           ),
           const SizedBox(height: 5.0),
@@ -871,7 +834,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
             width: 80.0,
             decoration: BoxDecoration(
               color: widget.isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.03),
-              borderRadius: BorderRadius.circular(3.0),
+              borderRadius: AgentationRadii.br3,
             ),
           ),
         ],
@@ -887,7 +850,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
         decoration: BoxDecoration(
           color: theme.cardBackground,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
           border: Border.all(
             color: widget.isSelected ? accent : theme.borderTranslucentColor,
             width: 1.0,
@@ -900,7 +863,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
               height: 28.0,
               decoration: BoxDecoration(
                 color: accent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6.0),
+                borderRadius: AgentationRadii.br6,
               ),
               child: Icon(Icons.list_alt, size: 16.0, color: accent),
             ),
@@ -908,11 +871,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(
-                  color: theme.textPrimary,
-                  fontSize: 12.0,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AgentationTypography.subtext.copyWith(color: theme.textPrimary, fontWeight: FontWeight.w500),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -931,16 +890,12 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
         decoration: BoxDecoration(
           color: accent.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12.0),
+          borderRadius: AgentationRadii.br12,
           border: Border.all(color: accent.withValues(alpha: 0.5), width: 1.0),
         ),
         child: Text(
           label,
-          style: TextStyle(
-            color: accent,
-            fontSize: 11.0,
-            fontWeight: FontWeight.w500,
-          ),
+          style: AgentationTypography.captionSemiBold.copyWith(color: accent),
           overflow: TextOverflow.ellipsis,
         ),
       ),
@@ -978,7 +933,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
       padding: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: AgentationRadii.br8,
         border: Border.all(
           color: widget.isSelected ? accent : theme.borderTranslucentColor,
           width: 1.0,
@@ -993,11 +948,7 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
             Flexible(
               child: Text(
                 label,
-                style: TextStyle(
-                  color: theme.textPrimary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AgentationTypography.bodyMedium.copyWith(color: theme.textPrimary, fontSize: 11.5),
                 overflow: TextOverflow.ellipsis,
               ),
             ),

@@ -5,6 +5,7 @@ import '../../core/package_version.dart';
 import '../../domain/marker_color.dart';
 import '../../domain/toolbar_settings.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 import '../../theme/agentation_theme.dart';
 import '../../theme/agentation_typography.dart';
 import 'agentation_icons.dart';
@@ -111,12 +112,12 @@ class _SettingsPanelState extends State<SettingsPanel> {
               width: 260.0,
               decoration: BoxDecoration(
                 color: theme.panelBackground,
-                borderRadius: BorderRadius.circular(16.0),
+                borderRadius: AgentationRadii.br16,
                 border: Border.all(color: theme.panelBorderColor, width: 1.0),
                 boxShadow: theme.panelShadows,
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(16.0),
+                borderRadius: AgentationRadii.br16,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(14.0, 12.0, 14.0, 12.0),
                   child: AnimatedSwitcher(
@@ -243,7 +244,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
                         ),
                         InkWell(
                           onTap: controller.cycleDetailLevel,
-                          borderRadius: BorderRadius.circular(4.0),
+                          borderRadius: AgentationRadii.br4,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2.0, vertical: 2.0),
                             child: Row(
@@ -422,7 +423,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
                           ),
                         );
                       },
-                      borderRadius: BorderRadius.circular(4.0),
+                      borderRadius: AgentationRadii.br4,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                         child: Row(
@@ -469,7 +470,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
                           ),
                         );
                       },
-                      borderRadius: BorderRadius.circular(4.0),
+                      borderRadius: AgentationRadii.br4,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                         child: Row(
@@ -504,7 +505,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
                         _isNavigatingForwardNotifier.value = true;
                         _showMcpWebhooksNotifier.value = true;
                       },
-                      borderRadius: BorderRadius.circular(6.0),
+                      borderRadius: AgentationRadii.br6,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 2.0),
                         child: Row(
@@ -579,7 +580,7 @@ class _SettingsPanelState extends State<SettingsPanel> {
       height: 16.0,
       decoration: BoxDecoration(
         color: checked ? theme.textPrimary : Colors.transparent,
-        borderRadius: BorderRadius.circular(4.5),
+        borderRadius: AgentationRadii.br4_5,
         border: Border.all(
           color: checked
               ? theme.textPrimary
@@ -658,7 +659,7 @@ class _AgentationSwitch extends StatelessWidget {
           padding: const EdgeInsets.all(2.0),
           decoration: BoxDecoration(
             color: trackColor,
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: AgentationRadii.br8,
           ),
           child: Align(
             alignment: value ? Alignment.centerRight : Alignment.centerLeft,
@@ -790,7 +791,7 @@ class _ThemeToggleButtonState extends State<_ThemeToggleButton> {
           height: 22.0,
           decoration: BoxDecoration(
             color: backgroundColor,
-            borderRadius: BorderRadius.circular(6.0),
+            borderRadius: AgentationRadii.br6,
           ),
           child: Center(
             child: SizedBox(
@@ -898,7 +899,7 @@ class _PanelHoverIconButtonState extends State<_PanelHoverIconButton> {
               height: widget.size,
               decoration: BoxDecoration(
                 color: isHovered ? hoverBg : Colors.transparent,
-                borderRadius: BorderRadius.circular(5.0),
+                borderRadius: AgentationRadii.br5,
               ),
               child: Center(
                 child: Icon(

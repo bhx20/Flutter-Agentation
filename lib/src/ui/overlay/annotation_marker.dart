@@ -6,6 +6,7 @@ import '../../core/agentation_scope.dart';
 import '../../domain/annotation.dart';
 import '../../domain/widget_bounds.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 import '../../theme/agentation_theme.dart';
 import '../toolbar/agentation_icons.dart';
 
@@ -229,7 +230,7 @@ class _AnnotationMarkerState extends State<AnnotationMarker>
                 onTap: widget.isExiting ? null : widget.onTap,
                 canRequestFocus: !widget.isExiting,
                 autofocus: widget.isSelected && !widget.isExiting,
-                borderRadius: BorderRadius.circular(14.0),
+                borderRadius: AgentationRadii.br14,
                 child: ValueListenableBuilder<bool>(
                   valueListenable: _localHoverNotifier,
                   builder: (context, localHover, _) {
@@ -373,7 +374,7 @@ class AnnotationHoverPreviewCard extends StatelessWidget {
           child: Material(
             color: Colors.transparent,
             elevation: 8.0,
-            borderRadius: BorderRadius.circular(12.0),
+            borderRadius: AgentationRadii.br12,
             child: Container(
               constraints: const BoxConstraints(
                 minWidth: cardMinWidth,
@@ -382,7 +383,7 @@ class AnnotationHoverPreviewCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
               decoration: BoxDecoration(
                 color: cardBg,
-                borderRadius: BorderRadius.circular(12.0),
+                borderRadius: AgentationRadii.br12,
                 border: Border.all(
                   color: theme.borderTranslucentColor,
                   width: 1.0,
@@ -571,12 +572,12 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
         child: Material(
           color: Colors.transparent,
           elevation: 16.0,
-          borderRadius: BorderRadius.circular(16.0),
+          borderRadius: AgentationRadii.br16,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
             decoration: BoxDecoration(
               color: cardBg,
-              borderRadius: BorderRadius.circular(16.0),
+              borderRadius: AgentationRadii.br16,
               border: Border.all(
                 color: theme.borderTranslucentColor,
                 width: 1.0,
@@ -629,7 +630,7 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
                   Container(
                     decoration: BoxDecoration(
                       color: theme.inputBackground,
-                      borderRadius: BorderRadius.circular(8.0),
+                      borderRadius: AgentationRadii.br8,
                       border: Border.all(
                         color: active,
                         width: 1.5,
@@ -704,7 +705,7 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
                           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
                           decoration: BoxDecoration(
                             color: isAgent ? active.withValues(alpha: 0.15) : theme.inputBackground,
-                            borderRadius: BorderRadius.circular(8.0),
+                            borderRadius: AgentationRadii.br8,
                             border: Border.all(
                               color: isAgent ? active.withValues(alpha: 0.4) : Colors.transparent,
                               width: 1.0,
@@ -767,7 +768,7 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
                                 filled: true,
                                 fillColor: theme.inputBackground,
                                 border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8.0),
+                                  borderRadius: AgentationRadii.br8,
                                   borderSide: BorderSide.none,
                                 ),
                               ),
@@ -805,7 +806,7 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
                       children: [
                         InkWell(
                           onTap: widget.onClose,
-                          borderRadius: BorderRadius.circular(4.0),
+                          borderRadius: AgentationRadii.br4,
                           child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                             child: Text(
@@ -824,14 +825,14 @@ class _AnnotationDetailCardState extends State<AnnotationDetailCard> {
                           color: Colors.transparent,
                           child: InkWell(
                             onTap: _handleSave,
-                            borderRadius: BorderRadius.circular(20.0),
+                            borderRadius: AgentationRadii.br20,
                             child: Container(
                               height: 32.0,
                               padding: const EdgeInsets.symmetric(horizontal: 16.0),
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: active,
-                                borderRadius: BorderRadius.circular(20.0),
+                                borderRadius: AgentationRadii.br20,
                               ),
                               child: ValueListenableBuilder<bool>(
                                 valueListenable: _isSavingNotifier,
@@ -900,7 +901,7 @@ class _CardDeleteIconButtonState extends State<_CardDeleteIconButton> {
             return InkWell(
               key: const ValueKey('agentation_card_delete_button'),
               onTap: widget.onDelete,
-              borderRadius: BorderRadius.circular(6.0),
+              borderRadius: AgentationRadii.br6,
               hoverColor: widget.hoverColor.withValues(alpha: 0.15),
               child: Padding(
                 padding: const EdgeInsets.all(5.0),

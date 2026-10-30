@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../domain/widget_bounds.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 
 /// Custom painter for rendering alignment crosshairs, coordinate lines,
 /// and live dimension callouts during skeleton dragging and rearrangement.
@@ -121,8 +122,8 @@ class SpatialGuidePainter extends CustomPainter {
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
 
-    canvas.drawRRect(RRect.fromRectAndRadius(badgeRect, const Radius.circular(4.0)), bgPaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(badgeRect, const Radius.circular(4.0)), borderPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(badgeRect, AgentationRadii.r4), bgPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(badgeRect, AgentationRadii.r4), borderPaint);
 
     textPainter.paint(
       canvas,

@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import '../../domain/pending_placement.dart';
 import '../../domain/placement_data.dart';
 import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 import '../../theme/agentation_theme.dart';
+import '../../theme/agentation_typography.dart';
 import '../design/component_question_config.dart';
 import '../design/skeleton_templates.dart';
 
@@ -289,7 +291,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                       child: Material(
                         color: Colors.transparent,
                         elevation: 16.0,
-                        borderRadius: BorderRadius.circular(16.0),
+                        borderRadius: AgentationRadii.br16,
                         child: Container(
                           width: cardWidth,
                           constraints: BoxConstraints(
@@ -297,7 +299,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                           ),
                           decoration: BoxDecoration(
                             color: theme.cardBackground,
-                            borderRadius: BorderRadius.circular(16.0),
+                            borderRadius: AgentationRadii.br16,
                             boxShadow: theme.cardShadows,
                           ),
                           child: ListenableBuilder(
@@ -323,7 +325,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                                 color: widget.isDark
                                     ? Colors.white.withValues(alpha: 0.03)
                                     : Colors.black.withValues(alpha: 0.02),
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(16.0)),
+                                borderRadius: AgentationRadii.brTop16,
                               ),
                               child: Row(
                                 children: [
@@ -331,7 +333,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                                     padding: const EdgeInsets.all(4.0),
                                     decoration: BoxDecoration(
                                       color: accent.withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(6.0),
+                                      borderRadius: AgentationRadii.br6,
                                     ),
                                     child: Icon(
                                       template.icon,
@@ -347,21 +349,13 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                                       children: [
                                         Text(
                                           'Configure ${template.label}',
-                                          style: TextStyle(
-                                            color: theme.textPrimary,
-                                            fontSize: 12.5,
-                                            fontWeight: FontWeight.w500,
-                                          ),
+                                          style: AgentationTypography.dialogItemTitle.copyWith(color: theme.textPrimary),
                                         ),
                                         Text(
                                           tree.parentWidget.isNotEmpty
                                               ? 'Target: ${tree.parentWidget} • ${tree.description}'
                                               : tree.description,
-                                          style: TextStyle(
-                                            color: theme.textSecondary,
-                                            fontSize: 10.5,
-                                            fontWeight: FontWeight.normal,
-                                          ),
+                                          style: AgentationTypography.dialogItemSubtitle.copyWith(color: theme.textSecondary),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -463,23 +457,19 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                               color: widget.isDark
                                   ? Colors.white.withValues(alpha: 0.02)
                                   : Colors.black.withValues(alpha: 0.015),
-                              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16.0)),
+                              borderRadius: AgentationRadii.brBottom16,
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 InkWell(
                                   onTap: widget.onCancel,
-                                  borderRadius: BorderRadius.circular(6.0),
+                                  borderRadius: AgentationRadii.br6,
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                                     child: Text(
                                       'Cancel',
-                                      style: TextStyle(
-                                        color: theme.textSecondary,
-                                        fontSize: 11.5,
-                                        fontWeight: FontWeight.normal,
-                                      ),
+                                      style: AgentationTypography.panelDescription.copyWith(color: theme.textSecondary),
                                     ),
                                   ),
                                 ),
@@ -496,7 +486,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                                       minimumSize: const Size(40.0, 26.0),
                                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(13.0),
+                                        borderRadius: AgentationRadii.br13,
                                       ),
                                     ),
                                     child: const Row(
@@ -506,10 +496,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                                         SizedBox(width: 4.0),
                                         Text(
                                           'Place Component',
-                                          style: TextStyle(
-                                            fontSize: 11.0,
-                                            fontWeight: FontWeight.normal,
-                                          ),
+                                          style: AgentationTypography.dialogAction,
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
@@ -543,29 +530,17 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
       children: [
         Text(
           _config.primaryInputLabel,
-          style: TextStyle(
-            color: theme.textSecondary,
-            fontSize: 11.0,
-            fontWeight: FontWeight.normal,
-          ),
+          style: AgentationTypography.dialogSectionTitle.copyWith(color: theme.textSecondary),
         ),
         const SizedBox(height: 5.0),
         TextField(
           controller: _primaryController,
           focusNode: _primaryFocusNode,
-          style: TextStyle(
-            color: theme.textPrimary,
-            fontSize: 12.0,
-            fontWeight: FontWeight.normal,
-          ),
+          style: AgentationTypography.panelInput.copyWith(color: theme.textPrimary),
           cursorColor: accent,
           decoration: InputDecoration(
             hintText: _config.primaryInputPlaceholder,
-            hintStyle: TextStyle(
-              color: theme.textMuted,
-              fontSize: 12.0,
-              fontWeight: FontWeight.normal,
-            ),
+            hintStyle: AgentationTypography.panelInputHint.copyWith(color: theme.textMuted),
             isDense: true,
             filled: true,
             fillColor: widget.isDark
@@ -573,15 +548,15 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                 : Colors.black.withValues(alpha: 0.04),
             contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: AgentationRadii.br8,
               borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: AgentationRadii.br8,
               borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: AgentationRadii.br8,
               borderSide: BorderSide.none,
             ),
             suffixIcon: ValueListenableBuilder<TextEditingValue>(
@@ -613,28 +588,16 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
       children: [
         Text(
           _config.secondaryInputLabel!,
-          style: TextStyle(
-            color: theme.textSecondary,
-            fontSize: 11.0,
-            fontWeight: FontWeight.normal,
-          ),
+          style: AgentationTypography.dialogSectionTitle.copyWith(color: theme.textSecondary),
         ),
         const SizedBox(height: 5.0),
         TextField(
           controller: _secondaryController,
-          style: TextStyle(
-            color: theme.textPrimary,
-            fontSize: 12.0,
-            fontWeight: FontWeight.normal,
-          ),
+          style: AgentationTypography.panelInput.copyWith(color: theme.textPrimary),
           cursorColor: accent,
           decoration: InputDecoration(
             hintText: _config.secondaryInputPlaceholder,
-            hintStyle: TextStyle(
-              color: theme.textMuted,
-              fontSize: 12.0,
-              fontWeight: FontWeight.normal,
-            ),
+            hintStyle: AgentationTypography.panelInputHint.copyWith(color: theme.textMuted),
             isDense: true,
             filled: true,
             fillColor: widget.isDark
@@ -642,15 +605,15 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                 : Colors.black.withValues(alpha: 0.04),
             contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: AgentationRadii.br8,
               borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: AgentationRadii.br8,
               borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: AgentationRadii.br8,
               borderSide: BorderSide.none,
             ),
           ),
@@ -667,30 +630,18 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
       children: [
         Text(
           'Instructions for AI Coding Agent:',
-          style: TextStyle(
-            color: theme.textSecondary,
-            fontSize: 11.0,
-            fontWeight: FontWeight.normal,
-          ),
+          style: AgentationTypography.dialogSectionTitle.copyWith(color: theme.textSecondary),
         ),
         const SizedBox(height: 5.0),
         TextField(
           controller: _notesController,
           minLines: 1,
           maxLines: 2,
-          style: TextStyle(
-            color: theme.textPrimary,
-            fontSize: 11.5,
-            fontWeight: FontWeight.normal,
-          ),
+          style: AgentationTypography.panelInput.copyWith(color: theme.textPrimary, fontSize: 11.5),
           cursorColor: accent,
           decoration: InputDecoration(
             hintText: _config.notesPlaceholder,
-            hintStyle: TextStyle(
-              color: theme.textMuted,
-              fontSize: 11.5,
-              fontWeight: FontWeight.normal,
-            ),
+            hintStyle: AgentationTypography.panelInputHint.copyWith(color: theme.textMuted, fontSize: 11.5),
             isDense: true,
             filled: true,
             fillColor: widget.isDark
@@ -698,15 +649,15 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                 : Colors.black.withValues(alpha: 0.04),
             contentPadding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 8.0),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: AgentationRadii.br8,
               borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: AgentationRadii.br8,
               borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: AgentationRadii.br8,
               borderSide: BorderSide.none,
             ),
           ),
@@ -724,11 +675,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
         if (_config.behaviorToggles.isNotEmpty) ...[
           Text(
             'Behavior & State:',
-            style: TextStyle(
-              color: theme.textSecondary,
-              fontSize: 11.0,
-              fontWeight: FontWeight.normal,
-            ),
+            style: AgentationTypography.dialogSectionTitle.copyWith(color: theme.textSecondary),
           ),
           const SizedBox(height: 5.0),
           Wrap(
@@ -747,11 +694,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
           if (group.title == 'Alignment:') ...[
             Text(
               group.title,
-              style: TextStyle(
-                color: theme.textSecondary,
-                fontSize: 11.0,
-                fontWeight: FontWeight.normal,
-              ),
+              style: AgentationTypography.dialogSectionTitle.copyWith(color: theme.textSecondary),
             ),
             const SizedBox(height: 5.0),
             Row(
@@ -766,11 +709,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
           ] else ...[
             Text(
               group.title,
-              style: TextStyle(
-                color: theme.textSecondary,
-                fontSize: 11.0,
-                fontWeight: FontWeight.normal,
-              ),
+              style: AgentationTypography.dialogSectionTitle.copyWith(color: theme.textSecondary),
             ),
             const SizedBox(height: 5.0),
             Wrap(
@@ -799,7 +738,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
         color: widget.isDark
             ? Colors.white.withValues(alpha: 0.05)
             : Colors.black.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(10.0),
+        borderRadius: AgentationRadii.br10,
       ),
       child: Row(
         children: [
@@ -810,21 +749,13 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
               children: [
                 Text(
                   _primaryController.text.isNotEmpty ? _primaryController.text : 'Setting Label',
-                  style: TextStyle(
-                    color: theme.textPrimary,
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.normal,
-                  ),
+                  style: AgentationTypography.dialogItemTitle.copyWith(color: theme.textPrimary, fontWeight: FontWeight.normal),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   isChecked ? 'Active state: ON (true)' : 'Inactive state: OFF (false)',
-                  style: TextStyle(
-                    color: isChecked ? accent : theme.textSecondary,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.normal,
-                  ),
+                  style: AgentationTypography.dialogItemSubtitle.copyWith(color: isChecked ? accent : theme.textSecondary),
                 ),
               ],
             ),
@@ -864,7 +795,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
         color: widget.isDark
             ? Colors.white.withValues(alpha: 0.05)
             : Colors.black.withValues(alpha: 0.03),
-        borderRadius: BorderRadius.circular(10.0),
+        borderRadius: AgentationRadii.br10,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -874,19 +805,11 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
             children: [
               Text(
                 'Live Slider Position:',
-                style: TextStyle(
-                  color: theme.textSecondary,
-                  fontSize: 11.0,
-                  fontWeight: FontWeight.normal,
-                ),
+                style: AgentationTypography.dialogSectionTitle.copyWith(color: theme.textSecondary),
               ),
               Text(
                 '${_sliderValue.round()}%',
-                style: TextStyle(
-                  color: accent,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AgentationTypography.captionSemiBold.copyWith(color: accent, fontSize: 11.5),
               ),
             ],
           ),
@@ -931,13 +854,13 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
           toggle.key: !isActive,
         };
       },
-      borderRadius: BorderRadius.circular(8.0),
+      borderRadius: AgentationRadii.br8,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
         decoration: BoxDecoration(
           color: isActive ? accent : unselectedBg,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -957,15 +880,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
             Flexible(
               child: Text(
                 toggle.label,
-                style: TextStyle(
-                  color: isActive
-                      ? Colors.white
-                      : (widget.isDark
-                          ? Colors.white.withValues(alpha: 0.85)
-                          : Colors.black.withValues(alpha: 0.85)),
-                  fontSize: 11.0,
-                  fontWeight: FontWeight.normal,
-                ),
+                style: AgentationTypography.dialogAction.copyWith(color: isActive ? Colors.white : (widget.isDark ? Colors.white.withValues(alpha: 0.85) : Colors.black.withValues(alpha: 0.85))),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -995,13 +910,13 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
           groupKey: choice.effectiveValue,
         };
       },
-      borderRadius: BorderRadius.circular(8.0),
+      borderRadius: AgentationRadii.br8,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
         decoration: BoxDecoration(
           color: isSelected ? accent : unselectedBg,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1021,15 +936,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
             Flexible(
               child: Text(
                 choice.label,
-                style: TextStyle(
-                  color: isSelected
-                      ? Colors.white
-                      : (widget.isDark
-                          ? Colors.white.withValues(alpha: 0.85)
-                          : Colors.black.withValues(alpha: 0.85)),
-                  fontSize: 11.0,
-                  fontWeight: FontWeight.normal,
-                ),
+                style: AgentationTypography.dialogAction.copyWith(color: isSelected ? Colors.white : (widget.isDark ? Colors.white.withValues(alpha: 0.85) : Colors.black.withValues(alpha: 0.85))),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -1066,13 +973,13 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
           );
         }
       },
-      borderRadius: BorderRadius.circular(8.0),
+      borderRadius: AgentationRadii.br8,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 140),
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
         decoration: BoxDecoration(
           color: isSelected ? accent : unselectedBg,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1092,15 +999,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
             Flexible(
               child: Text(
                 choice.label,
-                style: TextStyle(
-                  color: isSelected
-                      ? Colors.white
-                      : (widget.isDark
-                          ? Colors.white.withValues(alpha: 0.85)
-                          : Colors.black.withValues(alpha: 0.85)),
-                  fontSize: 11.0,
-                  fontWeight: FontWeight.normal,
-                ),
+                style: AgentationTypography.dialogAction.copyWith(color: isSelected ? Colors.white : (widget.isDark ? Colors.white.withValues(alpha: 0.85) : Colors.black.withValues(alpha: 0.85))),
                 overflow: TextOverflow.ellipsis,
               ),
             ),

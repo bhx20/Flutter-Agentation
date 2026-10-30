@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../domain/placement_data.dart';
+import '../../theme/agentation_colors.dart';
+import '../../theme/agentation_radii.dart';
 import '../../theme/agentation_theme.dart';
+import '../../theme/agentation_typography.dart';
 import 'skeleton_templates.dart';
 
 /// Renders a realistic visual representation of a wireframe skeleton component
@@ -123,7 +126,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
           padding: const EdgeInsets.all(2.5),
           decoration: BoxDecoration(
             color: isChecked ? accentColor : (isDark ? Colors.white24 : Colors.black26),
-            borderRadius: BorderRadius.circular(14.0),
+            borderRadius: AgentationRadii.br14,
             boxShadow: [
               BoxShadow(
                 color: (isChecked ? accentColor : Colors.black).withValues(alpha: 0.25),
@@ -159,7 +162,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: AgentationRadii.br8,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
       ),
       child: Row(
@@ -167,11 +170,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
-                color: theme.textPrimary,
-                fontSize: 12.0,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AgentationTypography.previewBody.copyWith(color: theme.textPrimary, fontSize: 12.0, fontWeight: FontWeight.w500),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -182,7 +181,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
             padding: const EdgeInsets.all(2.0),
             decoration: BoxDecoration(
               color: isChecked ? accentColor : (isDark ? Colors.white24 : Colors.black26),
-              borderRadius: BorderRadius.circular(11.0),
+              borderRadius: AgentationRadii.br11,
             ),
             child: Align(
               alignment: isChecked ? Alignment.centerRight : Alignment.centerLeft,
@@ -211,7 +210,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       height: 20.0,
       decoration: BoxDecoration(
         color: isChecked ? accentColor : Colors.transparent,
-        borderRadius: BorderRadius.circular(4.0),
+        borderRadius: AgentationRadii.br4,
         border: Border.all(
           color: isChecked ? accentColor : (isDark ? Colors.white54 : Colors.black54),
           width: 2.0,
@@ -230,7 +229,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: AgentationRadii.br8,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
       ),
       child: Row(
@@ -240,11 +239,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
-                color: theme.textPrimary,
-                fontSize: 12.0,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AgentationTypography.previewBody.copyWith(color: theme.textPrimary, fontSize: 12.0, fontWeight: FontWeight.w500),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -288,7 +283,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: AgentationRadii.br8,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
       ),
       child: Row(
@@ -298,11 +293,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
-                color: theme.textPrimary,
-                fontSize: 12.0,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AgentationTypography.previewBody.copyWith(color: theme.textPrimary, fontSize: 12.0, fontWeight: FontWeight.w500),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -326,7 +317,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
           border: isOutlined ? Border.all(color: accentColor, width: 1.5) : null,
           boxShadow: (!isOutlined && !isTextBtn)
               ? [
@@ -349,11 +340,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
             Flexible(
               child: Text(
                 label.isNotEmpty ? label : 'Button',
-                style: TextStyle(
-                  color: fg,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AgentationTypography.previewButton.copyWith(color: fg, fontSize: 12.5, fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -392,11 +379,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
     final childContent = (initials.isNotEmpty && initials.length <= 4)
         ? Text(
             initials,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14.0,
-              fontWeight: FontWeight.bold,
-            ),
+            style: AgentationTypography.previewHeading.copyWith(color: Colors.white, fontSize: 14.0),
           )
         : const Icon(Icons.person, size: 24.0, color: Colors.white);
 
@@ -433,9 +416,9 @@ class RealisticSkeletonPreview extends StatelessWidget {
               width: 12.0,
               height: 12.0,
               decoration: BoxDecoration(
-                color: const Color(0xFF10B981),
+                color: AgentationColors.onlineGreen,
                 shape: BoxShape.circle,
-                border: Border.all(color: isDark ? const Color(0xFF181920) : Colors.white, width: 2.0),
+                border: Border.all(color: isDark ? AgentationColors.darkPreviewAvatarRing : Colors.white, width: 2.0),
               ),
             ),
           ),
@@ -449,7 +432,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
     final source = (placement?.source ?? placement?.text ?? '').trim();
     if (source.startsWith('http://') || source.startsWith('https://')) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(10.0),
+        borderRadius: AgentationRadii.br10,
         child: Image.network(
           source,
           fit: BoxFit.cover,
@@ -464,8 +447,8 @@ class RealisticSkeletonPreview extends StatelessWidget {
   Widget _buildFallbackImage(AgentationThemeData theme) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF222430) : const Color(0xFFE2E8F0),
-        borderRadius: BorderRadius.circular(10.0),
+        color: isDark ? AgentationColors.darkPreviewContainer : AgentationColors.lightBorderSlate,
+        borderRadius: AgentationRadii.br10,
         border: Border.all(color: accentColor.withValues(alpha: 0.3), width: 1.0),
       ),
       child: Center(
@@ -476,11 +459,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
             const SizedBox(height: 4.0),
             Text(
               'Image Preview',
-              style: TextStyle(
-                color: theme.textSecondary,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w500,
-              ),
+              style: AgentationTypography.previewCaption.copyWith(color: theme.textSecondary, fontSize: 10.5, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -495,7 +474,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
         decoration: BoxDecoration(
           color: theme.cardBackground,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
           border: Border.all(color: accentColor.withValues(alpha: 0.6), width: 1.2),
           boxShadow: [
             BoxShadow(
@@ -512,10 +491,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
             Expanded(
               child: Text(
                 label.isNotEmpty && label != 'Input' ? label : 'Search or enter text...',
-                style: TextStyle(
-                  color: theme.textSecondary,
-                  fontSize: 12.0,
-                ),
+                style: AgentationTypography.previewBody.copyWith(color: theme.textSecondary, fontSize: 12.0),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -531,7 +507,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: AgentationRadii.br12,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
         boxShadow: theme.cardShadows,
       ),
@@ -545,11 +521,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
               Expanded(
                 child: Text(
                   label.isNotEmpty ? label : 'Card Header',
-                  style: TextStyle(
-                    color: theme.textPrimary,
-                    fontSize: 12.0,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: AgentationTypography.previewHeading.copyWith(color: theme.textPrimary, fontSize: 12.0, fontWeight: FontWeight.w600),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -561,7 +533,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
             width: double.infinity,
             decoration: BoxDecoration(
               color: isDark ? Colors.white12 : Colors.black12,
-              borderRadius: BorderRadius.circular(3.0),
+              borderRadius: AgentationRadii.br3,
             ),
           ),
           const SizedBox(height: 5.0),
@@ -570,7 +542,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
             width: 80.0,
             decoration: BoxDecoration(
               color: isDark ? Colors.white10 : Colors.black12,
-              borderRadius: BorderRadius.circular(3.0),
+              borderRadius: AgentationRadii.br3,
             ),
           ),
         ],
@@ -585,16 +557,12 @@ class RealisticSkeletonPreview extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 5.0),
         decoration: BoxDecoration(
           color: accentColor.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(14.0),
+          borderRadius: AgentationRadii.br14,
           border: Border.all(color: accentColor.withValues(alpha: 0.6), width: 1.0),
         ),
         child: Text(
           label.isNotEmpty ? label : 'Filter Chip',
-          style: TextStyle(
-            color: accentColor,
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-          ),
+          style: AgentationTypography.chip.copyWith(color: accentColor, fontSize: 11.5, fontWeight: FontWeight.w600),
           overflow: TextOverflow.ellipsis,
         ),
       ),
@@ -608,7 +576,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
         decoration: BoxDecoration(
           color: theme.cardBackground,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
           border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
         ),
         child: Column(
@@ -620,25 +588,17 @@ class RealisticSkeletonPreview extends StatelessWidget {
               children: [
                 Text(
                   label.isNotEmpty ? label : 'Slider',
-                  style: TextStyle(
-                    color: theme.textPrimary,
-                    fontSize: 11.0,
-                    fontWeight: FontWeight.w500,
-                  ),
+                  style: AgentationTypography.previewBody.copyWith(color: theme.textPrimary, fontWeight: FontWeight.w500),
                 ),
                 Text(
                   '50%',
-                  style: TextStyle(
-                    color: accentColor,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AgentationTypography.previewCaption.copyWith(color: accentColor, fontSize: 10.5, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
             const SizedBox(height: 5.0),
             ClipRRect(
-              borderRadius: BorderRadius.circular(2.0),
+              borderRadius: AgentationRadii.br2,
               child: LinearProgressIndicator(
                 value: 0.5,
                 backgroundColor: isDark ? Colors.white12 : Colors.black12,
@@ -657,11 +617,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
     return Center(
       child: Text(
         label.isNotEmpty ? label : 'Heading Title',
-        style: TextStyle(
-          color: theme.textPrimary,
-          fontSize: 14.0,
-          fontWeight: FontWeight.w600,
-        ),
+        style: AgentationTypography.previewHeading.copyWith(color: theme.textPrimary, fontSize: 14.0, fontWeight: FontWeight.w600),
         overflow: TextOverflow.ellipsis,
       ),
     );
@@ -674,7 +630,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
         decoration: BoxDecoration(
           color: theme.cardBackground,
-          borderRadius: BorderRadius.circular(8.0),
+          borderRadius: AgentationRadii.br8,
           border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
         ),
         child: Row(
@@ -684,7 +640,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
               height: 26.0,
               decoration: BoxDecoration(
                 color: accentColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6.0),
+                borderRadius: AgentationRadii.br6,
               ),
               child: Icon(Icons.list_alt, size: 15.0, color: accentColor),
             ),
@@ -692,11 +648,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
             Expanded(
               child: Text(
                 label.isNotEmpty ? label : 'List Item Title',
-                style: TextStyle(
-                  color: theme.textPrimary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AgentationTypography.previewBody.copyWith(color: theme.textPrimary, fontSize: 11.5, fontWeight: FontWeight.w500),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
@@ -724,7 +676,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
   Widget _buildProgress(AgentationThemeData theme) {
     return Center(
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(3.0),
+        borderRadius: AgentationRadii.br3,
         child: LinearProgressIndicator(
           value: 0.65,
           backgroundColor: isDark ? Colors.white12 : Colors.black12,
@@ -737,13 +689,13 @@ class RealisticSkeletonPreview extends StatelessWidget {
 
   // 15. REALISTIC ERROR / 404 STATE BLOCK (The exact one from the user's screenshot!)
   Widget _buildErrorState(AgentationThemeData theme) {
-    const errorRed = Color(0xFFEF4444);
+    final errorRed = AgentationColors.destructive;
 
     return Container(
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: AgentationRadii.br12,
         border: Border.all(color: errorRed.withValues(alpha: 0.4), width: 1.2),
         boxShadow: [
           BoxShadow(
@@ -763,16 +715,12 @@ class RealisticSkeletonPreview extends StatelessWidget {
               color: errorRed.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.error_outline_rounded, size: 22.0, color: errorRed),
+            child: Icon(Icons.error_outline_rounded, size: 22.0, color: errorRed),
           ),
           const SizedBox(height: 8.0),
           Text(
             label.isNotEmpty ? label : 'Something went wrong',
-            style: TextStyle(
-              color: theme.textPrimary,
-              fontSize: 12.5,
-              fontWeight: FontWeight.bold,
-            ),
+            style: AgentationTypography.previewHeading.copyWith(color: theme.textPrimary, fontSize: 12.5),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -780,10 +728,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
           const SizedBox(height: 3.0),
           Text(
             'Unable to load content or page not found',
-            style: TextStyle(
-              color: theme.textSecondary,
-              fontSize: 10.0,
-            ),
+            style: AgentationTypography.previewCaption.copyWith(color: theme.textSecondary),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -793,15 +738,11 @@ class RealisticSkeletonPreview extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 5.0),
             decoration: BoxDecoration(
               color: errorRed,
-              borderRadius: BorderRadius.circular(6.0),
+              borderRadius: AgentationRadii.br6,
             ),
-            child: const Text(
+            child: Text(
               'Retry',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 11.0,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AgentationTypography.previewButton.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -815,7 +756,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: AgentationRadii.br12,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
         boxShadow: theme.cardShadows,
       ),
@@ -834,34 +775,23 @@ class RealisticSkeletonPreview extends StatelessWidget {
           const SizedBox(height: 8.0),
           Text(
             'No items yet',
-            style: TextStyle(
-              color: theme.textPrimary,
-              fontSize: 12.5,
-              fontWeight: FontWeight.bold,
-            ),
+            style: AgentationTypography.previewHeading.copyWith(color: theme.textPrimary, fontSize: 12.5),
           ),
           const SizedBox(height: 3.0),
           Text(
             'Get started by adding your first record',
-            style: TextStyle(
-              color: theme.textSecondary,
-              fontSize: 10.0,
-            ),
+            style: AgentationTypography.previewCaption.copyWith(color: theme.textSecondary),
           ),
           const SizedBox(height: 10.0),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 5.0),
             decoration: BoxDecoration(
               color: accentColor,
-              borderRadius: BorderRadius.circular(6.0),
+              borderRadius: AgentationRadii.br6,
             ),
-            child: const Text(
+            child: Text(
               'Create Item',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 11.0,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AgentationTypography.previewButton.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -875,7 +805,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.all(14.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(14.0),
+        borderRadius: AgentationRadii.br14,
         border: Border.all(color: accentColor.withValues(alpha: 0.5), width: 1.2),
         boxShadow: [
           BoxShadow(
@@ -892,15 +822,11 @@ class RealisticSkeletonPreview extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
             decoration: BoxDecoration(
               color: accentColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(4.0),
+              borderRadius: AgentationRadii.br4,
             ),
             child: Text(
               'PRO PLAN',
-              style: TextStyle(
-                color: accentColor,
-                fontSize: 9.5,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AgentationTypography.previewSmall.copyWith(color: accentColor, fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(height: 8.0),
@@ -910,18 +836,11 @@ class RealisticSkeletonPreview extends StatelessWidget {
             children: [
               Text(
                 r'$29',
-                style: TextStyle(
-                  color: theme.textPrimary,
-                  fontSize: 24.0,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: AgentationTypography.previewHeading.copyWith(color: theme.textPrimary, fontSize: 24.0),
               ),
               Text(
                 ' / month',
-                style: TextStyle(
-                  color: theme.textSecondary,
-                  fontSize: 11.0,
-                ),
+                style: AgentationTypography.previewBody.copyWith(color: theme.textSecondary),
               ),
             ],
           ),
@@ -935,16 +854,12 @@ class RealisticSkeletonPreview extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             decoration: BoxDecoration(
               color: accentColor,
-              borderRadius: BorderRadius.circular(8.0),
+              borderRadius: AgentationRadii.br8,
             ),
-            child: const Center(
+            child: Center(
               child: Text(
                 'Get Started',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12.0,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: AgentationTypography.previewButton.copyWith(color: Colors.white, fontSize: 12.0),
               ),
             ),
           ),
@@ -963,7 +878,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(color: theme.textSecondary, fontSize: 10.5),
+              style: AgentationTypography.previewCaption.copyWith(color: theme.textSecondary, fontSize: 10.5),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -977,7 +892,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: AgentationRadii.br12,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
         boxShadow: theme.cardShadows,
       ),
@@ -987,8 +902,8 @@ class RealisticSkeletonPreview extends StatelessWidget {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF222430) : const Color(0xFFE2E8F0),
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12.0)),
+                color: isDark ? AgentationColors.darkPreviewContainer : AgentationColors.lightBorderSlate,
+                borderRadius: AgentationRadii.brTop12,
               ),
               child: Center(
                 child: Icon(Icons.shopping_bag_outlined, size: 36.0, color: accentColor),
@@ -1002,11 +917,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
               children: [
                 Text(
                   'Premium Wireless Headphones',
-                  style: TextStyle(
-                    color: theme.textPrimary,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AgentationTypography.previewBody.copyWith(color: theme.textPrimary, fontSize: 11.5, fontWeight: FontWeight.bold),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1016,17 +927,13 @@ class RealisticSkeletonPreview extends StatelessWidget {
                   children: [
                     Text(
                       r'$79.99',
-                      style: TextStyle(
-                        color: accentColor,
-                        fontSize: 13.0,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: AgentationTypography.previewPrice.copyWith(color: accentColor),
                     ),
                     Container(
                       padding: const EdgeInsets.all(4.0),
                       decoration: BoxDecoration(
                         color: accentColor,
-                        borderRadius: BorderRadius.circular(6.0),
+                        borderRadius: AgentationRadii.br6,
                       ),
                       child: const Icon(Icons.add_shopping_cart, size: 14.0, color: Colors.white),
                     ),
@@ -1046,7 +953,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: AgentationRadii.br12,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
         boxShadow: theme.cardShadows,
       ),
@@ -1056,18 +963,14 @@ class RealisticSkeletonPreview extends StatelessWidget {
           Row(
             children: List.generate(
               5,
-              (_) => const Icon(Icons.star, size: 14.0, color: Color(0xFFF59E0B)),
+              (_) => const Icon(Icons.star, size: 14.0, color: AgentationColors.starAmber),
             ),
           ),
           const SizedBox(height: 8.0),
           Expanded(
             child: Text(
               '"This platform transformed our frontend engineering workflow. Truly extraordinary quality!"',
-              style: TextStyle(
-                color: theme.textPrimary,
-                fontSize: 11.0,
-                fontStyle: FontStyle.italic,
-              ),
+              style: AgentationTypography.previewBody.copyWith(color: theme.textPrimary, fontStyle: FontStyle.italic),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1078,17 +981,17 @@ class RealisticSkeletonPreview extends StatelessWidget {
                 width: 22.0,
                 height: 22.0,
                 decoration: BoxDecoration(color: accentColor, shape: BoxShape.circle),
-                child: const Center(
+                child: Center(
                   child: Text(
                     'S',
-                    style: TextStyle(color: Colors.white, fontSize: 10.0, fontWeight: FontWeight.bold),
+                    style: AgentationTypography.previewCaption.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
               const SizedBox(width: 6.0),
               Text(
                 'Sarah Jenkins - Lead Designer',
-                style: TextStyle(color: theme.textSecondary, fontSize: 10.0),
+                style: AgentationTypography.previewCaption.copyWith(color: theme.textSecondary),
               ),
             ],
           ),
@@ -1103,7 +1006,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: AgentationRadii.br12,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
         boxShadow: theme.cardShadows,
       ),
@@ -1112,7 +1015,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
         children: [
           Text(
             'Sign In',
-            style: TextStyle(color: theme.textPrimary, fontSize: 13.0, fontWeight: FontWeight.bold),
+            style: AgentationTypography.previewHeading.copyWith(color: theme.textPrimary),
           ),
           const SizedBox(height: 8.0),
           _buildMiniInputField(theme, 'email@example.com', Icons.email_outlined),
@@ -1124,12 +1027,12 @@ class RealisticSkeletonPreview extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: 6.0),
             decoration: BoxDecoration(
               color: accentColor,
-              borderRadius: BorderRadius.circular(6.0),
+              borderRadius: AgentationRadii.br6,
             ),
-            child: const Center(
+            child: Center(
               child: Text(
                 'Sign In',
-                style: TextStyle(color: Colors.white, fontSize: 11.0, fontWeight: FontWeight.bold),
+                style: AgentationTypography.previewButton.copyWith(color: Colors.white),
               ),
             ),
           ),
@@ -1142,8 +1045,8 @@ class RealisticSkeletonPreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 5.0),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E202B) : const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(6.0),
+        color: isDark ? AgentationColors.darkPreviewSurface : AgentationColors.lightPreviewSlate,
+        borderRadius: AgentationRadii.br6,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
       ),
       child: Row(
@@ -1153,7 +1056,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
           Expanded(
             child: Text(
               hint,
-              style: TextStyle(color: theme.textSecondary, fontSize: 10.0),
+              style: AgentationTypography.previewCaption.copyWith(color: theme.textSecondary),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -1168,7 +1071,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: AgentationRadii.br12,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
         boxShadow: theme.cardShadows,
       ),
@@ -1184,11 +1087,11 @@ class RealisticSkeletonPreview extends StatelessWidget {
           const SizedBox(height: 6.0),
           Text(
             'Alex Robertson',
-            style: TextStyle(color: theme.textPrimary, fontSize: 12.0, fontWeight: FontWeight.bold),
+            style: AgentationTypography.previewHeading.copyWith(color: theme.textPrimary, fontSize: 12.0),
           ),
           Text(
             'Frontend Architect',
-            style: TextStyle(color: theme.textSecondary, fontSize: 9.5),
+            style: AgentationTypography.previewSmall.copyWith(color: theme.textSecondary),
           ),
         ],
       ),
@@ -1200,8 +1103,8 @@ class RealisticSkeletonPreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10.0),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1C1D26) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(10.0),
+        color: isDark ? AgentationColors.darkPreviewUploader : AgentationColors.lightPreviewUploader,
+        borderRadius: AgentationRadii.br10,
         border: Border.all(color: accentColor.withValues(alpha: 0.6), width: 1.2),
       ),
       child: Center(
@@ -1212,7 +1115,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
             const SizedBox(height: 4.0),
             Text(
               'Drag files or browse',
-              style: TextStyle(color: theme.textPrimary, fontSize: 11.0, fontWeight: FontWeight.w600),
+              style: AgentationTypography.previewBody.copyWith(color: theme.textPrimary, fontSize: 11.0, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -1226,11 +1129,11 @@ class RealisticSkeletonPreview extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Home', style: TextStyle(color: theme.textSecondary, fontSize: 11.0)),
+          Text('Home', style: AgentationTypography.previewBody.copyWith(color: theme.textSecondary)),
           Icon(Icons.chevron_right, size: 14.0, color: theme.textSecondary),
-          Text('Projects', style: TextStyle(color: theme.textSecondary, fontSize: 11.0)),
+          Text('Projects', style: AgentationTypography.previewBody.copyWith(color: theme.textSecondary)),
           Icon(Icons.chevron_right, size: 14.0, color: theme.textSecondary),
-          Text('Details', style: TextStyle(color: accentColor, fontSize: 11.0, fontWeight: FontWeight.bold)),
+          Text('Details', style: AgentationTypography.previewBody.copyWith(color: accentColor, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -1262,7 +1165,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       height: 24.0,
       decoration: BoxDecoration(
         color: active ? accentColor : Colors.transparent,
-        borderRadius: BorderRadius.circular(4.0),
+        borderRadius: AgentationRadii.br4,
         border: Border.all(
           color: active ? accentColor : theme.borderTranslucentColor,
           width: 1.0,
@@ -1271,11 +1174,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       child: Center(
         child: Text(
           text,
-          style: TextStyle(
-            color: active ? Colors.white : theme.textPrimary,
-            fontSize: 10.5,
-            fontWeight: active ? FontWeight.bold : FontWeight.normal,
-          ),
+          style: AgentationTypography.previewCaption.copyWith(color: active ? Colors.white : theme.textPrimary, fontSize: 10.5, fontWeight: active ? FontWeight.bold : FontWeight.normal),
         ),
       ),
     );
@@ -1287,26 +1186,26 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(12.0),
+        borderRadius: AgentationRadii.br12,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
         boxShadow: theme.cardShadows,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Confirm Action', style: TextStyle(color: theme.textPrimary, fontSize: 12.0, fontWeight: FontWeight.bold)),
+          Text('Confirm Action', style: AgentationTypography.previewHeading.copyWith(color: theme.textPrimary, fontSize: 12.0)),
           const SizedBox(height: 4.0),
-          Text('Are you sure you want to proceed?', style: TextStyle(color: theme.textSecondary, fontSize: 10.0)),
+          Text('Are you sure you want to proceed?', style: AgentationTypography.previewCaption.copyWith(color: theme.textSecondary)),
           const Spacer(),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Text('Cancel', style: TextStyle(color: theme.textSecondary, fontSize: 10.5)),
+              Text('Cancel', style: AgentationTypography.previewCaption.copyWith(color: theme.textSecondary, fontSize: 10.5)),
               const SizedBox(width: 12.0),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 4.0),
-                decoration: BoxDecoration(color: accentColor, borderRadius: BorderRadius.circular(4.0)),
-                child: const Text('Confirm', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(color: accentColor, borderRadius: AgentationRadii.br4),
+                child: Text('Confirm', style: AgentationTypography.previewButton.copyWith(color: Colors.white, fontSize: 10.5)),
               ),
             ],
           ),
@@ -1321,7 +1220,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.all(10.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(10.0),
+        borderRadius: AgentationRadii.br10,
         border: Border.all(color: theme.borderTranslucentColor, width: 1.0),
       ),
       child: Column(
@@ -1341,8 +1240,8 @@ class RealisticSkeletonPreview extends StatelessWidget {
         children: [
           Icon(done ? Icons.check_circle : Icons.circle_outlined, size: 14.0, color: done ? accentColor : theme.textSecondary),
           const SizedBox(width: 6.0),
-          Expanded(child: Text(title, style: TextStyle(color: theme.textPrimary, fontSize: 10.5))),
-          Text(time, style: TextStyle(color: theme.textSecondary, fontSize: 9.5)),
+          Expanded(child: Text(title, style: AgentationTypography.previewCaption.copyWith(color: theme.textPrimary, fontSize: 10.5))),
+          Text(time, style: AgentationTypography.previewSmall.copyWith(color: theme.textSecondary)),
         ],
       ),
     );
@@ -1361,7 +1260,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
       padding: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
         color: theme.cardBackground,
-        borderRadius: BorderRadius.circular(8.0),
+        borderRadius: AgentationRadii.br8,
         border: Border.all(color: accentColor.withValues(alpha: 0.5), width: 1.0),
         boxShadow: theme.cardShadows,
       ),
@@ -1374,11 +1273,7 @@ class RealisticSkeletonPreview extends StatelessWidget {
             Flexible(
               child: Text(
                 label,
-                style: TextStyle(
-                  color: theme.textPrimary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: AgentationTypography.previewBody.copyWith(color: theme.textPrimary, fontSize: 11.5, fontWeight: FontWeight.w600),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
