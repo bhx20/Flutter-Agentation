@@ -581,7 +581,13 @@ class _PanelHoverIconButton extends StatefulWidget {
 }
 
 class _PanelHoverIconButtonState extends State<_PanelHoverIconButton> {
-  bool _isHovered = false;
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -597,27 +603,32 @@ class _PanelHoverIconButtonState extends State<_PanelHoverIconButton> {
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
+      onEnter: (_) => _isHovered.value = true,
+      onExit: (_) => _isHovered.value = false,
       child: GestureDetector(
         onTap: widget.onTap,
         behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            color: _isHovered ? hoverBg : Colors.transparent,
-            borderRadius: BorderRadius.circular(6.0),
-          ),
-          child: Center(
-            child: Icon(
-              widget.icon,
-              size: widget.iconSize,
-              color: _isHovered ? hoverColor : normalColor,
-            ),
-          ),
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _isHovered,
+          builder: (context, isHovered, _) {
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                color: isHovered ? hoverBg : Colors.transparent,
+                borderRadius: BorderRadius.circular(6.0),
+              ),
+              child: Center(
+                child: Icon(
+                  widget.icon,
+                  size: widget.iconSize,
+                  color: isHovered ? hoverColor : normalColor,
+                ),
+              ),
+            );
+          },
         ),
       ),
     );

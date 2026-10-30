@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../domain/annotation.dart';
 import '../domain/toolbar_settings.dart';
 import '../domain/widget_inspection_result.dart';
+import '../storage/settings_storage.dart';
 import '../ui/overlay/highlight_style.dart';
 import '../ui/overlay/inspection_overlay.dart';
 import '../ui/toolbar/agentation_toolbar.dart';
@@ -320,7 +321,16 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
       isTestBinding =
           WidgetsBinding.instance.runtimeType.toString().contains('Test');
     } catch (_) {}
-    final bool effectiveMcpEnabled = widget.mcpEnabled ?? !isTestBinding;
+
+    final stored = loadStoredSettings();
+    final bool effectiveMcpEnabled;
+    if (widget.mcpEnabled != null) {
+      effectiveMcpEnabled = widget.mcpEnabled!;
+    } else if (stored != null && stored.containsKey('mcpEnabled')) {
+      effectiveMcpEnabled = controller.settings.mcpEnabled;
+    } else {
+      effectiveMcpEnabled = !isTestBinding;
+    }
 
     controller.updateSettings(
       controller.settings.copyWith(

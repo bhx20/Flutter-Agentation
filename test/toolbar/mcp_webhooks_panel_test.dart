@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_agentation/src/core/agentation_controller.dart';
+import 'package:flutter_agentation/src/core/agentation_widget.dart';
 import 'package:flutter_agentation/src/ui/toolbar/agentation_toolbar.dart';
 import 'package:flutter_agentation/src/ui/toolbar/mcp_webhooks_panel.dart';
 import 'package:flutter_agentation/src/ui/toolbar/settings_panel.dart';
@@ -305,6 +306,63 @@ void main() {
         // Clean up
         await controller.mcpServer.stop();
         await tester.pump();
+      },
+    );
+
+    testWidgets(
+      'toggling MCP off persists across FlutterAgentation reassemble and hot restart',
+      (tester) async {
+        // Initially enable MCP
+        controller.updateSettings(
+          controller.settings.copyWith(mcpEnabled: true),
+        );
+        expect(controller.settings.mcpEnabled, isTrue);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: FlutterAgentation(
+              controller: controller,
+              child: const Scaffold(
+                body: Text('Test Host'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(controller.settings.mcpEnabled, isTrue);
+
+        // Toggle MCP off
+        controller.updateSettings(
+          controller.settings.copyWith(mcpEnabled: false),
+        );
+        expect(controller.settings.mcpEnabled, isFalse);
+
+        // Trigger widget reassemble (simulating hot reload / re-configuration)
+        tester.binding.reassembleApplication();
+        await tester.pumpAndSettle();
+
+        // Must STAY false!
+        expect(controller.settings.mcpEnabled, isFalse);
+
+        // Simulate complete app hot restart by mounting FlutterAgentation with a fresh controller
+        final restartedController = AgentationController();
+        expect(restartedController.settings.mcpEnabled, isFalse);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: FlutterAgentation(
+              controller: restartedController,
+              child: const Scaffold(
+                body: Text('Restarted Host'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Must still stay false!
+        expect(restartedController.settings.mcpEnabled, isFalse);
+        restartedController.dispose();
       },
     );
   });

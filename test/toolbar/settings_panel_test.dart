@@ -226,8 +226,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Header displays dynamic version
-      expect(find.text('Flutter Agentation'), findsOneWidget);
+      // Header displays dynamic version with normal font
+      final titleFinder = find.text('Flutter Agentation');
+      expect(titleFinder, findsOneWidget);
+      final titleWidget = tester.widget<Text>(titleFinder);
+      expect(titleWidget.style?.fontWeight, equals(FontWeight.normal));
       expect(find.textContaining('v${PackageVersion.current}'), findsOneWidget);
       expect(find.byKey(const ValueKey('theme_toggle_button')), findsOneWidget);
 

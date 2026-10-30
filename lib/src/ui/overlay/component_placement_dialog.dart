@@ -53,10 +53,16 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
   late final TextEditingController _notesController;
   late final FocusNode _primaryFocusNode;
 
-  final Map<String, dynamic> _selectedOptions = {};
-  final Map<String, bool> _behaviorValues = {};
-  double _sliderValue = 50.0;
-  Offset _dragOffset = Offset.zero;
+  final ValueNotifier<Map<String, dynamic>> _selectedOptionsNotifier =
+      ValueNotifier<Map<String, dynamic>>({});
+  final ValueNotifier<Map<String, bool>> _behaviorValuesNotifier =
+      ValueNotifier<Map<String, bool>>({});
+  final ValueNotifier<double> _sliderValueNotifier = ValueNotifier<double>(50.0);
+  final ValueNotifier<Offset> _dragOffsetNotifier = ValueNotifier<Offset>(Offset.zero);
+
+  Map<String, dynamic> get _selectedOptions => _selectedOptionsNotifier.value;
+  Map<String, bool> get _behaviorValues => _behaviorValuesNotifier.value;
+  double get _sliderValue => _sliderValueNotifier.value;
 
   @override
   void initState() {
@@ -85,18 +91,20 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
     _secondaryController.text = _config.defaultSecondaryValue ?? '';
     _notesController.text = template.defaultPrompt;
 
-    _selectedOptions.clear();
+    final initialSelected = <String, dynamic>{};
     for (final group in _config.optionGroups) {
       if (group.choices.isNotEmpty) {
         final defaultChoice = group.choices[group.defaultSelectedIndex.clamp(0, group.choices.length - 1)];
-        _selectedOptions[group.title.replaceAll(':', '').trim()] = defaultChoice.effectiveValue;
+        initialSelected[group.title.replaceAll(':', '').trim()] = defaultChoice.effectiveValue;
       }
     }
+    _selectedOptionsNotifier.value = initialSelected;
 
-    _behaviorValues.clear();
+    final initialBehaviors = <String, bool>{};
     for (final toggle in _config.behaviorToggles) {
-      _behaviorValues[toggle.key] = toggle.defaultValue;
+      initialBehaviors[toggle.key] = toggle.defaultValue;
     }
+    _behaviorValuesNotifier.value = initialBehaviors;
   }
 
   @override
@@ -114,6 +122,10 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
     _secondaryController.dispose();
     _notesController.dispose();
     _primaryFocusNode.dispose();
+    _selectedOptionsNotifier.dispose();
+    _behaviorValuesNotifier.dispose();
+    _sliderValueNotifier.dispose();
+    _dragOffsetNotifier.dispose();
     super.dispose();
   }
 
@@ -225,19 +237,6 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
         : math.min(340.0, screenSize.width - 24.0);
     final maxCardHeight = math.min(isMobile ? 520.0 : 440.0, screenSize.height - 32.0);
 
-    // Calculate clamped bounds: top + maxCardHeight will never exceed screen bounds
-    final maxTop = math.max(12.0, screenSize.height - maxCardHeight - 12.0);
-    final preferredTop = isMobile
-        ? (screenSize.height - maxCardHeight) / 2.0
-        : (widget.pendingPlacement.position.dy - (maxCardHeight / 2.5) + _dragOffset.dy);
-
-    final top = preferredTop.clamp(12.0, maxTop).toDouble();
-    final left = (widget.pendingPlacement.position.dx - (cardWidth / 2.0) + _dragOffset.dx)
-        .clamp(12.0, math.max(12.0, screenSize.width - cardWidth - 12.0))
-        .toDouble();
-
-    final availableCardHeight = (screenSize.height - top - 12.0).clamp(180.0, maxCardHeight);
-
     return FocusScope(
       child: KeyboardListener(
         focusNode: FocusNode(),
@@ -263,40 +262,61 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
             ),
 
             // Dialog Card
-            Positioned(
-              left: left,
-              top: top,
-              child: Listener(
-                behavior: HitTestBehavior.opaque,
-                onPointerSignal: (_) {}, // Absorb pointer signals to isolate from background page scrolling
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.basic,
-                  child: Material(
-                    color: Colors.transparent,
-                    elevation: 16.0,
-                    borderRadius: BorderRadius.circular(16.0),
-                    child: Container(
-                      width: cardWidth,
-                      constraints: BoxConstraints(
-                        maxHeight: availableCardHeight,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.cardBackground,
+            ValueListenableBuilder<Offset>(
+              valueListenable: _dragOffsetNotifier,
+              builder: (context, dragOffset, _) {
+                // Calculate clamped bounds: top + maxCardHeight will never exceed screen bounds
+                final maxTop = math.max(12.0, screenSize.height - maxCardHeight - 12.0);
+                final preferredTop = isMobile
+                    ? (screenSize.height - maxCardHeight) / 2.0
+                    : (widget.pendingPlacement.position.dy - (maxCardHeight / 2.5) + dragOffset.dy);
+
+                final top = preferredTop.clamp(12.0, maxTop).toDouble();
+                final left = (widget.pendingPlacement.position.dx - (cardWidth / 2.0) + dragOffset.dx)
+                    .clamp(12.0, math.max(12.0, screenSize.width - cardWidth - 12.0))
+                    .toDouble();
+
+                final availableCardHeight = (screenSize.height - top - 12.0).clamp(180.0, maxCardHeight);
+
+                return Positioned(
+                  left: left,
+                  top: top,
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerSignal: (_) {}, // Absorb pointer signals to isolate from background page scrolling
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.basic,
+                      child: Material(
+                        color: Colors.transparent,
+                        elevation: 16.0,
                         borderRadius: BorderRadius.circular(16.0),
-                        boxShadow: theme.cardShadows,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Header & drag handle
-                          GestureDetector(
-                            behavior: HitTestBehavior.translucent,
-                            onPanUpdate: (details) {
-                              setState(() {
-                                _dragOffset += details.delta;
-                              });
-                            },
+                        child: Container(
+                          width: cardWidth,
+                          constraints: BoxConstraints(
+                            maxHeight: availableCardHeight,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.cardBackground,
+                            borderRadius: BorderRadius.circular(16.0),
+                            boxShadow: theme.cardShadows,
+                          ),
+                          child: ListenableBuilder(
+                            listenable: Listenable.merge([
+                              _selectedOptionsNotifier,
+                              _behaviorValuesNotifier,
+                              _sliderValueNotifier,
+                            ]),
+                            builder: (context, _) {
+                              return Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Header & drag handle
+                                  GestureDetector(
+                                    behavior: HitTestBehavior.translucent,
+                                    onPanUpdate: (details) {
+                                      _dragOffsetNotifier.value += details.delta;
+                                    },
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
                               decoration: BoxDecoration(
@@ -500,16 +520,20 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
                             ),
                           ),
                         ],
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
+          ),
+        );
+      },
+    ),
+  ],
+),
+),
+);
   }
 
   Widget _buildPrimaryInputSection(AgentationThemeData theme, Color accent) {
@@ -535,7 +559,6 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
             fontWeight: FontWeight.normal,
           ),
           cursorColor: accent,
-          onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
             hintText: _config.primaryInputPlaceholder,
             hintStyle: TextStyle(
@@ -561,18 +584,20 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
               borderRadius: BorderRadius.circular(8.0),
               borderSide: BorderSide.none,
             ),
-            suffixIcon: _primaryController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear, size: 14.0),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 24.0, minHeight: 24.0),
-                    onPressed: () {
-                      setState(() {
-                        _primaryController.clear();
-                      });
-                    },
-                  )
-                : null,
+            suffixIcon: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _primaryController,
+              builder: (context, value, _) {
+                if (value.text.isEmpty) return const SizedBox.shrink();
+                return IconButton(
+                  icon: const Icon(Icons.clear, size: 14.0),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 24.0, minHeight: 24.0),
+                  onPressed: () {
+                    _primaryController.clear();
+                  },
+                );
+              },
+            ),
           ),
           onSubmitted: (_) => _submit(),
         ),
@@ -808,9 +833,10 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
             Switch.adaptive(
               value: isChecked,
               onChanged: (val) {
-                setState(() {
-                  _behaviorValues['checked'] = val;
-                });
+                _behaviorValuesNotifier.value = {
+                  ..._behaviorValuesNotifier.value,
+                  'checked': val,
+                };
               },
               activeThumbColor: accent,
             )
@@ -818,9 +844,10 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
             Checkbox(
               value: isChecked,
               onChanged: (val) {
-                setState(() {
-                  _behaviorValues['checked'] = val ?? false;
-                });
+                _behaviorValuesNotifier.value = {
+                  ..._behaviorValuesNotifier.value,
+                  'checked': val ?? false,
+                };
               },
               activeColor: accent,
             ),
@@ -877,9 +904,7 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
               max: 100.0,
               divisions: (_behaviorValues['divisions'] ?? false) ? 5 : null,
               onChanged: (v) {
-                setState(() {
-                  _sliderValue = v;
-                });
+                _sliderValueNotifier.value = v;
               },
             ),
           ),
@@ -901,9 +926,10 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
 
     return InkWell(
       onTap: () {
-        setState(() {
-          _behaviorValues[toggle.key] = !isActive;
-        });
+        _behaviorValuesNotifier.value = {
+          ..._behaviorValuesNotifier.value,
+          toggle.key: !isActive,
+        };
       },
       borderRadius: BorderRadius.circular(8.0),
       child: AnimatedContainer(
@@ -964,9 +990,10 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
 
     return InkWell(
       onTap: () {
-        setState(() {
-          _selectedOptions[groupKey] = choice.effectiveValue;
-        });
+        _selectedOptionsNotifier.value = {
+          ..._selectedOptionsNotifier.value,
+          groupKey: choice.effectiveValue,
+        };
       },
       borderRadius: BorderRadius.circular(8.0),
       child: AnimatedContainer(
@@ -1026,17 +1053,18 @@ class _ComponentPlacementDialogState extends State<ComponentPlacementDialog> {
 
     return InkWell(
       onTap: () {
-        setState(() {
-          _selectedOptions[groupKey] = choice.effectiveValue;
-          // If this choice provides a preset text, immediately populate the primary text field!
-          if (choice.presetText != null) {
-            _primaryController.text = choice.presetText!;
-            _primaryController.selection = TextSelection(
-              baseOffset: 0,
-              extentOffset: _primaryController.text.length,
-            );
-          }
-        });
+        _selectedOptionsNotifier.value = {
+          ..._selectedOptionsNotifier.value,
+          groupKey: choice.effectiveValue,
+        };
+        // If this choice provides a preset text, immediately populate the primary text field!
+        if (choice.presetText != null) {
+          _primaryController.text = choice.presetText!;
+          _primaryController.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _primaryController.text.length,
+          );
+        }
       },
       borderRadius: BorderRadius.circular(8.0),
       child: AnimatedContainer(

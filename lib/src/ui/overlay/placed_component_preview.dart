@@ -49,7 +49,13 @@ class PlacedComponentPreview extends StatefulWidget {
 }
 
 class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
-  bool _localHover = false;
+  final ValueNotifier<bool> _localHover = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _localHover.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,62 +63,65 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
     if (placement == null) return const SizedBox.shrink();
 
     final theme = AgentationThemeData.resolve(isDark: widget.isDark);
-    final isEffectiveHover = widget.isHovered || _localHover;
     final accent = widget.accentColor;
 
     return MouseRegion(
       onEnter: (_) {
-        setState(() => _localHover = true);
+        _localHover.value = true;
         widget.onHoverChanged?.call(true);
       },
       onExit: (_) {
-        setState(() => _localHover = false);
+        _localHover.value = false;
         widget.onHoverChanged?.call(false);
       },
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: widget.onTap,
-        child: Opacity(
-          opacity: 0.80,
-          child: Material(
-            type: MaterialType.transparency,
-            child: DefaultTextStyle.merge(
-              style: const TextStyle(decoration: TextDecoration.none),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                decoration: BoxDecoration(
-                  color: widget.isSelected
-                      ? accent.withValues(alpha: 0.08)
-                      : (isEffectiveHover ? accent.withValues(alpha: 0.04) : Colors.transparent),
-                  borderRadius: BorderRadius.circular(8.0),
-                  border: Border.all(
-                    color: widget.isSelected
-                        ? accent
-                        : (isEffectiveHover ? accent.withValues(alpha: 0.7) : Colors.transparent),
-                    width: widget.isSelected ? 1.6 : 1.0,
-                  ),
-                  boxShadow: widget.isSelected
-                      ? [
-                          BoxShadow(
-                            color: accent.withValues(alpha: 0.25),
-                            blurRadius: 8.0,
-                            spreadRadius: 1.0,
-                          ),
-                        ]
-                      : (isEffectiveHover
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _localHover,
+          builder: (context, localHover, _) {
+            final isEffectiveHover = widget.isHovered || localHover;
+            return Opacity(
+              opacity: 0.80,
+              child: Material(
+                type: MaterialType.transparency,
+                child: DefaultTextStyle.merge(
+                  style: const TextStyle(decoration: TextDecoration.none),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    decoration: BoxDecoration(
+                      color: widget.isSelected
+                          ? accent.withValues(alpha: 0.08)
+                          : (isEffectiveHover ? accent.withValues(alpha: 0.04) : Colors.transparent),
+                      borderRadius: BorderRadius.circular(8.0),
+                      border: Border.all(
+                        color: widget.isSelected
+                            ? accent
+                            : (isEffectiveHover ? accent.withValues(alpha: 0.7) : Colors.transparent),
+                        width: widget.isSelected ? 1.6 : 1.0,
+                      ),
+                      boxShadow: widget.isSelected
                           ? [
                               BoxShadow(
-                                color: accent.withValues(alpha: 0.15),
-                                blurRadius: 5.0,
+                                color: accent.withValues(alpha: 0.25),
+                                blurRadius: 8.0,
+                                spreadRadius: 1.0,
                               ),
                             ]
-                          : null),
-                ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  clipBehavior: Clip.none,
-                  children: [
+                          : (isEffectiveHover
+                              ? [
+                                  BoxShadow(
+                                    color: accent.withValues(alpha: 0.15),
+                                    blurRadius: 5.0,
+                                  ),
+                                ]
+                              : null),
+                    ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      clipBehavior: Clip.none,
+                      children: [
                     // Exact rendered component look based on user configuration
                     _buildComponentVisual(placement, theme, accent),
 
@@ -149,9 +158,11 @@ class _PlacedComponentPreviewState extends State<PlacedComponentPreview> {
               ),
             ),
           ),
-        ),
-      ),
-    );
+        );
+      },
+    ),
+  ),
+);
   }
 
   Widget _buildComponentVisual(PlacementData placement, AgentationThemeData theme, Color accent) {

@@ -1,5 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+
+@visibleForTesting
+bool debugForceDiskIo = false;
 
 File _getSettingsFile() {
   final tempDir = Directory.systemTemp.path;
@@ -7,6 +11,7 @@ File _getSettingsFile() {
 }
 
 bool _isTestEnvironment() {
+  if (debugForceDiskIo) return false;
   return Platform.environment.containsKey('FLUTTER_TEST');
 }
 

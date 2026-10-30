@@ -247,15 +247,18 @@ class _ComponentPaletteState extends State<ComponentPalette> {
 
         final childWhenDragging = Opacity(
           opacity: 0.4,
-          child: _buildItemRow(item, textColor, subtextColor, false),
+          child: _buildItemRow(item, isDark, textColor, subtextColor, false),
         );
 
         final draggableChild = InkWell(
           onTap: () {
             widget.onSelectTemplate(item);
           },
+          hoverColor: Colors.transparent,
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
           borderRadius: BorderRadius.circular(8.0),
-          child: _buildItemRow(item, textColor, subtextColor, isHovered),
+          child: _buildItemRow(item, isDark, textColor, subtextColor, isHovered),
         );
 
         final draggableWidget = isMobile
@@ -285,16 +288,27 @@ class _ComponentPaletteState extends State<ComponentPalette> {
 
   Widget _buildItemRow(
     SkeletonTemplate item,
+    bool isDark,
     Color textColor,
     Color subtextColor,
     bool isHovered,
   ) {
     final isMobile = MediaQuery.sizeOf(context).width < 600.0;
+    final hoverBg = isDark
+        ? AgentationColors.darkHoverBg
+        : AgentationColors.lightHoverBg;
+    final itemTextColor = isHovered
+        ? (isDark ? Colors.white : textColor)
+        : textColor;
+    final itemIconColor = isHovered
+        ? (isDark ? Colors.white : textColor)
+        : subtextColor;
+
     return Container(
       margin: EdgeInsets.symmetric(vertical: isMobile ? 0.5 : 1.5),
       padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: isMobile ? 4.0 : 6.0),
       decoration: BoxDecoration(
-        color: isHovered ? AgentationColors.darkHoverBg : Colors.transparent,
+        color: isHovered ? hoverBg : Colors.transparent,
         borderRadius: BorderRadius.circular(6.0),
       ),
       child: Row(
@@ -302,14 +316,14 @@ class _ComponentPaletteState extends State<ComponentPalette> {
           Icon(
             item.icon,
             size: isMobile ? 14.5 : 16.0,
-            color: isHovered ? Colors.white : subtextColor,
+            color: itemIconColor,
           ),
           const SizedBox(width: 8.0),
           Expanded(
             child: Text(
               item.label,
               style: TextStyle(
-                color: isHovered ? Colors.white : textColor,
+                color: itemTextColor,
                 fontSize: isMobile ? 11.5 : 12.5,
                 fontWeight: FontWeight.w500,
               ),

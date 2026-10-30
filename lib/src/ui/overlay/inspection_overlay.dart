@@ -31,6 +31,18 @@ import 'placed_component_preview.dart';
 import '../../theme/agentation_colors.dart';
 import 'widget_highlight.dart';
 
+class _MarkersVisibilityState {
+  const _MarkersVisibilityState({
+    required this.isVisible,
+    required this.isExiting,
+    required this.cachedAnnotationsForExit,
+  });
+
+  final bool isVisible;
+  final bool isExiting;
+  final List<Annotation> cachedAnnotationsForExit;
+}
+
 /// Overlay widget managing gesture interception, pointer inspection, and multi-mode presentation.
 class InspectionOverlay extends StatefulWidget {
   const InspectionOverlay({
@@ -121,11 +133,16 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   bool _isMarqueeDragging = false;
   ScrollPosition? _dragScrollPosition;
 
-  bool _markersVisible = false;
-  bool _isMarkersExiting = false;
   bool _lastShouldShowMarkers = false;
   Timer? _markersExitTimer;
-  List<Annotation> _cachedAnnotationsForExit = [];
+  late final ValueNotifier<_MarkersVisibilityState> _markersVisibilityNotifier =
+      ValueNotifier<_MarkersVisibilityState>(
+    _MarkersVisibilityState(
+      isVisible: _lastShouldShowMarkers,
+      isExiting: false,
+      cachedAnnotationsForExit: const [],
+    ),
+  );
 
   bool _isTextWidget(WidgetInspectionResult? res) {
     if (res == null) return false;
@@ -572,8 +589,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
   void initState() {
     super.initState();
     _lastShouldShowMarkers = widget.controller.shouldShowMarkers;
-    _markersVisible = _lastShouldShowMarkers;
-    _isMarkersExiting = false;
+    _markersVisibilityNotifier.value = _MarkersVisibilityState(
+      isVisible: _lastShouldShowMarkers,
+      isExiting: false,
+      cachedAnnotationsForExit: const [],
+    );
     widget.controller.addListener(_handleMarkersVisibilityChange);
   }
 
@@ -586,42 +606,43 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
     if (shouldShow) {
       _markersExitTimer?.cancel();
-      if (!_markersVisible || _isMarkersExiting) {
-        setState(() {
-          _markersVisible = true;
-          _isMarkersExiting = false;
-          _cachedAnnotationsForExit = [];
-        });
+      if (!_markersVisibilityNotifier.value.isVisible || _markersVisibilityNotifier.value.isExiting) {
+        _markersVisibilityNotifier.value = const _MarkersVisibilityState(
+          isVisible: true,
+          isExiting: false,
+          cachedAnnotationsForExit: [],
+        );
       }
     } else {
       if (widget.controller.settings.hideUntilRestart) {
         _markersExitTimer?.cancel();
-        setState(() {
-          _markersVisible = false;
-          _isMarkersExiting = false;
-          _cachedAnnotationsForExit = [];
-        });
+        _markersVisibilityNotifier.value = const _MarkersVisibilityState(
+          isVisible: false,
+          isExiting: false,
+          cachedAnnotationsForExit: [],
+        );
         return;
       }
-      if (_markersVisible) {
+      if (_markersVisibilityNotifier.value.isVisible) {
         _markersExitTimer?.cancel();
         final currentAnnotations = List<Annotation>.from(widget.controller.annotations);
         final count = currentAnnotations.length;
         final maxDelayMs = count > 0 ? (count - 1) * 20 : 0;
-        setState(() {
-          _isMarkersExiting = true;
-          _cachedAnnotationsForExit = currentAnnotations;
-        });
+        _markersVisibilityNotifier.value = _MarkersVisibilityState(
+          isVisible: true,
+          isExiting: true,
+          cachedAnnotationsForExit: currentAnnotations,
+        );
 
         // 200ms exit animation duration + max delay + 50ms buffer
         final totalExitMs = 200 + maxDelayMs + 50;
         _markersExitTimer = Timer(Duration(milliseconds: totalExitMs), () {
           if (mounted && !_lastShouldShowMarkers) {
-            setState(() {
-              _markersVisible = false;
-              _isMarkersExiting = false;
-              _cachedAnnotationsForExit = [];
-            });
+            _markersVisibilityNotifier.value = const _MarkersVisibilityState(
+              isVisible: false,
+              isExiting: false,
+              cachedAnnotationsForExit: [],
+            );
           }
         });
       }
@@ -643,6 +664,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     _activeRearrangeBoundsNotifier.dispose();
     _draggedTemplateOffsetNotifier.dispose();
     _hoveredAnnotationIdNotifier.dispose();
+    _markersVisibilityNotifier.dispose();
     _scrollVersion.dispose();
     super.dispose();
   }
@@ -652,9 +674,11 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
     super.reassemble();
     _markersExitTimer?.cancel();
     _lastShouldShowMarkers = widget.controller.shouldShowMarkers;
-    _markersVisible = _lastShouldShowMarkers;
-    _isMarkersExiting = false;
-    _cachedAnnotationsForExit = [];
+    _markersVisibilityNotifier.value = _MarkersVisibilityState(
+      isVisible: _lastShouldShowMarkers,
+      isExiting: false,
+      cachedAnnotationsForExit: const [],
+    );
     _hoverThrottleTimer?.cancel();
     _lastHoverPosition = null;
     _lastHoverTime = null;
@@ -1444,20 +1468,27 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
 
 
                     // Numbered spatial annotation markers, hover preview tooltip, and edit dialog
-                    if (_markersVisible && !settings.hideUntilRestart)
-                      ValueListenableBuilder<String?>(
-                        valueListenable: _hoveredAnnotationIdNotifier,
-                        builder: (context, hoveredId, _) {
-                          final annotationsToRender = _isMarkersExiting && widget.controller.annotations.isEmpty
-                              ? _cachedAnnotationsForExit
-                              : widget.controller.annotations;
-                          final totalCount = annotationsToRender.length;
+                    ValueListenableBuilder<_MarkersVisibilityState>(
+                      valueListenable: _markersVisibilityNotifier,
+                      builder: (context, markersState, _) {
+                        if (!markersState.isVisible || settings.hideUntilRestart) {
+                          return const SizedBox.shrink();
+                        }
+                        final isMarkersExiting = markersState.isExiting;
+                        final cachedAnnotations = markersState.cachedAnnotationsForExit;
+                        return ValueListenableBuilder<String?>(
+                          valueListenable: _hoveredAnnotationIdNotifier,
+                          builder: (context, hoveredId, _) {
+                            final annotationsToRender = isMarkersExiting && widget.controller.annotations.isEmpty
+                                ? cachedAnnotations
+                                : widget.controller.annotations;
+                            final totalCount = annotationsToRender.length;
 
                           return Stack(
                             fit: StackFit.expand,
                             children: [
                               // 1. Highlight outline around the hovered annotation element (matching Screenshot 1)
-                              if (!_isMarkersExiting &&
+                              if (!isMarkersExiting &&
                                   hoveredId != null &&
                                   widget.controller.activeAnnotation == null)
                                 ...(() {
@@ -1498,8 +1529,8 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                   }
                                   final currentBounds = _resolveCurrentBounds(ann);
                                   if (currentBounds == null) return const SizedBox.shrink();
-                                  final isHovered = !_isMarkersExiting && hoveredId == ann.id;
-                                  final isSelected = !_isMarkersExiting &&
+                                  final isHovered = !isMarkersExiting && hoveredId == ann.id;
+                                  final isSelected = !isMarkersExiting &&
                                       widget.controller.activeAnnotation?.id == ann.id;
 
                                   return Positioned(
@@ -1516,12 +1547,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                       isHovered: isHovered,
                                       isSelected: isSelected,
                                       onTap: () {
-                                        if (_isMarkersExiting) return;
+                                        if (isMarkersExiting) return;
                                         _hoveredAnnotationIdNotifier.value = null;
                                         widget.controller.viewAnnotation(ann);
                                       },
                                       onHoverChanged: (hovering) {
-                                        if (_isMarkersExiting) return;
+                                        if (isMarkersExiting) return;
                                         if (hovering) {
                                           _hoveredAnnotationIdNotifier.value = ann.id;
                                         } else if (_hoveredAnnotationIdNotifier.value == ann.id) {
@@ -1544,26 +1575,26 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                   final effectiveMarkerAccent = isArea
                                       ? AgentationColors.success
                                       : markerColor;
-                                  final isHovered = !_isMarkersExiting && hoveredId == ann.id;
+                                  final isHovered = !isMarkersExiting && hoveredId == ann.id;
 
                                   return AnnotationMarker(
                                     key: ValueKey('agentation_marker_${ann.id}'),
                                     index: i + 1,
                                     layerIndex: i,
                                     layerSize: totalCount,
-                                    isExiting: _isMarkersExiting,
+                                    isExiting: isMarkersExiting,
                                     annotation: ann,
                                     boundsOverride: currentBounds,
                                     accentColor: effectiveMarkerAccent,
-                                    isSelected: !_isMarkersExiting &&
+                                    isSelected: !isMarkersExiting &&
                                         widget.controller.activeAnnotation?.id == ann.id,
                                     isHovered: isHovered,
                                     onHoverChanged: (hovering) {
-                                      if (_isMarkersExiting) return;
+                                      if (isMarkersExiting) return;
                                       _setHoveredAnnotation(hovering ? ann.id : null, delayClear: !hovering);
                                     },
                                     onTap: () {
-                                      if (_isMarkersExiting) return;
+                                      if (isMarkersExiting) return;
                                       _setHoveredAnnotation(null);
                                       widget.controller.viewAnnotation(ann);
                                     },
@@ -1572,7 +1603,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                               ],
 
                               // 3. Hover Preview Tooltip Card (matching Screenshot 1)
-                              if (!_isMarkersExiting &&
+                              if (!isMarkersExiting &&
                                   hoveredId != null &&
                                   widget.controller.activeAnnotation == null)
                                 ...(() {
@@ -1588,7 +1619,7 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                                       bounds: hoveredBounds,
                                       isDark: settings.isDarkMode,
                                       onHoverChanged: (hovering) {
-                                        if (_isMarkersExiting) return;
+                                        if (isMarkersExiting) return;
                                         _setHoveredAnnotation(hovering ? hoveredAnn.id : null, delayClear: !hovering);
                                       },
                                       onTap: () {
@@ -1601,10 +1632,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                             ],
                           );
                         },
-                      ),
+                      );
+                    },
+                  ),
 
                     // Annotation edit dialog (matching Screenshot 2)
-                    if (!_isMarkersExiting &&
+                    if (!_markersVisibilityNotifier.value.isExiting &&
                         widget.controller.areCommentsVisible &&
                         widget.controller.activeAnnotation != null) ...[
                       () {
