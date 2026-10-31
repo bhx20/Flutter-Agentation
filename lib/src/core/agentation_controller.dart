@@ -1095,7 +1095,12 @@ class AgentationController extends ChangeNotifier {
     await _storage.save(updated);
     _annotations = await _storage.getAll();
     if (_activeAnnotation?.id == id) {
-      _activeAnnotation = updated;
+      if (updated.status == AnnotationStatus.resolved ||
+          updated.status == AnnotationStatus.rejected) {
+        _activeAnnotation = null;
+      } else {
+        _activeAnnotation = updated;
+      }
     }
 
     final activeSessionId = target.sessionId ?? _state.settings.sessionId;

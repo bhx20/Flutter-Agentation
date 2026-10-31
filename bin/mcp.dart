@@ -49,6 +49,19 @@ Future<void> main(List<String> args) async {
 
   final server = StandaloneMcpServer(port: port);
   await server.start();
+
+  final completer = Completer<void>();
+  try {
+    ProcessSignal.sigint.watch().listen((_) {
+      if (!completer.isCompleted) completer.complete();
+    });
+    if (!Platform.isWindows) {
+      ProcessSignal.sigterm.watch().listen((_) {
+        if (!completer.isCompleted) completer.complete();
+      });
+    }
+  } catch (_) {}
+  await completer.future;
 }
 
 class StandaloneMcpServer {
@@ -222,6 +235,50 @@ class StandaloneMcpServer {
       return;
     }
 
+    if (req.method == 'PATCH' && path.startsWith('/annotations/')) {
+      final id = path.substring('/annotations/'.length);
+      try {
+        final body = await utf8.decoder.bind(req).join();
+        final patchData = body.isNotEmpty ? jsonDecode(body) as Map<String, dynamic> : <String, dynamic>{};
+        final newStatus = patchData['status']?.toString() ?? 'resolved';
+
+        for (final a in _annotations) {
+          if (a['id'] == id) {
+            a['status'] = newStatus;
+          }
+        }
+        if (newStatus == 'resolved' || newStatus == 'rejected') {
+          _annotations.removeWhere((a) => a['id'] == id);
+          _pendingAgentActions.add({'action': 'resolve_annotation', 'id': id});
+        }
+        _saveAnnotationsToDisk();
+        _broadcastEvent('annotations_updated', {'count': _annotations.length});
+
+        req.response.headers.contentType = ContentType.json;
+        req.response.write(jsonEncode({'status': 'ok', 'id': id, 'annotationStatus': newStatus}));
+        await req.response.close();
+        return;
+      } catch (e) {
+        req.response.statusCode = HttpStatus.badRequest;
+        req.response.write(jsonEncode({'error': e.toString()}));
+        await req.response.close();
+        return;
+      }
+    }
+
+    if (req.method == 'DELETE' && path.startsWith('/annotations/')) {
+      final id = path.substring('/annotations/'.length);
+      _annotations.removeWhere((a) => a['id'] == id);
+      _pendingAgentActions.add({'action': 'resolve_annotation', 'id': id});
+      _saveAnnotationsToDisk();
+      _broadcastEvent('annotations_updated', {'count': _annotations.length});
+
+      req.response.headers.contentType = ContentType.json;
+      req.response.write(jsonEncode({'status': 'ok', 'id': id, 'deleted': true}));
+      await req.response.close();
+      return;
+    }
+
     req.response.statusCode = HttpStatus.notFound;
     req.response.write('Not Found');
     await req.response.close();
@@ -257,6 +314,7 @@ class StandaloneMcpServer {
               _annotations.add(a);
             }
           }
+          _saveAnnotationsToDisk();
         }
 
         if (data.containsKey('appState') && data['appState'] is Map) {
@@ -453,6 +511,30 @@ class StandaloneMcpServer {
         'description': 'Captures the current screen as a base64 encoded PNG for visual verification.',
         'inputSchema': {'type': 'object', 'properties': {}},
       },
+      {
+        'name': 'resolve_annotation',
+        'description': 'Marks an annotation as resolved and removes its pin marker from the running Flutter application.',
+        'inputSchema': {
+          'type': 'object',
+          'required': ['annotationId'],
+          'properties': {
+            'annotationId': {'type': 'string', 'description': 'The unique identifier of the annotation to resolve.'},
+            'summary': {'type': 'string', 'description': 'Summary of the fix applied.'},
+          },
+        },
+      },
+      {
+        'name': 'agentation_resolve',
+        'description': 'Alias for resolve_annotation.',
+        'inputSchema': {
+          'type': 'object',
+          'required': ['annotationId'],
+          'properties': {
+            'annotationId': {'type': 'string', 'description': 'The unique identifier of the annotation to resolve.'},
+            'summary': {'type': 'string', 'description': 'Summary of the fix applied.'},
+          },
+        },
+      },
     ];
   }
 
@@ -508,9 +590,25 @@ class StandaloneMcpServer {
       case 'clear_annotations':
         _annotations.clear();
         _pendingAgentActions.add({'action': 'clear_annotations'});
+        _saveAnnotationsToDisk();
         return {
           'content': [
             {'type': 'text', 'text': 'All annotations cleared successfully.'},
+          ],
+        };
+
+      case 'resolve_annotation':
+      case 'agentation_resolve':
+        final targetId = args['annotationId']?.toString() ?? args['id']?.toString();
+        if (targetId != null) {
+          _annotations.removeWhere((a) => a['id'] == targetId);
+          _pendingAgentActions.add({'action': 'resolve_annotation', 'id': targetId});
+          _saveAnnotationsToDisk();
+          _broadcastEvent('annotations_updated', {'count': _annotations.length});
+        }
+        return {
+          'content': [
+            {'type': 'text', 'text': 'Annotation $targetId marked as resolved and removed from canvas.'},
           ],
         };
 
@@ -553,5 +651,15 @@ class StandaloneMcpServer {
           ],
         };
     }
+  }
+
+  void _saveAnnotationsToDisk() {
+    try {
+      final file = File('.flutter_agentation/annotations.json');
+      if (!file.parent.existsSync()) {
+        file.parent.createSync(recursive: true);
+      }
+      file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(_annotations));
+    } catch (_) {}
   }
 }

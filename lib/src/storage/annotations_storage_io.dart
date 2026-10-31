@@ -8,9 +8,26 @@ bool debugForceDiskIo = false;
 @visibleForTesting
 bool persistAnnotationsInTest = false;
 
-File _getAnnotationsFile() {
-  final tempDir = Directory.systemTemp.path;
-  return File('$tempDir/flutter_agentation_annotations.json');
+List<File> _getCandidateFiles() {
+  final files = <File>[];
+  try {
+    var dir = Directory.current;
+    for (int i = 0; i < 5; i++) {
+      final agentationDir = Directory('${dir.path}/.flutter_agentation');
+      if (agentationDir.existsSync()) {
+        files.add(File('${agentationDir.path}/annotations.json'));
+        break;
+      }
+      final parent = dir.parent;
+      if (parent.path == dir.path) break;
+      dir = parent;
+    }
+  } catch (_) {}
+  try {
+    final tempDir = Directory.systemTemp.path;
+    files.add(File('$tempDir/flutter_agentation_annotations.json'));
+  } catch (_) {}
+  return files;
 }
 
 bool _isTestEnvironment() {
@@ -30,13 +47,17 @@ List<Map<String, dynamic>>? loadStoredAnnotationsJson() {
     return null;
   }
   try {
-    final file = _getAnnotationsFile();
-    if (file.existsSync()) {
-      final json = jsonDecode(file.readAsStringSync());
-      if (json is List) {
-        return json
-            .map((item) => Map<String, dynamic>.from(item as Map))
-            .toList();
+    for (final file in _getCandidateFiles()) {
+      if (file.existsSync()) {
+        final content = file.readAsStringSync().trim();
+        if (content.isNotEmpty) {
+          final json = jsonDecode(content);
+          if (json is List) {
+            return json
+                .map((item) => Map<String, dynamic>.from(item as Map))
+                .toList();
+          }
+        }
       }
     }
   } catch (_) {}
@@ -53,8 +74,12 @@ void saveStoredAnnotationsJson(List<Map<String, dynamic>> annotationsJson) {
     return;
   }
   try {
-    final file = _getAnnotationsFile();
-    file.writeAsStringSync(jsonEncode(annotationsJson));
+    final payload = jsonEncode(annotationsJson);
+    for (final file in _getCandidateFiles()) {
+      try {
+        file.writeAsStringSync(payload);
+      } catch (_) {}
+    }
   } catch (_) {}
 }
 
@@ -64,9 +89,12 @@ void clearStoredAnnotationsJson() {
     return;
   }
   try {
-    final file = _getAnnotationsFile();
-    if (file.existsSync()) {
-      file.deleteSync();
+    for (final file in _getCandidateFiles()) {
+      try {
+        if (file.existsSync()) {
+          file.deleteSync();
+        }
+      } catch (_) {}
     }
   } catch (_) {}
 }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../core/agentation_controller.dart';
+import '../../domain/annotation_status.dart';
 
 /// Full Web implementation of the Flutter MCP Server using an HTTP Bridge.
 ///
@@ -128,6 +129,11 @@ class FlutterMcpServer {
             final action = item['action'];
             if (action == 'clear_annotations') {
               controller.clearAnnotations();
+            } else if (action == 'resolve_annotation') {
+              final id = item['id'];
+              if (id != null) {
+                controller.updateAnnotation(id.toString(), status: AnnotationStatus.resolved);
+              }
             }
           }
         }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/agentation_controller.dart';
 import '../../core/agentation_scope.dart';
 import '../../core/agentation_state.dart';
+import '../../domain/annotation_status.dart';
 import '../design/component_palette.dart';
 import '../../domain/marker_color.dart';
 import '../../theme/agentation_colors.dart';
@@ -119,7 +120,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
       widget.controller ?? AgentationScope.of(context);
 
   Future<void> _onCopy(AgentationController controller) async {
-    final count = controller.annotations.length;
+    final count = controller.annotations.where((a) => a.status != AnnotationStatus.resolved && a.status != AnnotationStatus.rejected).length;
     if (count == 0) {
       return;
     }
@@ -128,7 +129,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
   }
 
   Future<void> _onSend(AgentationController controller) async {
-    final count = controller.annotations.length;
+    final count = controller.annotations.where((a) => a.status != AnnotationStatus.resolved && a.status != AnnotationStatus.rejected).length;
     if (count == 0 || !controller.canSend || _sendStateNotifier.value == 'sending') {
       return;
     }
@@ -511,13 +512,14 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
   ) {
     final iconColor = theme.iconColor;
     final dividerColor = theme.dividerColor;
-    final count = controller.annotations.length;
+    final activeAnnotations = controller.annotations.where((a) => a.status != AnnotationStatus.resolved && a.status != AnnotationStatus.rejected).toList();
+    final count = activeAnnotations.length;
 
     final isPaused = controller.isFrozen;
     final isLayoutOpen = controller.isLayoutModeOpen;
     final isSettingsOpen = controller.isSettingsOpen;
     final isCopied = controller.isCopiedNotifier.value;
-    final hasAnnotations = controller.annotations.isNotEmpty;
+    final hasAnnotations = activeAnnotations.isNotEmpty;
     final sendState = _sendStateNotifier.value;
     final canSend = controller.canSend;
     final isMcpRunning = controller.mcpServer.isRunning;

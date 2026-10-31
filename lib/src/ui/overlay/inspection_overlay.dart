@@ -8,6 +8,7 @@ import '../../core/agentation_keymap.dart';
 import '../../core/agentation_logger.dart';
 import '../../core/agentation_state.dart';
 import '../../domain/annotation.dart';
+import '../../domain/annotation_status.dart';
 import '../../domain/drawing_stroke.dart';
 import '../../domain/marker_color.dart';
 import '../../domain/pending_placement.dart';
@@ -1479,9 +1480,12 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                         return ValueListenableBuilder<String?>(
                           valueListenable: _hoveredAnnotationIdNotifier,
                           builder: (context, hoveredId, _) {
-                            final annotationsToRender = isMarkersExiting && widget.controller.annotations.isEmpty
+                            final rawAnnotations = isMarkersExiting && widget.controller.annotations.isEmpty
                                 ? cachedAnnotations
                                 : widget.controller.annotations;
+                            final annotationsToRender = rawAnnotations
+                                .where((a) => a.status != AnnotationStatus.resolved && a.status != AnnotationStatus.rejected)
+                                .toList();
                             final totalCount = annotationsToRender.length;
 
                           return Stack(
@@ -1639,7 +1643,9 @@ class _InspectionOverlayState extends State<InspectionOverlay> {
                     // Annotation edit dialog (matching Screenshot 2)
                     if (!_markersVisibilityNotifier.value.isExiting &&
                         widget.controller.areCommentsVisible &&
-                        widget.controller.activeAnnotation != null) ...[
+                        widget.controller.activeAnnotation != null &&
+                        widget.controller.activeAnnotation!.status != AnnotationStatus.resolved &&
+                        widget.controller.activeAnnotation!.status != AnnotationStatus.rejected) ...[
                       () {
                         final active = widget.controller.activeAnnotation!;
                         final currentBounds = _resolveCurrentBounds(active);
