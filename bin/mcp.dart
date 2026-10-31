@@ -78,9 +78,10 @@ class StandaloneMcpServer {
     'route': '/',
     'screenSize': {'width': 1280.0, 'height': 800.0},
     'themeMode': 'light',
+    'mcpEnabled': false,
   };
   String? _lastScreenshotBase64;
-  DateTime _lastWebSync = DateTime.now();
+  DateTime? _lastWebSync;
 
   final Set<HttpResponse> _sseClients = {};
 
@@ -286,12 +287,34 @@ class StandaloneMcpServer {
 
   Future<void> _handleStatus(HttpRequest req) async {
     req.response.headers.contentType = ContentType.json;
+    final isWebRecent = _lastWebSync != null &&
+        DateTime.now().difference(_lastWebSync!).inSeconds < 10;
+    final isMcpEnabledInApp = (_appState['mcpEnabled'] as bool?) ?? false;
+    final isConnected = isWebRecent && isMcpEnabledInApp;
+
+    final String statusStr;
+    final String statusMessage;
+
+    if (isConnected) {
+      statusStr = 'connected';
+      statusMessage = 'Live & Connected';
+    } else if (isWebRecent && !isMcpEnabledInApp) {
+      statusStr = 'disabled';
+      statusMessage = 'MCP Connection is toggled OFF in the Flutter app';
+    } else {
+      statusStr = 'waiting';
+      statusMessage = 'Universal bridge listening, waiting for Flutter app to connect with MCP enabled';
+    }
+
     final payload = {
-      'status': 'ok',
+      'status': statusStr,
+      'statusMessage': statusMessage,
+      'mcpConnected': isConnected,
+      'appMcpEnabled': isMcpEnabledInApp,
+      'webClientConnected': isWebRecent,
       'name': 'flutter_agentation_mcp_bridge',
       'version': '0.0.1',
       'port': _server?.port ?? port,
-      'webClientConnected': DateTime.now().difference(_lastWebSync).inSeconds < 15,
       'annotationsCount': _annotations.length,
       'connectedAgentsCount': _sseClients.length,
       'appState': _appState,
@@ -306,6 +329,10 @@ class StandaloneMcpServer {
       if (body.isNotEmpty) {
         final data = jsonDecode(body) as Map<String, dynamic>;
         _lastWebSync = DateTime.now();
+
+        if (data.containsKey('mcpEnabled')) {
+          _appState['mcpEnabled'] = data['mcpEnabled'] == true;
+        }
 
         if (data.containsKey('annotations') && data['annotations'] is List) {
           _annotations.clear();

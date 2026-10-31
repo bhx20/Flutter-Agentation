@@ -71,6 +71,26 @@ class FlutterMcpServer {
     _errorMessage = null;
     _connectedClientsCount = 0;
     onStatusChanged?.call();
+
+    try {
+      final uri = Uri.parse('http://127.0.0.1:$_port/sync');
+      await http
+          .post(
+            uri,
+            headers: {'content-type': 'application/json'},
+            body: jsonEncode({
+              'platform': 'web',
+              'mcpEnabled': false,
+              'appState': {
+                'platform': 'web',
+                'mcpEnabled': false,
+                'annotationsCount': controller.annotations.length,
+                'mode': controller.mode.name,
+              },
+            }),
+          )
+          .timeout(const Duration(milliseconds: 600));
+    } catch (_) {}
   }
 
   void _startPolling() {
@@ -98,9 +118,11 @@ class FlutterMcpServer {
       final uri = Uri.parse('http://127.0.0.1:$_port/sync');
       final payload = {
         'platform': 'web',
+        'mcpEnabled': _isRunning,
         'annotations': controller.annotations.map((a) => a.toJson()).toList(),
         'appState': {
           'platform': 'web',
+          'mcpEnabled': _isRunning,
           'annotationsCount': controller.annotations.length,
           'mode': controller.mode.name,
         },

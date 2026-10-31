@@ -356,10 +356,14 @@ class FlutterMcpServer {
 
   Future<void> _handleStatus(HttpRequest request) async {
     final webhookUrl = controller.settings.webhookUrl;
+    final mcpEnabled = controller.settings.mcpEnabled;
     final status = {
       'server': McpProtocol.serverName,
       'version': McpProtocol.serverVersion,
-      'status': 'running',
+      'status': mcpEnabled ? 'connected' : 'disabled',
+      'statusMessage': mcpEnabled ? 'Live & Connected' : 'MCP Connection is toggled OFF in the Flutter app',
+      'mcpConnected': mcpEnabled,
+      'appMcpEnabled': mcpEnabled,
       'port': _port,
       'sseUrl': sseUrl,
       'httpUrl': httpUrl,

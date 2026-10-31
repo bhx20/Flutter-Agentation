@@ -406,29 +406,53 @@ The universal MCP server can be auto-started in the background:
 - On macOS / Linux: `nohup dart run flutter_agentation:mcp > /dev/null 2>&1 &`
 Wait 2 seconds, then re-query `http://127.0.0.1:$port/status`.
 
-## STEP 3: PRESENT STATUS REPORT
+## STEP 3: PARSE JSON & PRESENT STATUS REPORT
+Examine the returned JSON fields `status`, `appMcpEnabled`, and `mcpConnected`:
 
-### If MCP is Connected (HTTP 200 OK):
+### Case A: If MCP is Toggled OFF in App (`status == "disabled"` or `appMcpEnabled == false`):
+Display:
+> **Flutter Agentation MCP Status: Inactive / Disabled in App (Toggle is OFF)**
+>
+> - **Server**: Running on port $port
+> - **In-App Toggle**: **OFF** (The grey dot shown in settings)
+> - **Pending Pins**: `<annotationsCount>` pins stored
+>
+> **How to Enable:**
+> 1. In your running Flutter app, tap the **gear icon** on the floating toolbar (or go to **Manage MCP & Webhooks**).
+> 2. Switch the **MCP Connection** toggle to **ON** (the indicator dot will turn **green**).
+> 3. Run `/flutter-agentation-check-mcp` again to confirm live agent sync.
+
+### Case B: If Server is Waiting for App (`status == "waiting"` or `webClientConnected == false` with no app active):
+Display:
+> **Flutter Agentation MCP Status: Waiting for Flutter App**
+>
+> - **Server**: Running on port $port
+> - **App Connection**: No active Flutter app is currently sending heartbeats.
+> - **Next Step**: Launch your Flutter app on any platform (`flutter run`) and ensure **MCP Connection** is toggled ON.
+
+### Case C: If MCP is Live & Toggled ON (`status == "connected"` or `appMcpEnabled == true`):
 Display a structured status card:
-- **Status**: Live & Connected (All Platforms: Web, Mobile, Desktop)
+- **Status**: Live & Connected (Toggle is ON - Green Dot Active)
 - **Port**: $port
 - **SSE Transport**: `http://127.0.0.1:$port/sse`
 - **HTTP / MCP Transport**: `http://127.0.0.1:$port/mcp`
-- **Connected Clients**: `<connectedClients>`
+- **Connected Clients**: `<connectedClientsCount>`
 - **Active Route**: `<route>` (if available)
 - **Theme Mode**: `<themeMode>`
-- **Pending Annotations**: `<count>` feedback pins ready for review
+- **Pending Annotations**: `<annotationsCount>` feedback pins ready for review
 - **Next Step**: Run `/flutter-agentation-review-feedback` to review and implement code fixes.
 
-### If MCP Still Cannot Connect:
+### Case D: If MCP Server Cannot Be Reached (Connection Refused or Timeout):
 Display:
-> **MCP Server Status: Stopped**
+> **MCP Server Status: Stopped / Disconnected**
 >
-> 1. Run the universal MCP server in your terminal:
+> Could not connect to Flutter Agentation on `http://127.0.0.1:$port`.
+>
+> 1. Start the universal MCP server in your terminal:
 >    ```bash
 >    dart run flutter_agentation:mcp
 >    ```
-> 2. On your running Flutter app (any platform: Web, Android, iOS, Windows, macOS, Linux), tap the **Agent Sync** (gear icon) on the floating toolbar so it shows a **green dot** (or set `enableMcp: true` in `FlutterAgentation`).
+> 2. On your running Flutter app (any platform: Web, Android, iOS, Windows, macOS, Linux), tap the **Agent Sync** (gear icon) so it shows a **green dot**.
 > 3. Run `/flutter-agentation-check-mcp` again.
 ''';
 
