@@ -78,6 +78,7 @@ export 'src/ui/toolbar/toolbar_icon_button.dart';
 
 // ── Storage: Persistence Layer ──
 export 'src/storage/annotation_storage.dart';
+export 'src/storage/local_annotation_storage.dart';
 export 'src/storage/memory_annotation_storage.dart';
 
 // ── Networking: Remote Collaboration & Sync ──

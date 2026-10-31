@@ -21,7 +21,8 @@ import '../domain/pending_placement.dart';
 import '../inspection/widget_tree_placement_resolver.dart';
 import '../ui/design/skeleton_templates.dart';
 import '../storage/annotation_storage.dart';
-import '../storage/memory_annotation_storage.dart';
+import '../storage/annotations_storage.dart';
+import '../storage/local_annotation_storage.dart';
 import '../storage/settings_storage.dart';
 import '../output/clipboard_exporter.dart';
 import '../networking/agent_sync_client.dart';
@@ -51,7 +52,7 @@ class AgentationController extends ChangeNotifier {
     bool copyToClipboard = true,
     this.enableKeyboardShortcuts = true,
   }) : _engine = engine ?? FlutterInspectionEngine(),
-       _storage = storage ?? MemoryAnnotationStorage(),
+       _storage = storage ?? LocalAnnotationStorage(),
        _state = AgentationState(mode: initialMode),
        shouldCopyToClipboard = copyToClipboard {
     _appName = appName;
@@ -60,6 +61,20 @@ class AgentationController extends ChangeNotifier {
     try {
       WidgetsFlutterBinding.ensureInitialized();
     } catch (_) {}
+
+    // Initialize annotations from storage
+    final storage = _storage;
+    if (storage is LocalAnnotationStorage) {
+      _annotations = storage.getAllSync();
+    } else {
+      _annotations = [];
+      storage.getAll().then((loaded) {
+        if (loaded.isNotEmpty) {
+          _annotations = loaded;
+          notifyListeners();
+        }
+      });
+    }
     final storedMap = loadStoredSettings();
     ToolbarSettings effectiveSettings = _state.settings;
     if (storedMap != null) {
@@ -396,6 +411,12 @@ class AgentationController extends ChangeNotifier {
   @visibleForTesting
   static void resetPersistedMarkerColor() {
     resetPersistedSettings();
+  }
+
+  /// Visible for testing only: resets the persisted annotations storage and cache.
+  @visibleForTesting
+  static void resetPersistedAnnotations() {
+    clearStoredAnnotationsJson();
   }
 
   /// Updates overlay and toolbar preferences.
@@ -1141,10 +1162,17 @@ class AgentationController extends ChangeNotifier {
 
   /// Reloads all annotations from persistent storage into memory.
   Future<List<Annotation>> loadAnnotations() async {
+    final storage = _storage;
+    if (storage is LocalAnnotationStorage) {
+      storage.reloadSync();
+    }
     _annotations = await _storage.getAll();
     notifyListeners();
     return _annotations;
   }
+
+  /// Alias for [loadAnnotations] to refresh annotations from storage.
+  Future<List<Annotation>> reloadAnnotations() => loadAnnotations();
 
   /// Adds a conversational [ThreadMessage] reply to an existing annotation.
   Future<Annotation?> addThreadMessage(

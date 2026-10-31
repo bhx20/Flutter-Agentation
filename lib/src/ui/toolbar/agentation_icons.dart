@@ -88,7 +88,7 @@ class AgentationIcons {
   }
 
   /// Close '✕' icon.
-  static Widget close({double size = 18.0, Color color = Colors.white}) {
+  static Widget close({double size = 20.0, Color color = Colors.white}) {
     return CustomPaint(
       size: Size(size, size),
       painter: _CloseIconPainter(color: color),

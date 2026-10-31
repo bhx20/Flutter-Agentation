@@ -15,6 +15,10 @@ import 'settings_panel.dart';
 import 'toolbar_toggle_icon.dart';
 
 /// Pixel-perfect floating pill toolbar matching Screenshot 1, 2, 3, 4 of Agentation.
+/// Standard icon sizes for toolbar buttons.
+const double _toolbarActionIconSize = 23.5;
+const double _toolbarToggleIconSize = 21.5;
+
 class AgentationToolbar extends StatefulWidget {
   const AgentationToolbar({
     super.key,
@@ -567,8 +571,8 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                           _ToolbarIconButton(
                             buttonKey: const ValueKey('toolbar_pause'),
                             icon: isPaused
-                                ? AgentationIcons.play(size: 22.0, color: theme.warningColor)
-                                : AgentationIcons.pause(size: 22.0, color: iconColor),
+                                ? AgentationIcons.play(size: _toolbarActionIconSize, color: theme.warningColor)
+                                : AgentationIcons.pause(size: _toolbarActionIconSize, color: iconColor),
                             tooltipLabel: isPaused ? 'Resume animations' : 'Pause animations',
                             tooltipShortcut: 'P',
                             isActive: isPaused,
@@ -584,7 +588,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                           _ToolbarIconButton(
                             buttonKey: const ValueKey('toolbar_layout'),
                             icon: AgentationIcons.component(
-                              size: 22.0,
+                              size: _toolbarActionIconSize,
                               color: isLayoutOpen ? Colors.white : iconColor,
                             ),
                             tooltipLabel: isLayoutOpen ? 'Exit component' : 'Component',
@@ -603,8 +607,8 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                           _ToolbarIconButton(
                             buttonKey: const ValueKey('toolbar_inspect'),
                             icon: controller.areCommentsVisible
-                                ? AgentationIcons.eye(size: 22.0, color: iconColor)
-                                : AgentationIcons.eyeOff(size: 22.0, color: theme.iconInactiveColor),
+                                ? AgentationIcons.eye(size: _toolbarActionIconSize, color: iconColor)
+                                : AgentationIcons.eyeOff(size: _toolbarActionIconSize, color: theme.iconInactiveColor),
                             tooltipLabel: controller.areCommentsVisible ? 'Hide markers' : 'Show markers',
                             tooltipShortcut: 'H',
                             isActive: false,
@@ -620,8 +624,8 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                           _ToolbarIconButton(
                             buttonKey: const ValueKey('toolbar_copy'),
                             icon: isCopied
-                                ? AgentationIcons.check(size: 22.0, color: theme.successColor)
-                                : AgentationIcons.copy(size: 22.0, color: iconColor),
+                                ? AgentationIcons.check(size: _toolbarActionIconSize, color: theme.successColor)
+                                : AgentationIcons.copy(size: _toolbarActionIconSize, color: iconColor),
                             tooltipLabel: 'Copy feedback',
                             tooltipShortcut: 'C',
                             isActive: isCopied,
@@ -649,7 +653,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                                       child: _ToolbarIconButton(
                                         buttonKey: const ValueKey('toolbar_send'),
                                         icon: AgentationIcons.send(
-                                          size: 22.0,
+                                          size: _toolbarActionIconSize,
                                           color: (sendState == 'sent' || sendState == 'failed')
                                               ? (sendState == 'sent' ? theme.successColor : theme.destructiveColor)
                                               : (hasAnnotations ? iconColor : theme.iconInactiveColor),
@@ -676,8 +680,8 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                           // 6. Delete / Trash (Trash can) - Screenshot 1
                           _ToolbarIconButton(
                             buttonKey: const ValueKey('toolbar_clear'),
-                            icon: AgentationIcons.trash(size: 22.0, color: iconColor),
-                            hoverIcon: AgentationIcons.trash(size: 22.0, color: theme.destructiveColor),
+                            icon: AgentationIcons.trash(size: _toolbarActionIconSize, color: iconColor),
+                            hoverIcon: AgentationIcons.trash(size: _toolbarActionIconSize, color: theme.destructiveColor),
                             tooltipLabel: 'Clear all',
                             tooltipShortcut: 'X',
                             isActive: false,
@@ -694,7 +698,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                           _ToolbarIconButton(
                             buttonKey: const ValueKey('toolbar_settings'),
                             icon: AgentationIcons.gear(
-                              size: 22.0,
+                              size: _toolbarActionIconSize,
                               color: isSettingsOpen
                                   ? (theme.isDark ? Colors.white : theme.textPrimary)
                                   : iconColor,
@@ -759,7 +763,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                 icon: ToolbarToggleIcon(
                   key: _toggleIconKey,
                   active: !isMinimized,
-                  size: 20.0,
+                  size: _toolbarToggleIconSize,
                   color: iconColor,
                 ),
                 tooltipLabel: isMinimized ? 'Start Feedback Mode' : 'Exit',
@@ -1222,7 +1226,7 @@ class _ToolbarIconButtonState extends State<_ToolbarIconButton>
               if (widget.hoverIcon != null) {
                 currentIcon = widget.hoverIcon!;
               } else if (widget.isDanger) {
-                currentIcon = AgentationIcons.trash(size: 22.0, color: theme.destructiveColor);
+                currentIcon = AgentationIcons.trash(size: _toolbarActionIconSize, color: theme.destructiveColor);
               } else {
                 currentIcon = widget.icon;
               }

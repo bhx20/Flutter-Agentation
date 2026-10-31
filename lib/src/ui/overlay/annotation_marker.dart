@@ -8,6 +8,7 @@ import '../../domain/widget_bounds.dart';
 import '../../theme/agentation_colors.dart';
 import '../../theme/agentation_radii.dart';
 import '../../theme/agentation_theme.dart';
+import '../../theme/agentation_typography.dart';
 import '../toolbar/agentation_icons.dart';
 
 /// Formats a Flutter widget type name into a clean, human-readable label
@@ -322,45 +323,74 @@ class AnnotationHoverPreviewCard extends StatelessWidget {
     final markerCenterX = markerLeft + 12.0;
     final markerBottom = markerTop + 24.0;
 
-    // Approximate card height based on comment text length so it never overlaps the hovered marker or widget
-    final approxLines = (annotation.comment.length / 28.0).ceil().clamp(1, 14);
-    final estimatedCardHeight = 48.0 + (approxLines * 18.0);
-
-    // If the annotated widget is full-screen or excessively large (e.g. FreezeOverlay, Scaffold, root view),
-    // anchoring to the widget's bounds would push the card off-screen and cause it to flip to top: 8.0.
-    // In that case, anchor cleanly to the marker pin itself.
-    final isHugeOrFullScreenWidget = bounds.height >= screenSize.height * 0.65 ||
-        (bounds.y <= 0.0 && bounds.height >= screenSize.height - 80.0);
-
+    // Anchor calculation:
+    // For placed wireframe components (which don't have a separate marker pin and occupy a placed box),
+    // anchor below the placed component's bounds.
+    // For all standard inspection annotations, anchor directly to the marker pin / comment location
+    // so the feedback card always appears right next to the pin instead of at the bottom of large containers.
     final double anchorTop;
     final double anchorBottom;
     final double anchorCenterX;
 
-    if (isHugeOrFullScreenWidget) {
-      anchorTop = markerTop;
-      anchorBottom = markerBottom;
-      anchorCenterX = markerCenterX;
-    } else {
+    if (annotation.placement != null) {
       anchorTop = bounds.y;
       anchorBottom = bounds.y + bounds.height;
       anchorCenterX = bounds.x + (bounds.width / 2.0);
+    } else {
+      anchorTop = markerTop;
+      anchorBottom = markerBottom;
+      anchorCenterX = markerCenterX;
     }
-
-    // Prefer positioning below the anchor; if not enough room at the bottom of the viewport, position above.
-    final preferredTopBelow = anchorBottom + 8.0;
-    final top = (preferredTopBelow + estimatedCardHeight < screenSize.height - 8.0)
-        ? preferredTopBelow
-        : math.max(8.0, anchorTop - estimatedCardHeight - 8.0);
-
-    // Center horizontally aligned with the anchor
-    final left = (anchorCenterX - (cardMaxWidth / 2.0))
-        .clamp(8.0, math.max(8.0, screenSize.width - cardMaxWidth - 8.0))
-        .toDouble();
 
     final theme = AgentationThemeData.resolve(isDark: isDark);
     final cardBg = theme.cardBackground;
     final labelColor = theme.textSecondary;
     final commentColor = theme.textPrimary;
+
+    final labelStyle = AgentationTypography.italicLabel.copyWith(
+      fontSize: 12.0,
+      color: labelColor,
+    );
+    final commentStyle = AgentationTypography.bodyMedium.copyWith(
+      fontSize: 13.5,
+      color: commentColor,
+      decoration: TextDecoration.none,
+    );
+
+    // Measure actual content dimensions to accurately size and center the preview card directly under anchorCenterX
+    final textScaler = MediaQuery.textScalerOf(context);
+    final labelPainter = TextPainter(
+      text: TextSpan(
+        text: formatWidgetLabel(annotation.targetWidget.widgetType),
+        style: labelStyle,
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: textScaler,
+    )..layout();
+
+    final commentPainter = TextPainter(
+      text: TextSpan(
+        text: annotation.comment,
+        style: commentStyle,
+      ),
+      textDirection: TextDirection.ltr,
+      textScaler: textScaler,
+    )..layout(maxWidth: cardMaxWidth - 28.0);
+
+    final contentWidth = math.max(labelPainter.width, commentPainter.width);
+    final cardWidth = (contentWidth + 28.0).clamp(cardMinWidth, cardMaxWidth);
+    final cardHeight = labelPainter.height + 3.0 + commentPainter.height + 20.0;
+
+    // Prefer positioning below the anchor; if not enough room at the bottom of the viewport, position above.
+    final preferredTopBelow = anchorBottom + 6.0;
+    final top = (preferredTopBelow + cardHeight < screenSize.height - 8.0)
+        ? preferredTopBelow
+        : math.max(8.0, anchorTop - cardHeight - 6.0);
+
+    // Center horizontally aligned directly with the anchor pin
+    final left = (anchorCenterX - (cardWidth / 2.0))
+        .clamp(8.0, math.max(8.0, screenSize.width - cardWidth - 8.0))
+        .toDouble();
 
     return Positioned(
       left: left,
@@ -376,10 +406,7 @@ class AnnotationHoverPreviewCard extends StatelessWidget {
             elevation: 8.0,
             borderRadius: AgentationRadii.br12,
             child: Container(
-              constraints: const BoxConstraints(
-                minWidth: cardMinWidth,
-                maxWidth: cardMaxWidth,
-              ),
+              width: cardWidth,
               padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 10.0),
               decoration: BoxDecoration(
                 color: cardBg,
@@ -396,23 +423,12 @@ class AnnotationHoverPreviewCard extends StatelessWidget {
                 children: [
                   Text(
                     formatWidgetLabel(annotation.targetWidget.widgetType),
-                    style: TextStyle(
-                      color: labelColor,
-                      fontStyle: FontStyle.italic,
-                      fontSize: 12.0,
-                      fontWeight: FontWeight.normal,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: labelStyle,
                   ),
                   const SizedBox(height: 3.0),
                   Text(
                     annotation.comment,
-                    style: TextStyle(
-                      color: commentColor,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w500,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: commentStyle,
                   ),
                 ],
               ),

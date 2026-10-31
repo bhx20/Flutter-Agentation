@@ -316,12 +316,6 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
     controller.onSessionCreated = widget.onSessionCreated;
     controller.onOpenSource = widget.onOpenSource;
 
-    bool isTestBinding = false;
-    try {
-      isTestBinding =
-          WidgetsBinding.instance.runtimeType.toString().contains('Test');
-    } catch (_) {}
-
     final stored = loadStoredSettings();
     final bool effectiveMcpEnabled;
     if (widget.mcpEnabled != null) {
@@ -329,7 +323,7 @@ class _FlutterAgentationState extends State<FlutterAgentation> {
     } else if (stored != null && stored.containsKey('mcpEnabled')) {
       effectiveMcpEnabled = controller.settings.mcpEnabled;
     } else {
-      effectiveMcpEnabled = !isTestBinding;
+      effectiveMcpEnabled = false;
     }
 
     controller.updateSettings(
