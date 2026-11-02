@@ -10,6 +10,85 @@ Instead of manually hunting for widget source files and copying layout dimension
 
 ---
 
+## Installation & Quickstart
+
+### 1. Add Dependency
+
+In your Flutter project terminal, run:
+
+```bash
+flutter pub add flutter_agentation
+```
+
+Or add it directly to `pubspec.yaml`:
+
+```yaml
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_agentation: ^0.1.0
+```
+
+### 2. Wrap Your App
+
+In `lib/main.dart`, wrap your `MaterialApp` or `CupertinoApp` using `FlutterAgentation.builder()`:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_agentation/flutter_agentation.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'My App',
+      // Attach at the builder level to persist across all routes and modals:
+      builder: FlutterAgentation.builder(),
+      home: const HomeScreen(),
+    );
+  }
+}
+```
+
+*Note: `debugOnly: true` is enabled by default. In release mode (`kDebugMode == false`), Flutter Agentation returns the child widget tree directly with zero performance overhead.*
+
+### 3. Run the CLI Setup (`setupmcp`)
+
+In your workspace root terminal, run:
+
+```bash
+dart run flutter_agentation:setupmcp
+```
+
+This single command sets up both MCP configuration and AI agent skills directly inside `.flutter_agentation/`:
+
+- `.flutter_agentation/mcp.json`: Universal MCP configuration for your IDE.
+- `.flutter_agentation/config.json`: Runtime port and endpoint metadata.
+- `.flutter_agentation/tools.json`: LLM tool schemas for inspection and annotation operations.
+- `.flutter_agentation/llm_instructions.md`: Ready-to-use prompt and system instructions for AI models.
+- `.flutter_agentation/SKILL.md`: Spec-Kit-style agent skill defining the feedback lifecycle.
+- `.flutter_agentation/commands/`: Pre-configured slash commands for agent chats.
+
+Everything is isolated entirely in `.flutter_agentation/` and registered for IDE discovery.
+
+### 4. Run App and Inspect
+
+Run your Flutter application on any platform (Mobile, Desktop, or Web):
+
+```bash
+flutter run
+```
+
+A floating toolbar appears on your screen. Tap the crosshair icon or press `Ctrl+Shift+A` (`Cmd+Shift+A` on macOS) to begin inspecting widgets.
+
+---
+
 ## Architecture Overview
 
 ```
@@ -154,85 +233,6 @@ Instead of manually hunting for widget source files and copying layout dimension
 - **Multi-Mode Canvas**: Single widget inspect, marquee rectangular multi-selection, grouped multi-element picking, and freehand pencil sketching.
 - **Animation Freeze**: Pause running tickers, transitions, loaders, and snackbars using Flutter native `TickerMode` for effortless inspection of transient UI states.
 - **Zero Release Overhead**: Automatically compiles out in release builds (`debugOnly: true` by default), rendering zero widgets and consuming zero runtime resources in production.
-
----
-
-## Quickstart
-
-### 1. Add Dependency
-
-In your Flutter project terminal, run:
-
-```bash
-flutter pub add flutter_agentation
-```
-
-Or add it directly to `pubspec.yaml`:
-
-```yaml
-dependencies:
-  flutter:
-    sdk: flutter
-  flutter_agentation: ^0.1.0
-```
-
-### 2. Wrap Your App
-
-In `lib/main.dart`, wrap your `MaterialApp` or `CupertinoApp` using `FlutterAgentation.builder()`:
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_agentation/flutter_agentation.dart';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'My App',
-      // Attach at the builder level to persist across all routes and modals:
-      builder: FlutterAgentation.builder(),
-      home: const HomeScreen(),
-    );
-  }
-}
-```
-
-*Note: `debugOnly: true` is enabled by default. In release mode (`kDebugMode == false`), Flutter Agentation returns the child widget tree directly with zero performance overhead.*
-
-### 3. Run the CLI Setup (`setupmcp`)
-
-In your workspace root terminal, run:
-
-```bash
-dart run flutter_agentation:setupmcp
-```
-
-This single command sets up both MCP configuration and AI agent skills directly inside `.flutter_agentation/`:
-
-- `.flutter_agentation/mcp.json`: Universal MCP configuration for your IDE.
-- `.flutter_agentation/config.json`: Runtime port and endpoint metadata.
-- `.flutter_agentation/tools.json`: LLM tool schemas for inspection and annotation operations.
-- `.flutter_agentation/llm_instructions.md`: Ready-to-use prompt and system instructions for AI models.
-- `.flutter_agentation/SKILL.md`: Spec-Kit-style agent skill defining the feedback lifecycle.
-- `.flutter_agentation/commands/`: Pre-configured slash commands for agent chats.
-
-Everything is isolated entirely in `.flutter_agentation/` and registered for IDE discovery.
-
-### 4. Run App and Inspect
-
-Run your Flutter application on any platform (Mobile, Desktop, or Web):
-
-```bash
-flutter run
-```
-
-A floating toolbar appears on your screen. Tap the crosshair icon or press `Ctrl+Shift+A` (`Cmd+Shift+A` on macOS) to begin inspecting widgets.
 
 ---
 
