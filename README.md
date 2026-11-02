@@ -1,19 +1,23 @@
 # Flutter Agentation
 
-A developer-first visual inspection, annotation, and AI context engine for Flutter applications.
+[![pub package](https://img.shields.io/pub/v/flutter_agentation.svg)](https://pub.dev/packages/flutter_agentation)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://pub.dev/packages/flutter_agentation/license)
+[![platforms](https://img.shields.io/badge/platforms-flutter%20%7C%20android%20%7C%20ios%20%7C%20web%20%7C%20macos%20%7C%20windows%20%7C%20linux-lightgrey.svg)](https://pub.dev/packages/flutter_agentation)
 
-Instead of manually hunting for widget source files and copying layout dimensions to explain UI bugs, Flutter Agentation lets you click any element in your running app, write a note, and instantly stream the exact source file, line number, widget tree hierarchy, and bounding box directly to your AI coding agent (Cursor, Claude Desktop, Windsurf, VS Code, or Antigravity) via the Model Context Protocol (MCP) or webhooks.
+A developer-first visual inspection, layout wireframing, and Model Context Protocol (MCP) context engine for Flutter applications.
+
+Instead of manually hunting for widget source files and copying layout dimensions to explain UI bugs, Flutter Agentation lets you click any element in your running app, write a note or sketch, and stream the exact source file path, line number, widget tree hierarchy, and bounding box directly to your AI coding agent (Cursor, Claude Desktop, Windsurf, VS Code, or Antigravity) via the Model Context Protocol (JSON-RPC 2.0) or webhooks.
 
 ---
 
-## How It Works
+## Architecture Overview
 
 ```
 +-------------------------------------------------------------------+
 |                        Running Flutter App                        |
 |                                                                   |
-|   1. Click / hover any widget                                     |
-|   2. Add note or sketch                                           |
+|   1. Click / hover any widget element                             |
+|   2. Add feedback note, sketch, or skeleton wireframe             |
 |   3. Flutter Agentation captures source path, line, bounds & tree |
 +---------------------------------+---------------------------------+
                                   |
@@ -30,18 +34,31 @@ Instead of manually hunting for widget source files and copying layout dimension
 | AI Agents (Cursor, Claude,    |                 | Custom Bot / Slack / CI       |
 | Windsurf, VS Code, etc.)      |                 | Automated PR generation       |
 |                               |                 +-------------------------------+
-| Calls `list_annotations`      |
+| Reads feedback via MCP tools  |
 | and edits the code directly!  |
 +-------------------------------+
 ```
 
 ---
 
-## 5-Minute Quickstart
+## Key Features
 
-### Step 1: Add Dependency
+- **Deep Widget Inspection**: Resolves exact `RenderBox` bounds, ancestor breadcrumb trees, semantics, developer keys, and source file line numbers (`lib/screens/home.dart:42`).
+- **Universal Model Context Protocol (MCP)**: Native embedded SSE and JSON-RPC 2.0 streaming on port 4747, compatible with Cursor, Claude Desktop, Windsurf, VS Code (Cline/Roo), and Antigravity.
+- **Spec-Kit Promptless Workflow**: Pre-configured slash commands (`/flutter-agentation-check-mcp`, `/flutter-agentation-review-feedback`) that allow agents to inspect feedback and apply fixes without prompt engineering.
+- **Visual Wireframing & Layout Mode**: Drag-and-drop realistic skeleton components (Buttons, Cards, Inputs, Lists) onto the live UI with interactive counter-question dialogs for precise AI specifications.
+- **Draft Annotation Protection**: In-memory safety keeping annotations as private drafts until explicitly submitted, preventing premature code edits when Auto-Send is disabled.
+- **Multi-Mode Canvas**: Single widget inspect, marquee rectangular multi-selection, grouped multi-element picking, and freehand pencil sketching.
+- **Animation Freeze**: Pause running tickers, transitions, loaders, and snackbars using Flutter native `TickerMode` for effortless inspection of transient UI states.
+- **Zero Release Overhead**: Automatically compiles out in release builds (`debugOnly: true` by default), rendering zero widgets and consuming zero runtime resources in production.
 
-In your Flutter project root, run:
+---
+
+## Quickstart
+
+### 1. Add Dependency
+
+In your Flutter project terminal, run:
 
 ```bash
 flutter pub add flutter_agentation
@@ -56,9 +73,9 @@ dependencies:
   flutter_agentation: ^0.1.0
 ```
 
-### Step 2: Wrap Your Application
+### 2. Wrap Your App
 
-In `lib/main.dart`, wrap your `MaterialApp` or `CupertinoApp` using the `FlutterAgentation.builder()` helper:
+In `lib/main.dart`, wrap your `MaterialApp` or `CupertinoApp` using `FlutterAgentation.builder()`:
 
 ```dart
 import 'package:flutter/material.dart';
@@ -75,7 +92,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'My App',
-      // Attach FlutterAgentation at the builder level to persist across all screens:
+      // Attach at the builder level to persist across all routes and modals:
       builder: FlutterAgentation.builder(),
       home: const HomeScreen(),
     );
@@ -83,56 +100,44 @@ class MyApp extends StatelessWidget {
 }
 ```
 
-*Tip: Wrapping at the `builder` level ensures the floating toolbar remains visible across all routes, modals, bottom sheets, and dialogs.*
+*Note: `debugOnly: true` is enabled by default. In release mode (`kDebugMode == false`), Flutter Agentation returns the child widget tree directly with zero performance overhead.*
 
-#### Automatic Release Mode Protection (`debugOnly`)
-By default, `debugOnly: true` is configured out of the box on both `FlutterAgentation` and `FlutterAgentation.builder()`. When your application is built for release or profile mode (`kDebugMode == false`), Flutter Agentation completely disables itself:
-- No inspection overlays or floating toolbars are rendered.
-- No keyboard shortcuts or background controllers are registered.
-- No network listeners or MCP servers are started.
-- Your app's widget tree is returned directly with zero performance overhead.
+### 3. Run the CLI Setup (`setupmcp`)
 
-You do **not** need to wrap your code in manual `if (kDebugMode)` checks. If you wish to test Agentation in a release build, set `debugOnly: false`.
-
-### Step 3: Run the MCP & Skill Setup Command (`setupmcp`)
-
-Run the `setupmcp` command in your workspace terminal:
+In your workspace root terminal, run:
 
 ```bash
 dart run flutter_agentation:setupmcp
 ```
 
 This single command sets up both MCP configuration and AI agent skills directly inside `.flutter_agentation/`:
-- `.flutter_agentation/mcp.json`: Universal MCP configuration ready for any agent.
+
+- `.flutter_agentation/mcp.json`: Universal MCP configuration for your IDE.
 - `.flutter_agentation/config.json`: Runtime port and endpoint metadata.
 - `.flutter_agentation/tools.json`: LLM tool schemas for inspection and annotation operations.
 - `.flutter_agentation/llm_instructions.md`: Ready-to-use prompt and system instructions for AI models.
-- `.flutter_agentation/SKILL.md`: Spec-Kit-style agent skill defining the inspection lifecycle.
-- `.flutter_agentation/commands/`: Slash commands for `/flutter-agentation-check-mcp` and `/flutter-agentation-review-feedback`.
+- `.flutter_agentation/SKILL.md`: Spec-Kit-style agent skill defining the feedback lifecycle.
+- `.flutter_agentation/commands/`: Pre-configured slash commands for agent chats.
 
-Everything is isolated entirely in `.flutter_agentation/` and registered into `.agents/skills/` for IDE discovery.
+Everything is isolated entirely in `.flutter_agentation/` and registered for IDE discovery.
 
-*(Note: `dart run flutter_agentation:setup_mcp` and `dart run flutter_agentation:setup` are also supported as aliases.)*
+### 4. Run App and Inspect
 
-### Step 4: Run Your App and Inspect
-
-Run your Flutter application on any platform (Web, Desktop, or Mobile):
+Run your Flutter application on any platform (Mobile, Desktop, or Web):
 
 ```bash
 flutter run
 ```
 
-A floating pill toolbar appears at the bottom of your screen. Click the target icon to inspect any widget, or use keyboard shortcut `Ctrl+Shift+A` (`Cmd+Shift+A` on macOS).
+A floating toolbar appears on your screen. Tap the crosshair icon or press `Ctrl+Shift+A` (`Cmd+Shift+A` on macOS) to begin inspecting widgets.
 
 ---
 
-## Working With AI Agents (The Spec-Kit Workflow)
+## Spec-Kit AI Agent Workflow
 
-Flutter Agentation provides a complete spec-driven workflow inspired by GitHub Spec-Kit. When you run `setupmcp`, your AI agent receives predefined slash commands and skill instructions so it instantly knows how to check connectivity, review visual feedback, find the right code, apply fixes, and update pins without any manual prompt drafting.
+Flutter Agentation provides a promptless workflow inspired by GitHub Spec-Kit. Once `setupmcp` is executed, your AI agent has predefined slash commands to inspect, navigate, and edit code autonomously.
 
 ### Available Slash Commands
-
-Once `setupmcp` is run, you can use these native Flutter Agentation slash commands directly in your AI coding agent chat:
 
 #### 1. `/flutter-agentation-check-mcp`
 Checks MCP connection status across all platforms and outputs diagnostic details:
@@ -140,7 +145,6 @@ Checks MCP connection status across all platforms and outputs diagnostic details
 ```bash
 /flutter-agentation-check-mcp
 ```
-*(Alias: `/check-mcp`)*
 
 Reports:
 - **Status**: Live & Connected (Toggle ON) or Inactive (Toggle OFF)
@@ -155,38 +159,21 @@ Directs your agent to review submitted visual annotations and apply code modific
 ```bash
 /flutter-agentation-review-feedback
 ```
-*(Aliases: `/review-feedback`, `/fix-feedback`, `/flutter-agentation-fix-feedback`)*
 
 When invoked, the agent executes the review lifecycle:
-1. **Fetch**: Retrieves submitted feedback pins with exact widget types, source locations (`lib/views/home.dart:42`), and user notes.
+1. **Fetch**: Retrieves submitted feedback pins with exact widget types, source locations (`lib/screens/home.dart:42`), and user notes.
 2. **Context**: Examines widget hierarchy, parent tree, comments, sketches, and severity.
 3. **Edit**: Opens the source file at the exact line number and applies the requested modifications.
 4. **Verify**: Flutter Hot Reload immediately reflects changes on the running device/browser.
 5. **Resolve**: Marks the issue resolved and immediately removes the pin from the running application.
 
-> **Draft Protection with Auto-Send OFF**: If Auto-Send is OFF and you haven't clicked the Send button (paper plane icon), the agent politely reminds you that you have draft annotations and asks you to submit them first, preventing unauthorized code changes.
-
 ---
 
-### Step-by-Step Interactive Flow
+## AI Agent IDE Setup
 
-1. Ensure your Flutter app is running (`flutter run`).
-2. Run `dart run flutter_agentation:setupmcp` to generate `.flutter_agentation/mcp.json` and agent skills.
-3. In your app, click any widget and write your feedback (for example: *"Make this button secondary style with 12px horizontal padding"*).
-4. Tap the **Send button** on the toolbar (or leave Auto-Send ON).
-5. In your AI agent chat, type:
-   ```
-   /flutter-agentation-review-feedback
-   ```
-6. Your agent queries the MCP server, navigates to the source code, applies the changes, hot reloads, and removes the pin.
+When you run `dart run flutter_agentation:setupmcp`, `.flutter_agentation/mcp.json` is generated automatically. To configure your editor manually:
 
----
-
-## Manual MCP Configuration
-
-If you prefer to configure your editor manually without using the CLI setup command, add the `flutter-agentation` server to your agent configuration file:
-
-### 1. Cursor IDE
+### Cursor IDE
 
 Add to `.cursor/mcp.json` in your project root:
 
@@ -200,7 +187,7 @@ Add to `.cursor/mcp.json` in your project root:
 }
 ```
 
-### 2. Windsurf IDE
+### Windsurf IDE
 
 Add to `.windsurf/mcp.json` in your project root, or globally in `~/.codeium/windsurf/mcp_config.json`:
 
@@ -214,12 +201,9 @@ Add to `.windsurf/mcp.json` in your project root, or globally in `~/.codeium/win
 }
 ```
 
-### 3. Claude Desktop
+### Claude Desktop
 
-Add to your `claude_desktop_config.json`:
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+Add to your `claude_desktop_config.json` (`%APPDATA%\Claude` on Windows, `~/Library/Application Support/Claude` on macOS):
 
 ```json
 {
@@ -231,7 +215,7 @@ Add to your `claude_desktop_config.json`:
 }
 ```
 
-### 4. VS Code (Cline, Roo Code, Continue)
+### VS Code (Cline, Roo Code, Continue)
 
 Add to `.vscode/mcp.json` in your project root:
 
@@ -245,7 +229,7 @@ Add to `.vscode/mcp.json` in your project root:
 }
 ```
 
-### 5. Claude Code CLI
+### Claude Code CLI
 
 Run in your terminal:
 
@@ -268,26 +252,9 @@ Your AI agent has access to 6 specialized inspection and control tools over the 
 | `clear_annotations` | None | Clears all annotations and drawings after the agent completes the code edit. |
 | `take_screenshot` | None | Captures a base64 PNG of the current screen so the agent can visually verify its own work. |
 
-### Customizing the MCP Port
-
-By default, the MCP server runs on port `4747`. To use a custom port (e.g. `4949`):
-
-CLI:
-```bash
-dart run flutter_agentation:setupmcp --port 4949 --agent=cursor
-```
-
-FlutterApp:
-```dart
-FlutterAgentation(
-  mcpPort: 4949,
-  child: child,
-)
-```
-
 ---
 
-## Platform Support & Connectivity
+## Target Platform Transports
 
 Flutter Agentation MCP server runs natively on all major operating systems:
 
@@ -296,28 +263,14 @@ Flutter Agentation MCP server runs natively on all major operating systems:
 | **Windows** | `flutter run -d windows` | Direct localhost (`http://127.0.0.1:4747/sse`) |
 | **Linux** | `flutter run -d linux` | Direct localhost (`http://127.0.0.1:4747/sse`) |
 | **macOS** | `flutter run -d macos` | Direct localhost (`http://127.0.0.1:4747/sse`) |
-| **Android (Emulator & Device)** | `flutter run -d <device>` | Forward port via ADB: `adb forward tcp:4747 tcp:4747` |
+| **Android (Device & Emulator)** | `flutter run -d <device>` | Forward port via ADB: `adb forward tcp:4747 tcp:4747` |
 | **iOS Simulator** | `flutter run -d <simulator>` | Direct localhost (`http://127.0.0.1:4747/sse`) |
 | **iOS Physical Device** | `flutter run -d <device>` | Connect via local Wi-Fi IP (`http://<device-ip>:4747/sse`) |
 | **Web (Chrome / Edge)** | `flutter run -d chrome` | Automated via MCP config (`command: dart run flutter_agentation:mcp`) |
 
-### Web (Chrome / Edge) Zero-Config Automation
-When you run `dart run flutter_agentation:setupmcp`, the generated `.flutter_agentation/mcp.json` automatically includes the bridge launch command:
-```json
-{
-  "mcpServers": {
-    "flutter-agentation": {
-      "command": "dart",
-      "args": ["run", "flutter_agentation:mcp", "--port", "4747"],
-      "url": "http://127.0.0.1:4747/sse"
-    }
-  }
-}
-```
-When your AI coding agent (Cursor, Claude Desktop, Antigravity, VS Code) connects, it launches the bridge process in the background automatically. You simply run your Flutter Web app (`flutter run -d chrome`), and it syncs annotations immediately with no extra terminal commands.
+### Android ADB Port Forwarding
 
-### Android Setup Tip
-When running on Android (emulator or physical phone over USB), run this once in your terminal so your desktop AI agent can reach the Android app:
+When running on Android (emulator or physical phone over USB), run this command once in your terminal so your desktop AI agent can reach the Android app:
 
 ```bash
 adb forward tcp:4747 tcp:4747
@@ -325,13 +278,32 @@ adb forward tcp:4747 tcp:4747
 
 *(This is also configured automatically if ADB is detected when you run `dart run flutter_agentation:setupmcp`.)*
 
+### Customizing the MCP Port
+
+By default, the MCP server runs on port `4747`. To use a custom port (e.g. `4848`):
+
+In terminal:
+```bash
+dart run flutter_agentation:setupmcp --port 4848
+```
+
+In code:
+```dart
+FlutterAgentation(
+  mcpPort: 4848,
+  child: child,
+)
+```
+
+---
+
 ## Webhooks Flow
 
 If your team uses automated pipelines, Slack notifications, or custom agent proxies, you can configure webhooks to push annotations instantly.
 
 ### Setting Up Webhooks
 
-#### Option A: In Code
+#### In Code
 ```dart
 FlutterAgentation(
   webhookUrl: 'https://your-server.com/api/agentation-webhook',
@@ -340,7 +312,7 @@ FlutterAgentation(
 )
 ```
 
-#### Option B: In the In-App Toolbar
+#### In the In-App Toolbar
 1. Tap the gear icon on the floating toolbar to open **Settings**.
 2. Tap **Manage MCP & Webhooks**.
 3. Paste your Webhook URL.
@@ -378,7 +350,7 @@ When an annotation is submitted, an HTTP `POST` request is sent with `Content-Ty
 
 ---
 
-## In-App Toolbar & Interaction Modes
+## In-App Toolbar Modes
 
 The floating toolbar gives you five inspection modes:
 
@@ -391,10 +363,9 @@ The floating toolbar gives you five inspection modes:
 4. **Freehand Drawing (Pen Icon)**:
    Draw directly over your UI to highlight alignment issues, circle glitches, or sketch arrows.
 5. **Visual Design Mode (Palette Icon)**:
-   - Drag skeleton wireframe components (Button, Input, Card, Text, Avatar, Image) onto your app.
-   - Drag and reposition existing widgets on screen to generate coordinate delta diffs for your agent.
-6. **Animation Freeze Controller (Pause/Play Icon)**:
-   Freezes running tickers, transitions, and loaders using Flutter's native `TickerMode`. Inspect transient snackbars, dialogs, and animations without them closing or disappearing.
+   Drag skeleton wireframe components (Button, Input, Card, Text, Avatar, Image) onto your live app, or reposition existing widgets to generate coordinate delta diffs for your agent.
+6. **Animation Freeze (Pause/Play Icon)**:
+   Freezes running tickers, transitions, and loaders using Flutter native `TickerMode`. Inspect transient snackbars, dialogs, and animations without them closing.
 
 ---
 
@@ -402,48 +373,34 @@ The floating toolbar gives you five inspection modes:
 
 Click the detail level pill on the toolbar to cycle between 4 formats:
 
-- **Compact**: Essential summary (Widget type + your comment).
+- **Compact**: Essential summary (Widget type + comment).
 - **Standard**: Clean report with key attributes, coordinates, and comment.
 - **Detailed**: Comprehensive report with parent breadcrumbs, padding, constraints, and source file locations.
 - **Forensic**: Full debugging tree payload with all ancestor elements, identifying attributes, and raw metrics.
 
-When you click **Copy**, the formatted markdown is copied to your clipboard, ready to paste into any chat if you are not using the direct MCP connection.
+When you click **Copy**, formatted markdown is copied to your clipboard, ready to paste into any chat if you are not using the direct MCP connection.
 
 ---
 
-## Production Best Practice (Debug Only)
+## Keyboard Shortcuts
 
-To ensure Flutter Agentation is only active during development and never included in release builds, configure it conditionally using `kDebugMode`:
-
-```dart
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_agentation/flutter_agentation.dart';
-
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'My App',
-      builder: (context, child) {
-        if (!kDebugMode) {
-          return child ?? const SizedBox.shrink();
-        }
-        return FlutterAgentation(
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
-      home: const HomeScreen(),
-    );
-  }
-}
-```
+| Shortcut | Action |
+|---|---|
+| `Ctrl+Shift+A` / `Cmd+Shift+A` | Toggle Agentation inspection mode |
+| `Ctrl+Shift+F` / `Cmd+Shift+F` | Toggle feedback overlay |
+| `Alt+I` | Toggle inspect mode |
+| `L` | Toggle layout wireframing palette |
+| `P` | Pause / freeze running animations |
+| `H` / `Alt+V` | Toggle comments & markers visibility |
+| `C` | Copy annotations as Markdown to clipboard |
+| `S` | Submit draft annotations to agent transport |
+| `X` | Clear all annotations |
+| `Delete` / `Backspace` | Delete selected feedback pin or skeleton |
+| `Ctrl+Enter` / `Cmd+Enter` | Submit active annotation modal |
+| `Escape` | Close active dialog / clear selection |
+| `Ctrl+Z` / `Cmd+Z` | Undo last action |
+| `Ctrl+Shift+Z` / `Cmd+Y` | Redo last action |
+| `Arrow Keys` | Nudge selected marker position |
 
 ---
 
@@ -486,35 +443,20 @@ controller.stateNotifier.addListener(() {
 
 ---
 
-## Keyboard Shortcuts
+## Example Project
 
-| Shortcut | Action |
-|---|---|
-| `Ctrl+Shift+A` / `Cmd+Shift+A` | Toggle Agentation inspection mode |
-| `Escape` | Cancel current selection / close active dialog |
-| `Ctrl+Z` / `Cmd+Z` | Undo last annotation or drawing stroke |
-| `Ctrl+Shift+Z` / `Cmd+Shift+Z` | Redo last action |
+The `example/` folder contains a full demonstration app featuring an unboxed, editorial minimalist landing page and an interactive target playground with live counter, controls, and telemetry inspector.
 
----
+To run the example:
 
-## Troubleshooting & FAQ
-
-#### The MCP server cannot connect or port 4747 is already in use
-Run the setup command with a custom port:
 ```bash
-dart run flutter_agentation:setup --port 4848
+cd example
+flutter run
 ```
-And specify `mcpPort: 4848` in your `FlutterAgentation` widget.
-
-#### Source code locations show line numbers but file names are missing
-Ensure you are running in debug mode (`flutter run` without `--release`). Flutter's widget inspector metadata is available in debug mode.
-
-#### The floating toolbar covers an important button in my app
-The toolbar is draggable. Long-press or drag the grip handle to reposition it anywhere on your screen. You can also minimize it into a small circle by tapping the minimize button.
 
 ---
 
-## Contributing & Testing
+## Verification & Testing
 
 Run the test suite and analyzer:
 
