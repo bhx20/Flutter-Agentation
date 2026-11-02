@@ -1,8 +1,8 @@
 # Flutter Agentation
 
-[![pub package](https://img.shields.io/pub/v/flutter_agentation.svg)](https://pub.dev/packages/flutter_agentation)
-[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://pub.dev/packages/flutter_agentation/license)
-[![platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS%20%7C%20Web%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](https://pub.dev/packages/flutter_agentation)
+[![Pub](https://img.shields.io/pub/v/flutter_agentation.svg?label=Pub)](https://pub.dev/packages/flutter_agentation)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://pub.dev/packages/flutter_agentation/license)
+[![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux-lightgrey.svg)](https://pub.dev/packages/flutter_agentation)
 
 A developer-first visual inspection, layout wireframing, and Model Context Protocol (MCP) context engine for Flutter applications.
 
