@@ -12,4 +12,7 @@ build/
 *.iml
 .idea/
 .vscode/
+example/web/
+example/.metadata
+
 
