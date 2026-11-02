@@ -1,3 +1,5 @@
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_agentation/flutter_agentation.dart';
@@ -21,7 +23,6 @@ class AgentationExampleApp extends StatelessWidget {
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFF6366F1),
           surface: Color(0xFF0F172A),
-          onSurface: Colors.white,
         ),
         useMaterial3: true,
       ),
@@ -33,7 +34,7 @@ class AgentationExampleApp extends StatelessWidget {
   }
 }
 
-/// Rich, eye-catching, content-complete showcase landing page for Flutter Agentation.
+/// Rich, eye-catching, full-width showcase landing page for Flutter Agentation.
 class RichEyeCatchingLandingPage extends StatefulWidget {
   const RichEyeCatchingLandingPage({super.key});
 
@@ -126,63 +127,62 @@ class _RichEyeCatchingLandingPageState
             ),
           ),
 
-          // ── Scrollable Page Content ──
+          // ── Scrollable Page Content (Spans Full Width) ──
           SafeArea(
             child: SingleChildScrollView(
               padding: EdgeInsets.symmetric(
-                horizontal: isCompact ? 20 : 36,
+                horizontal: isCompact ? 16 : 32,
                 vertical: 24,
               ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 960),
-                  child: Column(
-                    children: [
-                      // ── Top Navigation Bar ──
-                      _buildNavBar(),
-                      const SizedBox(height: 54),
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // ── Top Navigation Bar ──
+                    _buildNavBar(isCompact),
+                    const SizedBox(height: 44),
 
-                      // ── Hero Section ──
-                      _buildHeroSection(),
-                      const SizedBox(height: 40),
+                    // ── Hero Section ──
+                    _buildHeroSection(),
+                    const SizedBox(height: 36),
 
-                      // ── Hero Quick Metrics Strip ──
-                      _buildMetricsStrip(isCompact),
-                      const SizedBox(height: 52),
+                    // ── Hero Quick Metrics Strip ──
+                    _buildMetricsStrip(isCompact),
+                    const SizedBox(height: 48),
 
-                      // ── Section 1: Interactive Live Playground (Live Targets) ──
-                      _buildPlaygroundSection(isCompact),
-                      const SizedBox(height: 64),
+                    // ── Section 1: Interactive Live Playground (Live Targets) ──
+                    _buildPlaygroundSection(isCompact),
+                    const SizedBox(height: 56),
 
-                      // ── Section 2: Complete Package Capabilities Grid ──
-                      _buildFeaturesSection(isCompact),
-                      const SizedBox(height: 64),
+                    // ── Section 2: Complete Package Capabilities Grid ──
+                    _buildFeaturesSection(isCompact),
+                    const SizedBox(height: 56),
 
-                      // ── Section 3: Supported AI Coding Agents & IDEs ──
-                      _buildSupportedAgentsSection(isCompact),
-                      const SizedBox(height: 64),
+                    // ── Section 3: Supported AI Coding Agents & IDEs ──
+                    _buildSupportedAgentsSection(isCompact),
+                    const SizedBox(height: 56),
 
-                      // ── Section 4: Multi-Platform Architecture Breakdown ──
-                      _buildPlatformArchitectureSection(isCompact),
-                      const SizedBox(height: 64),
+                    // ── Section 4: Multi-Platform Architecture Breakdown ──
+                    _buildPlatformArchitectureSection(isCompact),
+                    const SizedBox(height: 56),
 
-                      // ── Section 5: Spec-Kit AI Agent Workflow ──
-                      _buildWorkflowSection(isCompact),
-                      const SizedBox(height: 64),
+                    // ── Section 5: Spec-Kit AI Agent Workflow ──
+                    _buildWorkflowSection(isCompact),
+                    const SizedBox(height: 56),
 
-                      // ── Section 6: Built-in Keyboard Shortcuts Cheat Sheet ──
-                      _buildKeymapCheatSheet(isCompact),
-                      const SizedBox(height: 64),
+                    // ── Section 6: Built-in Keyboard Shortcuts Cheat Sheet ──
+                    _buildKeymapCheatSheet(isCompact),
+                    const SizedBox(height: 56),
 
-                      // ── Section 7: Community Endorsement Quote ──
-                      _buildTestimonialSection(),
-                      const SizedBox(height: 70),
+                    // ── Section 7: Community Endorsement Quote ──
+                    _buildTestimonialSection(),
+                    const SizedBox(height: 60),
 
-                      // ── Section 8: Minimalist Production Footer ──
-                      _buildFooter(isCompact),
-                      const SizedBox(height: 40),
-                    ],
-                  ),
+                    // ── Section 8: Minimalist Production Footer ──
+                    _buildFooter(isCompact),
+                    const SizedBox(height: 32),
+                  ],
                 ),
               ),
             ),
@@ -193,84 +193,115 @@ class _RichEyeCatchingLandingPageState
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // TOP NAVIGATION BAR
+  // TOP NAVIGATION BAR (FULL WIDTH)
   // ─────────────────────────────────────────────────────────────────────────
 
-  Widget _buildNavBar() {
+  Widget _buildNavBar(bool isCompact) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A).withAlpha(160),
-        borderRadius: BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withAlpha(20)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: const BoxDecoration(
-              color: Color(0xFF6366F1),
-              shape: BoxShape.circle,
+      child: isCompact
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildBrandLogo(),
+                    _buildCliQuickCopy(),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildBrandLogo(),
+                _buildCliQuickCopy(),
+              ],
             ),
-            child: const Icon(
-              Icons.track_changes_rounded,
-              color: Colors.white,
-              size: 15,
-            ),
+    );
+  }
+
+  Widget _buildBrandLogo() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: const BoxDecoration(
+            color: Color(0xFF6366F1),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(width: 10),
-          const Text(
-            'Agentation',
+          child: const Icon(
+            Icons.track_changes_rounded,
+            color: Colors.white,
+            size: 16,
+          ),
+        ),
+        const SizedBox(width: 10),
+        const Text(
+          'Flutter Agentation',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0x266366F1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Text(
+            'v0.1.0',
             style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              letterSpacing: -0.3,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF818CF8),
             ),
           ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-            decoration: BoxDecoration(
-              color: const Color(0x266366F1),
-              borderRadius: BorderRadius.circular(10),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCliQuickCopy() {
+    return InkWell(
+      onTap: () => _copyCommand('dart run flutter_agentation:setupmcp'),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withAlpha(12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withAlpha(20)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.terminal_rounded,
+              size: 14,
+              color: Color(0xFF818CF8),
             ),
-            child: const Text(
-              'v0.1.0',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF818CF8),
+            const SizedBox(width: 8),
+            Text(
+              _copied ? 'Copied' : 'dart run flutter_agentation:setupmcp',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFFCBD5E1),
               ),
             ),
-          ),
-          const SizedBox(width: 18),
-          InkWell(
-            onTap: () => _copyCommand('dart run flutter_agentation:setupmcp'),
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withAlpha(12),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.terminal_rounded,
-                    size: 13,
-                    color: Color(0xFF818CF8),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    _copied ? 'Copied' : 'CLI Setup',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -281,6 +312,7 @@ class _RichEyeCatchingLandingPageState
 
   Widget _buildHeroSection() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // Glowing status pill
         Container(
@@ -320,27 +352,24 @@ class _RichEyeCatchingLandingPageState
           'Visual Feedback for Flutter & AI Coding Agents',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 42,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -1.5,
-            height: 1.15,
+            fontSize: 38,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+            height: 1.2,
             color: Colors.white,
           ),
         ),
         const SizedBox(height: 16),
 
         // Subtitle
-        ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 680),
-          child: const Text(
-            'Directly inspect live widget hierarchies, drop precision feedback pins, wireframe layout changes, '
-            'and stream exact source code locations into Cursor, Claude, Windsurf, or Antigravity via MCP.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              height: 1.6,
-              color: Color(0xFF94A3B8),
-            ),
+        const Text(
+          'Directly inspect live widget hierarchies, drop precision feedback pins, wireframe layout changes, '
+          'and stream exact source code locations into Cursor, Claude, Windsurf, or Antigravity via MCP.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 16,
+            height: 1.6,
+            color: Color(0xFF94A3B8),
           ),
         ),
         const SizedBox(height: 28),
@@ -368,7 +397,6 @@ class _RichEyeCatchingLandingPageState
                 const Text(
                   'dart run flutter_agentation:setupmcp',
                   style: TextStyle(
-                    fontFamily: 'monospace',
                     fontSize: 13,
                     color: Color(0xFFE2E8F0),
                     fontWeight: FontWeight.w600,
@@ -403,7 +431,7 @@ class _RichEyeCatchingLandingPageState
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // QUICK METRICS STRIP
+  // QUICK METRICS STRIP (FULL WIDTH)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildMetricsStrip(bool isCompact) {
@@ -415,7 +443,8 @@ class _RichEyeCatchingLandingPageState
     ];
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
         color: const Color(0xFF0B101D),
         borderRadius: BorderRadius.circular(14),
@@ -456,7 +485,7 @@ class _RichEyeCatchingLandingPageState
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // INTERACTIVE LIVE PLAYGROUND
+  // INTERACTIVE LIVE PLAYGROUND (FULL WIDTH)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildPlaygroundSection(bool isCompact) {
@@ -479,6 +508,7 @@ class _RichEyeCatchingLandingPageState
         const SizedBox(height: 20),
 
         Container(
+          width: double.infinity,
           decoration: BoxDecoration(
             color: const Color(0xFF0F172A).withAlpha(180),
             borderRadius: BorderRadius.circular(20),
@@ -513,8 +543,8 @@ class _RichEyeCatchingLandingPageState
                       child: const Text(
                         '<LiveTargetHarness>',
                         style: TextStyle(
-                          fontFamily: 'monospace',
                           fontSize: 11,
+                          fontWeight: FontWeight.w600,
                           color: Color(0xFF818CF8),
                         ),
                       ),
@@ -676,8 +706,7 @@ class _RichEyeCatchingLandingPageState
               Text(
                 'Agent Telemetry Readout',
                 style: TextStyle(
-                  fontSize: 11,
-                  fontFamily: 'monospace',
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF10B981),
                 ),
@@ -701,7 +730,7 @@ class _RichEyeCatchingLandingPageState
               'Zero overhead in release builds',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF10B981),
               ),
@@ -721,16 +750,14 @@ class _RichEyeCatchingLandingPageState
           Text(
             label,
             style: const TextStyle(
-              fontSize: 11,
-              fontFamily: 'monospace',
+              fontSize: 12,
               color: Color(0xFF64748B),
             ),
           ),
           Text(
             value,
             style: const TextStyle(
-              fontSize: 11,
-              fontFamily: 'monospace',
+              fontSize: 12,
               color: Color(0xFFCBD5E1),
               fontWeight: FontWeight.w500,
             ),
@@ -797,13 +824,20 @@ class _RichEyeCatchingLandingPageState
         const SizedBox(height: 24),
         LayoutBuilder(
           builder: (context, constraints) {
-            final isWide = constraints.maxWidth > 700;
+            int columns = 1;
+            if (constraints.maxWidth > 1100) {
+              columns = 3;
+            } else if (constraints.maxWidth > 650) {
+              columns = 2;
+            }
+            final spacing = 16.0;
+            final itemWidth = (constraints.maxWidth - (columns - 1) * spacing) / columns;
             return Wrap(
-              spacing: 16,
-              runSpacing: 16,
+              spacing: spacing,
+              runSpacing: spacing,
               children: features.asMap().entries.map((entry) {
                 return SizedBox(
-                  width: isWide ? (constraints.maxWidth - 32) / 3 : constraints.maxWidth,
+                  width: itemWidth,
                   child: _buildFeatureCard(entry.key, entry.value),
                 );
               }).toList(),
@@ -872,7 +906,7 @@ class _RichEyeCatchingLandingPageState
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SUPPORTED AI AGENTS & INTEGRATIONS
+  // SUPPORTED AI AGENTS & INTEGRATIONS (FULL WIDTH)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildSupportedAgentsSection(bool isCompact) {
@@ -885,6 +919,7 @@ class _RichEyeCatchingLandingPageState
     ];
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A).withAlpha(140),
@@ -948,7 +983,7 @@ class _RichEyeCatchingLandingPageState
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // MULTI-PLATFORM ARCHITECTURE
+  // MULTI-PLATFORM ARCHITECTURE (FULL WIDTH)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildPlatformArchitectureSection(bool isCompact) {
@@ -979,6 +1014,7 @@ class _RichEyeCatchingLandingPageState
         Column(
           children: platforms.map((p) {
             return Container(
+              width: double.infinity,
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -1010,7 +1046,7 @@ class _RichEyeCatchingLandingPageState
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SPEC-KIT AI AGENT WORKFLOW
+  // SPEC-KIT AI AGENT WORKFLOW (FULL WIDTH)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildWorkflowSection(bool isCompact) {
@@ -1062,21 +1098,29 @@ class _RichEyeCatchingLandingPageState
             style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
           ),
           const SizedBox(height: 22),
-          isCompact
-              ? Column(
-                  children: steps.map((s) => Padding(
-                    padding: const EdgeInsets.only(bottom: 14.0),
-                    child: _buildWorkflowStepCard(s),
-                  )).toList(),
-                )
-              : Row(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 800;
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: steps.map((s) => Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 6.0),
                       child: _buildWorkflowStepCard(s),
                     ),
                   )).toList(),
-                ),
+                );
+              } else {
+                return Column(
+                  children: steps.map((s) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14.0),
+                    child: _buildWorkflowStepCard(s),
+                  )).toList(),
+                );
+              }
+            },
+          ),
         ],
       ),
     );
@@ -1086,6 +1130,7 @@ class _RichEyeCatchingLandingPageState
     ({String command, String description, String step, String title}) s,
   ) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF090D16),
@@ -1099,7 +1144,7 @@ class _RichEyeCatchingLandingPageState
             s.step,
             style: TextStyle(
               fontSize: 22,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.bold,
               color: const Color(0xFF6366F1).withAlpha(100),
             ),
           ),
@@ -1116,8 +1161,7 @@ class _RichEyeCatchingLandingPageState
             child: Text(
               s.command,
               style: const TextStyle(
-                fontFamily: 'monospace',
-                fontSize: 10,
+                fontSize: 11,
                 color: Color(0xFF818CF8),
                 fontWeight: FontWeight.w600,
               ),
@@ -1134,7 +1178,7 @@ class _RichEyeCatchingLandingPageState
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // KEYBOARD SHORTCUTS CHEAT SHEET
+  // KEYBOARD SHORTCUTS CHEAT SHEET (FULL WIDTH)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildKeymapCheatSheet(bool isCompact) {
@@ -1148,6 +1192,7 @@ class _RichEyeCatchingLandingPageState
     ];
 
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A).withAlpha(140),
@@ -1196,8 +1241,7 @@ class _RichEyeCatchingLandingPageState
                       child: Text(
                         s.key,
                         style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFFCBD5E1),
                         ),
@@ -1216,11 +1260,12 @@ class _RichEyeCatchingLandingPageState
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // COMMUNITY TESTIMONIAL
+  // COMMUNITY TESTIMONIAL (FULL WIDTH)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildTestimonialSection() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
       decoration: BoxDecoration(
         color: const Color(0xFF0A0F1D),
@@ -1270,28 +1315,31 @@ class _RichEyeCatchingLandingPageState
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // MINIMALIST FOOTER
+  // MINIMALIST FOOTER (FULL WIDTH)
   // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildFooter(bool isCompact) {
-    return Column(
-      children: [
-        const Divider(color: Color(0xFF1E293B), height: 1),
-        const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
-            Text(
-              'Flutter Agentation v0.1.0',
-              style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
-            ),
-            Text(
-              'Published under MIT License • Flutter 3.16+',
-              style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
-            ),
-          ],
-        ),
-      ],
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        children: [
+          const Divider(color: Color(0xFF1E293B), height: 1),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text(
+                'Flutter Agentation v0.1.0',
+                style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+              ),
+              Text(
+                'Published under MIT License • Flutter 3.16+',
+                style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
