@@ -84,6 +84,57 @@ void main() {
       expect(controller.activeAnnotation, isNull);
       expect(notifies, equals(2));
     });
+
+    test('autoSendMcp=false keeps annotations as unsent drafts until submitAnnotations', () async {
+      final storage = MemoryAnnotationStorage();
+      final controller = AgentationController(storage: storage);
+      controller.updateSettings(
+        controller.settings.copyWith(mcpEnabled: true, autoSendMcp: false),
+      );
+
+      const dummyResult = WidgetInspectionResult(
+        identity: WidgetIdentity(id: 'btn_unsent', widgetType: 'ElevatedButton'),
+        bounds: WidgetBounds(x: 10, y: 20, width: 100, height: 40),
+        context: WidgetContext.empty(),
+        ancestors: ['ElevatedButton'],
+      );
+      controller.selectResult(dummyResult);
+
+      final annotation = await controller.createAnnotation(comment: 'Draft feedback');
+      expect(annotation.isSubmitted, isFalse);
+      expect(controller.unsentAnnotations.length, equals(1));
+      expect(controller.submittedAnnotations, isEmpty);
+      expect(controller.canSend, isTrue);
+
+      final submitted = await controller.submitAnnotations();
+      expect(submitted, isTrue);
+      expect(controller.unsentAnnotations, isEmpty);
+      expect(controller.submittedAnnotations.length, equals(1));
+      expect(controller.submittedAnnotations.first.id, equals(annotation.id));
+      expect(controller.submittedAnnotations.first.isSubmitted, isTrue);
+    });
+
+    test('autoSendMcp=true automatically submits created annotations', () async {
+      final storage = MemoryAnnotationStorage();
+      final controller = AgentationController(storage: storage);
+      controller.updateSettings(
+        controller.settings.copyWith(mcpEnabled: true, autoSendMcp: true),
+      );
+
+      const dummyResult = WidgetInspectionResult(
+        identity: WidgetIdentity(id: 'btn_auto', widgetType: 'ElevatedButton'),
+        bounds: WidgetBounds(x: 10, y: 20, width: 100, height: 40),
+        context: WidgetContext.empty(),
+        ancestors: ['ElevatedButton'],
+      );
+      controller.selectResult(dummyResult);
+
+      final annotation = await controller.createAnnotation(comment: 'Auto-sent feedback');
+      expect(annotation.isSubmitted, isTrue);
+      expect(controller.unsentAnnotations, isEmpty);
+      expect(controller.submittedAnnotations.length, equals(1));
+      expect(controller.canSend, isFalse);
+    });
   });
 }
 

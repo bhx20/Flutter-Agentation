@@ -428,7 +428,20 @@ class AgentationController extends ChangeNotifier {
     final oldWebhook = _state.settings.webhookUrl;
     final oldMcpEnabled = _state.settings.mcpEnabled;
     final oldMcpPort = _state.settings.mcpPort;
+    final oldAutoSendMcp = _state.settings.autoSendMcp;
     _state = _state.copyWith(settings: settings);
+
+    if (settings.autoSendMcp && !oldAutoSendMcp) {
+      _annotations = _annotations.map((a) {
+        if (a.status != AnnotationStatus.resolved &&
+            a.status != AnnotationStatus.rejected) {
+          return a.copyWith(isSubmitted: true);
+        }
+        return a;
+      }).toList();
+      for (final a in _annotations) { _storage.save(a); }
+      _mcpServer.broadcastUpdate();
+    }
 
     if (settings.mcpEnabled != oldMcpEnabled ||
         settings.mcpPort != oldMcpPort) {
@@ -855,6 +868,7 @@ class AgentationController extends ChangeNotifier {
               : null),
       thread: thread ?? const [],
       isFixed: resolvedIsFixed,
+      isSubmitted: _state.settings.autoSendMcp,
       scrollY: resolvedScrollY,
       scrollX: resolvedScrollX,
       tapPosition: resolvedTapPosition,
@@ -1265,6 +1279,24 @@ class AgentationController extends ChangeNotifier {
   bool get canSend =>
       _state.settings.mcpEnabled && !_state.settings.autoSendMcp;
 
+  /// Active annotations that have been submitted/sent to MCP / AI coding agents.
+  /// When `autoSendMcp` is true, all pending annotations are immediately included.
+  /// When `autoSendMcp` is false, only annotations explicitly submitted via the Send button are included.
+  List<Annotation> get submittedAnnotations => _annotations
+      .where((a) =>
+          a.status != AnnotationStatus.resolved &&
+          a.status != AnnotationStatus.rejected &&
+          (_state.settings.autoSendMcp || a.isSubmitted))
+      .toList();
+
+  /// Annotations that have not yet been submitted to MCP / AI coding agents.
+  List<Annotation> get unsentAnnotations => _annotations
+      .where((a) =>
+          a.status != AnnotationStatus.resolved &&
+          a.status != AnnotationStatus.rejected &&
+          !a.isSubmitted)
+      .toList();
+
   bool get _hasWebhookTarget {
     final webhook = _state.settings.webhookUrl ?? _syncClient?.webhookUrl;
     return webhook != null && webhook.isNotEmpty;
@@ -1273,6 +1305,19 @@ class AgentationController extends ChangeNotifier {
   /// Sends formatted annotations to configured `onSubmit` callback, agent MCP, or webhooks.
   Future<bool> submitAnnotations() async {
     if (_annotations.isEmpty) return false;
+
+    // Mark active pending annotations as submitted
+    _annotations = _annotations.map((a) {
+      if (a.status != AnnotationStatus.resolved &&
+          a.status != AnnotationStatus.rejected) {
+        return a.copyWith(isSubmitted: true);
+      }
+      return a;
+    }).toList();
+    for (final a in _annotations) {
+      await _storage.save(a);
+    }
+    notifyListeners();
 
     const exporter = ClipboardExporter();
     final output = exporter.formatAnnotations(

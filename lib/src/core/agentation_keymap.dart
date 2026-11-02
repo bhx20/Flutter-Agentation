@@ -424,7 +424,7 @@ class _AgentationShortcutsState extends State<AgentationShortcuts> {
         key.keyLabel.toLowerCase() == 's' ||
         (event.character != null && event.character!.toLowerCase() == 's');
     if (isKeyS) {
-      if (ctrl.annotations.isNotEmpty && ctrl.canSend) {
+      if (ctrl.unsentAnnotations.isNotEmpty && ctrl.canSend) {
         ctrl.submitAnnotations();
         return _markHandled();
       }

@@ -433,14 +433,18 @@ Display:
 ### Case C: If MCP is Live & Toggled ON (`status == "connected"` or `appMcpEnabled == true`):
 Display a structured status card:
 - **Status**: Live & Connected (Toggle is ON - Green Dot Active)
+- **Auto-Send**: `<autoSendMcp>` (ON: auto-sent / OFF: manual send)
 - **Port**: $port
 - **SSE Transport**: `http://127.0.0.1:$port/sse`
 - **HTTP / MCP Transport**: `http://127.0.0.1:$port/mcp`
 - **Connected Clients**: `<connectedClientsCount>`
 - **Active Route**: `<route>` (if available)
 - **Theme Mode**: `<themeMode>`
-- **Pending Annotations**: `<annotationsCount>` feedback pins ready for review
-- **Next Step**: Run `/flutter-agentation-review-feedback` to review and implement code fixes.
+- **Submitted Annotations (Ready for Agent)**: `<submittedCount>` feedback pins
+- **Draft Pins (Unsent in App)**: `<unsentCount>` pins waiting to be sent
+- **Next Step**:
+  - If `<submittedCount> > 0`: Run `/flutter-agentation-review-feedback` to review and implement code fixes.
+  - If `<submittedCount> == 0 && <unsentCount> > 0`: Tap the **Send button** (paper plane icon with badge `<unsentCount>`) on the floating toolbar or press **S** to submit your feedback to the agent!
 
 ### Case D: If MCP Server Cannot Be Reached (Connection Refused or Timeout):
 Display:
@@ -490,13 +494,26 @@ Attempt the following retrieval methods in priority order until annotations are 
 ## STEP 2: HANDLE RESULTS
 
 ### If No Pending Annotations Are Found (count == 0 or empty list):
-Output ONLY the following message and stop immediately (do NOT explore repo files):
+Check if there are unsent draft annotations in the response (`unsentCount > 0`):
+If `unsentCount > 0`:
+Output ONLY the following message and stop immediately (do NOT modify code without permission):
+> **No submitted feedback annotations found.**
+>
+> You currently have **`<unsentCount>` draft annotations** in your running app, but **Auto-Send is OFF** and you have not submitted them to the agent yet.
+>
+> **How to Submit:**
+> 1. In your running Flutter app, tap the **Send button** (paper plane icon with badge `<unsentCount>` on the floating toolbar) or press **S**.
+> 2. Once submitted, run `/flutter-agentation-review-feedback` again and the agent will implement your requested changes.
+> *(Tip: If you want all feedback sent automatically without manually clicking Send, open Settings > Manage MCP & Webhooks and turn ON Auto-Send).*
+
+Otherwise (both count == 0 and unsentCount == 0):
+Output ONLY the following message and stop immediately:
 > **No pending visual feedback annotations found.**
 >
 > 1. Ensure your Flutter app is running (`flutter run`).
-> 2. Ensure Agent Sync / MCP is toggled ON (the gear icon on the Flutter Agentation toolbar shows a green dot, or pass `enableMcp: true`).
-> 3. Check connection with `/flutter-agentation-check-mcp`.
-> 4. Click on any widget in your app and add your feedback note.
+> 2. Ensure MCP Connection is toggled ON in your app toolbar.
+> 3. Click on any widget in your app and add your feedback note.
+> 4. If Auto-Send is OFF, tap the Send button (paper plane icon) to submit.
 > 5. Run `/flutter-agentation-review-feedback` again.
 
 ### If Pending Annotations Are Found:

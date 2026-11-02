@@ -129,7 +129,7 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
   }
 
   Future<void> _onSend(AgentationController controller) async {
-    final count = controller.annotations.where((a) => a.status != AnnotationStatus.resolved && a.status != AnnotationStatus.rejected).length;
+    final count = controller.unsentAnnotations.length;
     if (count == 0 || !controller.canSend || _sendStateNotifier.value == 'sending') {
       return;
     }
@@ -661,14 +661,14 @@ class _AgentationToolbarState extends State<AgentationToolbar> {
                                               : (hasAnnotations ? iconColor : theme.iconInactiveColor),
                                           state: sendState,
                                         ),
-                                        badgeCount: (hasAnnotations && sendState == 'idle') ? count : null,
+                                        badgeCount: (controller.unsentAnnotations.isNotEmpty && sendState == 'idle') ? controller.unsentAnnotations.length : null,
                                         tooltipLabel: 'Send Annotations',
                                         tooltipShortcut: controller.enableKeyboardShortcuts ? 'S' : null,
                                         isActive: sendState == 'sent' || sendState == 'failed',
                                         activeColor: sendState == 'sent'
                                             ? theme.successColor.withValues(alpha: 0.15)
                                             : theme.destructiveColor.withValues(alpha: 0.15),
-                                        isEnabled: hasAnnotations && canSend && sendState != 'sending',
+                                        isEnabled: controller.unsentAnnotations.isNotEmpty && canSend && sendState != 'sending',
                                         preferBelow: isNearTop,
                                         isDark: theme.isDark,
                                         theme: theme,

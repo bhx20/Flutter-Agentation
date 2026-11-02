@@ -360,14 +360,18 @@ class FlutterMcpServer {
     final status = {
       'server': McpProtocol.serverName,
       'version': McpProtocol.serverVersion,
-      'status': mcpEnabled ? 'connected' : 'disabled',
+      'status': 'running',
+      'connectionStatus': mcpEnabled ? 'connected' : 'disabled',
       'statusMessage': mcpEnabled ? 'Live & Connected' : 'MCP Connection is toggled OFF in the Flutter app',
       'mcpConnected': mcpEnabled,
       'appMcpEnabled': mcpEnabled,
       'port': _port,
       'sseUrl': sseUrl,
       'httpUrl': httpUrl,
-      'activeAnnotations': controller.annotations.length,
+      'activeAnnotations': controller.submittedAnnotations.length,
+      'submittedCount': controller.submittedAnnotations.length,
+      'unsentCount': controller.unsentAnnotations.length,
+      'autoSendMcp': controller.settings.autoSendMcp,
       'connectedClients': _sseClients.length,
       'webhooksConfigured': webhookUrl != null && webhookUrl.isNotEmpty,
       'autoSendWebhook': controller.settings.autoSendWebhook,
@@ -533,8 +537,7 @@ class FlutterMcpServer {
   }
 
   Future<void> _handleGetPending(HttpRequest request, String sessionId) async {
-    final pending = controller.annotations
-        .where((a) => a.status != AnnotationStatus.resolved && a.status != AnnotationStatus.rejected)
+    final pending = controller.submittedAnnotations
         .where((a) => a.sessionId == null || a.sessionId == sessionId)
         .map((a) => a.toJson())
         .toList();
@@ -542,18 +545,23 @@ class FlutterMcpServer {
     _sendJson(request.response, HttpStatus.ok, {
       'count': pending.length,
       'annotations': pending,
+      'submittedCount': pending.length,
+      'unsentCount': controller.unsentAnnotations.length,
+      'autoSendMcp': controller.settings.autoSendMcp,
     });
   }
 
   Future<void> _handleGetAllPending(HttpRequest request) async {
-    final pending = controller.annotations
-        .where((a) => a.status != AnnotationStatus.resolved && a.status != AnnotationStatus.rejected)
+    final pending = controller.submittedAnnotations
         .map((a) => a.toJson())
         .toList();
 
     _sendJson(request.response, HttpStatus.ok, {
       'count': pending.length,
       'annotations': pending,
+      'submittedCount': pending.length,
+      'unsentCount': controller.unsentAnnotations.length,
+      'autoSendMcp': controller.settings.autoSendMcp,
     });
   }
 
@@ -906,8 +914,7 @@ class FlutterMcpServer {
             ],
           };
         }
-        final list = controller.annotations
-            .where((a) => a.status != AnnotationStatus.resolved && a.status != AnnotationStatus.rejected)
+        final list = controller.submittedAnnotations
             .map((a) => a.toJson())
             .toList();
         return {
@@ -1079,8 +1086,7 @@ class FlutterMcpServer {
         final timeoutSec = math.min(300, math.max(1, (args['timeoutSeconds'] as num?)?.toInt() ?? 120));
 
         // 1. Drain: return any currently pending annotations immediately before blocking
-        final pending = controller.annotations
-            .where((a) => a.status != AnnotationStatus.resolved && a.status != AnnotationStatus.rejected)
+        final pending = controller.submittedAnnotations
             .where((a) => sessionId == null || a.sessionId == sessionId)
             .toList();
 

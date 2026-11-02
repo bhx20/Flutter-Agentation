@@ -1,0 +1,15 @@
+# Development tools and agent metadata
+.agents/
+.flutter_agentation/
+.specify/
+specs/
+agentation-main/
+config.bat
+node_modules/
+build/
+.dart_tool/
+.pub/
+*.iml
+.idea/
+.vscode/
+

@@ -65,6 +65,7 @@ class Annotation {
     this.resolvedAt,
     this.authorId,
     this.isFixed = false,
+    this.isSubmitted = false,
     this.scrollY = 0.0,
     this.scrollX = 0.0,
     this.tapPosition,
@@ -150,6 +151,11 @@ class Annotation {
 
   /// True if element has fixed/sticky positioning (e.g. AppBar, bottom bar) and stays fixed on screen.
   final bool isFixed;
+
+  /// Whether this annotation has been submitted/sent to MCP / AI coding agents.
+  /// When `autoSendMcp` is disabled, annotations start as unsubmitted drafts
+  /// until explicitly submitted by the user via the Send button or keyboard shortcut.
+  final bool isSubmitted;
 
   /// Vertical scroll offset of the scrollable at the time this annotation was created.
   final double scrollY;
@@ -244,6 +250,7 @@ class Annotation {
       if (resolvedAt != null) 'resolvedAt': resolvedAt!.toIso8601String(),
       if (authorId != null) 'authorId': authorId,
       if (isFixed) 'isFixed': isFixed,
+      if (isSubmitted) 'isSubmitted': isSubmitted,
       if (scrollY != 0.0) 'scrollY': scrollY,
       if (scrollX != 0.0) 'scrollX': scrollX,
       if (tapPosition != null) 'tapPosition': {'x': tapPosition!.dx, 'y': tapPosition!.dy},
@@ -313,6 +320,7 @@ class Annotation {
           : null,
       authorId: json['authorId'] as String?,
       isFixed: json['isFixed'] as bool? ?? false,
+      isSubmitted: json['isSubmitted'] as bool? ?? false,
       scrollY: (json['scrollY'] as num?)?.toDouble() ?? 0.0,
       scrollX: (json['scrollX'] as num?)?.toDouble() ?? 0.0,
       tapPosition: json['tapPosition'] != null
@@ -353,6 +361,7 @@ class Annotation {
     DateTime? resolvedAt,
     String? authorId,
     bool? isFixed,
+    bool? isSubmitted,
     double? scrollY,
     double? scrollX,
     Offset? tapPosition,
@@ -385,6 +394,7 @@ class Annotation {
       resolvedAt: resolvedAt ?? this.resolvedAt,
       authorId: authorId ?? this.authorId,
       isFixed: isFixed ?? this.isFixed,
+      isSubmitted: isSubmitted ?? this.isSubmitted,
       scrollY: scrollY ?? this.scrollY,
       scrollX: scrollX ?? this.scrollX,
       tapPosition: tapPosition ?? this.tapPosition,
@@ -412,6 +422,7 @@ class Annotation {
         other.sourceLocation == sourceLocation &&
         other.sessionId == sessionId &&
         other.isFixed == isFixed &&
+        other.isSubmitted == isSubmitted &&
         other.scrollY == scrollY &&
         other.scrollX == scrollX &&
         other.tapPosition == tapPosition &&

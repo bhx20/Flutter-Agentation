@@ -53,7 +53,7 @@ Or add it directly to `pubspec.yaml`:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_agentation: ^0.0.1
+  flutter_agentation: ^0.1.0
 ```
 
 ### Step 2: Wrap Your Application
@@ -108,88 +108,63 @@ This single command sets up both MCP configuration and AI agent skills directly 
 - `.flutter_agentation/tools.json`: LLM tool schemas for inspection and annotation operations.
 - `.flutter_agentation/llm_instructions.md`: Ready-to-use prompt and system instructions for AI models.
 - `.flutter_agentation/SKILL.md`: Spec-Kit-style agent skill defining the inspection lifecycle.
-- `.flutter_agentation/commands/review_feedback.md`: Slash command `/review-feedback`.
-- `.flutter_agentation/commands/update_status.md`: Slash command `/update-status`.
+- `.flutter_agentation/commands/`: Slash commands for `/flutter-agentation-check-mcp` and `/flutter-agentation-review-feedback`.
 
-Everything is isolated entirely in `.flutter_agentation/`—no `.agents/`, external IDE directories, or global configs are touched.
+Everything is isolated entirely in `.flutter_agentation/` and registered into `.agents/skills/` for IDE discovery.
 
 *(Note: `dart run flutter_agentation:setup_mcp` and `dart run flutter_agentation:setup` are also supported as aliases.)*
 
 ### Step 4: Run Your App and Inspect
 
-Run your Flutter application:
+Run your Flutter application on any platform (Web, Desktop, or Mobile):
 
 ```bash
 flutter run
 ```
 
-A floating pill toolbar appears at the bottom-right of your screen. Click the target icon to inspect any widget, or use keyboard shortcut `Ctrl+Shift+A` (`Cmd+Shift+A` on macOS).
+A floating pill toolbar appears at the bottom of your screen. Click the target icon to inspect any widget, or use keyboard shortcut `Ctrl+Shift+A` (`Cmd+Shift+A` on macOS).
 
 ---
 
 ## Working With AI Agents (The Spec-Kit Workflow)
 
-Flutter Agentation provides a complete spec-driven workflow inspired by GitHub Spec-Kit. When you run `setupmcp`, your AI agent receives predefined slash commands and skill instructions so it instantly knows how to review visual feedback, find the right code, apply fixes, and update pins without any manual prompt drafting.
+Flutter Agentation provides a complete spec-driven workflow inspired by GitHub Spec-Kit. When you run `setupmcp`, your AI agent receives predefined slash commands and skill instructions so it instantly knows how to check connectivity, review visual feedback, find the right code, apply fixes, and update pins without any manual prompt drafting.
 
 ### Available Slash Commands
 
 Once `setupmcp` is run, you can use these native Flutter Agentation slash commands directly in your AI coding agent chat:
 
-#### 1. `/flutter-agentation-review-feedback`
-Directs your agent to review pending visual annotations and apply code changes:
+#### 1. `/flutter-agentation-check-mcp`
+Checks MCP connection status across all platforms and outputs diagnostic details:
+
+```bash
+/flutter-agentation-check-mcp
+```
+*(Alias: `/check-mcp`)*
+
+Reports:
+- **Status**: Live & Connected (Toggle ON) or Inactive (Toggle OFF)
+- **Auto-Send State**: ON (instant submission) or OFF (manual send button)
+- **Port & Transports**: SSE (`:4747/sse`) and HTTP (`:4747/mcp`)
+- **Submitted Pins**: Count of annotations ready for agent review
+- **Draft Pins**: Count of local unsent annotations waiting in app
+
+#### 2. `/flutter-agentation-review-feedback`
+Directs your agent to review submitted visual annotations and apply code modifications:
 
 ```bash
 /flutter-agentation-review-feedback
 ```
-*(Aliases: `/review-feedback`, `/flutter-agentation:review`)*
+*(Aliases: `/review-feedback`, `/fix-feedback`, `/flutter-agentation-fix-feedback`)*
 
-Or review a specific pin by ID:
+When invoked, the agent executes the review lifecycle:
+1. **Fetch**: Retrieves submitted feedback pins with exact widget types, source locations (`lib/views/home.dart:42`), and user notes.
+2. **Context**: Examines widget hierarchy, parent tree, comments, sketches, and severity.
+3. **Edit**: Opens the source file at the exact line number and applies the requested modifications.
+4. **Verify**: Flutter Hot Reload immediately reflects changes on the running device/browser.
+5. **Resolve**: Marks the issue resolved and immediately removes the pin from the running application.
 
-```bash
-/flutter-agentation-review-feedback ann_1729864200000
-```
-
-When invoked, the agent executes the 6-stage review lifecycle:
-1. **Fetch**: Calls `agentation_get_all_pending` to retrieve pending UI feedback pins with widget paths, lines, and bounding boxes.
-2. **Context**: Examines widget hierarchy, parent tree, comments, sketches, and severity (`blocker`, `design`, `suggestion`).
-3. **Acknowledge**: Calls `agentation_acknowledge` to badge the pin as "In Progress" in the running Flutter app.
-4. **Edit**: Opens the source file at the exact line number and applies the requested modifications.
-5. **Verify**: Flutter Hot Reload immediately reflects changes on the running device/emulator.
-6. **Resolve**: Calls `agentation_resolve` to mark the issue complete and update the in-app UI.
-
-#### 2. `/flutter-agentation-update-status`
-Updates status or replies to in-app feedback threads:
-
-```bash
-/flutter-agentation-update-status ann_1729864200000 status=in-progress comment="Refactoring button styles"
-```
-*(Aliases: `/update-status`, `/flutter-agentation:update-status`, `/flutter-agentation-reply`)*
-
-Or mark feedback as resolved:
-
-```bash
-/flutter-agentation-update-status ann_1729864200000 status=resolved comment="Updated padding to 12px and styled as secondary button"
-```
-
-#### 3. `/flutter-agentation-watch`
-Hands-free continuous pairing mode:
-
-```bash
-/flutter-agentation-watch
-```
-*(Aliases: `/watch-feedback`, `/flutter-agentation:watch`)*
-
-The agent continuously listens for new visual pins in the background. As soon as you click and submit an annotation in your running app, the agent automatically wakes up, modifies the code, and resolves the issue without manual prompt switching.
-
-#### 4. `/flutter-agentation-inspect`
-Live application inspection:
-
-```bash
-/flutter-agentation-inspect
-```
-*(Aliases: `/inspect-widget`, `/flutter-agentation:inspect`)*
-
-Queries live application state, route, screen resolution, theme mode, and pending widget hierarchy via MCP.
+> **Draft Protection with Auto-Send OFF**: If Auto-Send is OFF and you haven't clicked the Send button (paper plane icon), the agent politely reminds you that you have draft annotations and asks you to submit them first, preventing unauthorized code changes.
 
 ---
 
@@ -198,12 +173,12 @@ Queries live application state, route, screen resolution, theme mode, and pendin
 1. Ensure your Flutter app is running (`flutter run`).
 2. Run `dart run flutter_agentation:setupmcp` to generate `.flutter_agentation/mcp.json` and agent skills.
 3. In your app, click any widget and write your feedback (for example: *"Make this button secondary style with 12px horizontal padding"*).
-4. In your AI agent chat, type:
+4. Tap the **Send button** on the toolbar (or leave Auto-Send ON).
+5. In your AI agent chat, type:
    ```
    /flutter-agentation-review-feedback
    ```
-5. Your agent queries the MCP server, navigates to the source code, applies the changes, hot reloads, and completes the task.
-5. Your agent queries the MCP server, navigates to the source code, applies the changes, hot reloads, and completes the task.
+6. Your agent queries the MCP server, navigates to the source code, applies the changes, hot reloads, and removes the pin.
 
 ---
 

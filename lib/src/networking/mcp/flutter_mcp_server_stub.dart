@@ -119,11 +119,15 @@ class FlutterMcpServer {
       final payload = {
         'platform': 'web',
         'mcpEnabled': _isRunning,
-        'annotations': controller.annotations.map((a) => a.toJson()).toList(),
+        'autoSendMcp': controller.settings.autoSendMcp,
+        'annotations': controller.submittedAnnotations.map((a) => a.toJson()).toList(),
         'appState': {
           'platform': 'web',
           'mcpEnabled': _isRunning,
-          'annotationsCount': controller.annotations.length,
+          'autoSendMcp': controller.settings.autoSendMcp,
+          'annotationsCount': controller.submittedAnnotations.length,
+          'submittedCount': controller.submittedAnnotations.length,
+          'unsentCount': controller.unsentAnnotations.length,
           'mode': controller.mode.name,
         },
       };

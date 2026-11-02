@@ -231,7 +231,13 @@ class StandaloneMcpServer {
 
     if (req.method == 'GET' && path == '/pending') {
       req.response.headers.contentType = ContentType.json;
-      req.response.write(jsonEncode({'annotations': _annotations}));
+      req.response.write(jsonEncode({
+        'count': _annotations.length,
+        'annotations': _annotations,
+        'submittedCount': _annotations.length,
+        'unsentCount': (_appState['unsentCount'] as int?) ?? 0,
+        'autoSendMcp': (_appState['autoSendMcp'] as bool?) ?? false,
+      }));
       await req.response.close();
       return;
     }
@@ -316,6 +322,9 @@ class StandaloneMcpServer {
       'version': '0.0.1',
       'port': _server?.port ?? port,
       'annotationsCount': _annotations.length,
+      'submittedCount': _annotations.length,
+      'unsentCount': (_appState['unsentCount'] as int?) ?? 0,
+      'autoSendMcp': (_appState['autoSendMcp'] as bool?) ?? false,
       'connectedAgentsCount': _sseClients.length,
       'appState': _appState,
     };
