@@ -1,3 +1,8 @@
+/// Browser LocalStorage persistence for user preferences and toolbar settings on Web.
+///
+/// Stores toolbar state, preferences, and theme options using window.localStorage.
+library;
+
 import 'dart:convert';
 import 'dart:js_interop';
 

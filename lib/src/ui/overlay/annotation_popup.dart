@@ -1,3 +1,9 @@
+/// Interactive feedback creation popup positioned relative to selected UI elements.
+///
+/// Enables users to enter commentary, select severity, inspect resolved Flutter code snippets,
+/// and save or discard annotations.
+library;
+
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';

@@ -1,3 +1,9 @@
+/// Full-screen visual inspection and interaction canvas layer.
+///
+/// Intercepts pointer events to perform hit-testing, render active element bounding boxes,
+/// draw freeform strokes, manage marquee selections, and render annotation markers and cards.
+library;
+
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/gestures.dart';

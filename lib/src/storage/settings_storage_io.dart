@@ -1,3 +1,8 @@
+/// Native filesystem persistence for user preferences and toolbar settings.
+///
+/// Stores toolbar position, colors, format settings, and MCP options in the system temp directory.
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';

@@ -1,3 +1,9 @@
+/// Root UI wrapper and entry widget for Flutter Agentation.
+///
+/// Wraps application widget hierarchies to inject the visual inspection overlay,
+/// floating toolbar, keyboard shortcut handlers, and embedded MCP server lifecycle.
+library;
+
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';

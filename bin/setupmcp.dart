@@ -1,3 +1,20 @@
+/// Workspace and AI Agent Skill Setup CLI for Flutter Agentation.
+///
+/// Invoked via:
+/// ```bash
+/// dart run flutter_agentation:setupmcp [--port=4747] [--serve]
+/// ```
+///
+/// Responsibilities:
+/// 1. Initializes the central `.flutter_agentation/` workspace directory.
+/// 2. Generates `mcp.json` with configuration for AI agents (Cursor, Claude, Windsurf, VS Code).
+/// 3. Exports MCP tool specifications into `tools.json`.
+/// 4. Generates agent skills and slash commands:
+///    - `/flutter-agentation-check-mcp`: Diagnostic command to check server and app connectivity.
+///    - `/flutter-agentation-review-feedback`: Spec-driven command to inspect submitted pins and write code fixes.
+/// 5. Automatically provisions ADB reverse port forwarding for Android devices.
+library;
+
 // ignore_for_file: avoid_print
 import 'dart:convert';
 import 'dart:io';

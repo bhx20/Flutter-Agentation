@@ -1,3 +1,9 @@
+/// Embedded Model Context Protocol (MCP) server implementation using `dart:io`.
+///
+/// Serves SSE streams, MCP JSON-RPC 2.0 endpoints, and REST session routes
+/// directly from the Flutter application process on supported platforms.
+library;
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';

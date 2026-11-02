@@ -1,3 +1,9 @@
+/// High-level inspection engine coordinating hit testing, widget tree resolution, and context extraction.
+///
+/// Converts raw pointer coordinates into rich widget inspection results containing bounds,
+/// ancestor paths, developer keys, source code references, text semantics, and layout slots.
+library;
+
 import 'package:flutter/widgets.dart';
 
 import '../core/agentation_logger.dart';

@@ -1,3 +1,9 @@
+/// Configuration and preferences panel for Flutter Agentation.
+///
+/// Provides controls for theme mode, marker accent colors, interaction blocking,
+/// output detail levels, export formats, and navigation to MCP/Webhook settings.
+library;
+
 import 'package:flutter/material.dart';
 import '../../core/agentation_controller.dart';
 import '../../core/agentation_scope.dart';

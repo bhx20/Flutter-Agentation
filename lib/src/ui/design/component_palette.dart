@@ -1,3 +1,9 @@
+/// Component wireframing palette for visual layout design and skeleton placement.
+///
+/// Displays draggable component templates (Buttons, Cards, Forms, Lists, Headers)
+/// allowing designers and developers to propose new UI structures directly on the canvas.
+library;
+
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/agentation_controller.dart';

@@ -1,3 +1,8 @@
+/// Annotation marker pins and detail/preview cards rendered on the inspection overlay.
+///
+/// Handles hover states, index badges, edit triggers, and conversation threads.
+library;
+
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';

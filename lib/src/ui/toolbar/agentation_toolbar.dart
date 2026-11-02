@@ -1,3 +1,9 @@
+/// Floating pill toolbar widget providing mode toggles, action buttons, and status indicators.
+///
+/// Supports dragging across the screen, collapsing/expanding, mode switching (Inspect, Area,
+/// Multi-Select, Draw, Layout), settings panel navigation, and draft batch submission.
+library;
+
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';

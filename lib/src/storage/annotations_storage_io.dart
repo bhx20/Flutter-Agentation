@@ -1,3 +1,9 @@
+/// Local disk persistence implementation for annotations using `dart:io`.
+///
+/// Discovers and persists annotations to `.flutter_agentation/annotations.json`
+/// or system temporary storage when running on native platforms.
+library;
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';

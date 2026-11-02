@@ -1,3 +1,14 @@
+/// Standalone MCP (Model Context Protocol) Server & Multi-Platform Bridge.
+///
+/// This executable runs as a background daemon or CLI process (`dart run flutter_agentation:mcp`).
+/// It provides:
+/// 1. An MCP server supporting SSE (Server-Sent Events) and JSON-RPC 2.0 HTTP transport.
+/// 2. Stdio transport support for IDE agents (Cursor, Claude Desktop, Windsurf, VS Code).
+/// 3. A multi-platform HTTP bridge (`/sync`) that aggregates live annotations, routes, and
+///    session state from Flutter apps running on Web, Android, iOS, Windows, macOS, or Linux.
+/// 4. Draft annotation safety: draft feedback pins are held until the user explicitly submits them.
+library;
+
 // ignore_for_file: avoid_print
 import 'dart:async';
 import 'dart:convert';

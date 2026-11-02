@@ -1,3 +1,8 @@
+/// Interactive configuration dialog presented when placing a wireframe component.
+///
+/// Prompts users with configuration options, layout slot positioning, and template properties.
+library;
+
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

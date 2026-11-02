@@ -1,3 +1,10 @@
+/// Domain entities representing visual feedback pins, comments, placements, and drafts.
+///
+/// Encapsulates all metadata required by AI coding agents and human reviewers:
+/// widget identity, coordinates, screen bounds, source code locations, conversational threads,
+/// severity, and submission/draft status.
+library;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import '../source_location/feedback_target.dart';

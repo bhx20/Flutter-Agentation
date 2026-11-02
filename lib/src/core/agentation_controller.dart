@@ -1,3 +1,9 @@
+/// Central state orchestration controller for Flutter Agentation.
+///
+/// Coordinates inspection modes, hit-testing, annotation lifecycle, undo/redo stacks,
+/// drawing paths, design mode placement, clipboard exports, draft submission, and MCP/webhook synchronization.
+library;
+
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';

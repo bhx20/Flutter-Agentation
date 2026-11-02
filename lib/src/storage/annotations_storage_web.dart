@@ -1,3 +1,8 @@
+/// Browser LocalStorage persistence implementation for annotations on Flutter Web.
+///
+/// Uses `dart:js_interop` to persist and retrieve annotations from window.localStorage.
+library;
+
 import 'dart:convert';
 import 'dart:js_interop';
 
