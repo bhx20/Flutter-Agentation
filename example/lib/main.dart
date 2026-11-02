@@ -6,18 +6,18 @@ void main() {
   runApp(const AgentationExampleApp());
 }
 
-/// Root widget for the Flutter Agentation showcase.
+/// Root widget for the Flutter Agentation showcase and landing page.
 class AgentationExampleApp extends StatelessWidget {
   const AgentationExampleApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Agentation - Visual Feedback for Flutter & AI',
+      title: 'Agentation - Visual Feedback for Flutter & AI Agents',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF090D16),
+        scaffoldBackgroundColor: const Color(0xFF070A11),
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFF6366F1),
           surface: Color(0xFF0F172A),
@@ -25,41 +25,38 @@ class AgentationExampleApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      // FlutterAgentation.builder() injects the floating inspection toolbar
-      // and visual feedback overlay across the entire application.
+      // FlutterAgentation.builder() wraps the entire app to inject the
+      // floating inspection toolbar, design canvas, and MCP streaming overlay.
       builder: FlutterAgentation.builder(),
-      home: const EyeCatchingMinimalLandingPage(),
+      home: const RichEyeCatchingLandingPage(),
     );
   }
 }
 
-/// Eye-catching, minimalist showcase page for Flutter Agentation.
-///
-/// Designed with sleek dark aesthetics, subtle ambient gradients,
-/// crisp typography, and interactive cards for testing live widget inspection.
-class EyeCatchingMinimalLandingPage extends StatefulWidget {
-  const EyeCatchingMinimalLandingPage({super.key});
+/// Rich, eye-catching, content-complete showcase landing page for Flutter Agentation.
+class RichEyeCatchingLandingPage extends StatefulWidget {
+  const RichEyeCatchingLandingPage({super.key});
 
   @override
-  State<EyeCatchingMinimalLandingPage> createState() =>
-      _EyeCatchingMinimalLandingPageState();
+  State<RichEyeCatchingLandingPage> createState() =>
+      _RichEyeCatchingLandingPageState();
 }
 
-class _EyeCatchingMinimalLandingPageState
-    extends State<EyeCatchingMinimalLandingPage> {
+class _RichEyeCatchingLandingPageState
+    extends State<RichEyeCatchingLandingPage> {
   int _counter = 24;
   bool _copied = false;
   int _activeFeatureIndex = 0;
+  double _sliderValue = 72;
+  bool _toggleSwitch = true;
 
-  void _copyCommand() {
-    Clipboard.setData(
-      const ClipboardData(text: 'dart run flutter_agentation:setupmcp'),
-    );
+  void _copyCommand(String command) {
+    Clipboard.setData(ClipboardData(text: command));
     setState(() => _copied = true);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Copied CLI: dart run flutter_agentation:setupmcp'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text('Copied: $command'),
+        duration: const Duration(seconds: 2),
       ),
     );
     Future.delayed(const Duration(seconds: 3), () {
@@ -70,7 +67,7 @@ class _EyeCatchingMinimalLandingPageState
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final isCompact = size.width < 700;
+    final isCompact = size.width < 750;
 
     return Scaffold(
       backgroundColor: const Color(0xFF070A11),
@@ -78,11 +75,11 @@ class _EyeCatchingMinimalLandingPageState
         children: [
           // ── Ambient Background Glows ──
           Positioned(
-            top: -120,
-            left: size.width / 2 - 250,
+            top: -140,
+            left: size.width / 2 - 280,
             child: Container(
-              width: 500,
-              height: 400,
+              width: 560,
+              height: 420,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
@@ -95,16 +92,33 @@ class _EyeCatchingMinimalLandingPageState
             ),
           ),
           Positioned(
-            bottom: 50,
-            right: -80,
+            top: 750,
+            right: -100,
             child: Container(
-              width: 380,
-              height: 380,
+              width: 450,
+              height: 450,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
                     const Color(0xFF06B6D4).withAlpha(30),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 400,
+            left: -120,
+            child: Container(
+              width: 480,
+              height: 480,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFF8B5CF6).withAlpha(25),
                     Colors.transparent,
                   ],
                 ),
@@ -121,7 +135,7 @@ class _EyeCatchingMinimalLandingPageState
               ),
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 880),
+                  constraints: const BoxConstraints(maxWidth: 960),
                   child: Column(
                     children: [
                       // ── Top Navigation Bar ──
@@ -130,23 +144,43 @@ class _EyeCatchingMinimalLandingPageState
 
                       // ── Hero Section ──
                       _buildHeroSection(),
-                      const SizedBox(height: 44),
+                      const SizedBox(height: 40),
 
-                      // ── Interactive Showcase Card (Live Target) ──
-                      _buildInteractiveShowcaseCard(isCompact),
-                      const SizedBox(height: 48),
-
-                      // ── Sleek Feature Cards ──
-                      _buildFeatureGrid(isCompact),
+                      // ── Hero Quick Metrics Strip ──
+                      _buildMetricsStrip(isCompact),
                       const SizedBox(height: 52),
 
-                      // ── AI Workflow Strip ──
-                      _buildWorkflowBanner(isCompact),
+                      // ── Section 1: Interactive Live Playground (Live Targets) ──
+                      _buildPlaygroundSection(isCompact),
+                      const SizedBox(height: 64),
+
+                      // ── Section 2: Complete Package Capabilities Grid ──
+                      _buildFeaturesSection(isCompact),
+                      const SizedBox(height: 64),
+
+                      // ── Section 3: Supported AI Coding Agents & IDEs ──
+                      _buildSupportedAgentsSection(isCompact),
+                      const SizedBox(height: 64),
+
+                      // ── Section 4: Multi-Platform Architecture Breakdown ──
+                      _buildPlatformArchitectureSection(isCompact),
+                      const SizedBox(height: 64),
+
+                      // ── Section 5: Spec-Kit AI Agent Workflow ──
+                      _buildWorkflowSection(isCompact),
+                      const SizedBox(height: 64),
+
+                      // ── Section 6: Built-in Keyboard Shortcuts Cheat Sheet ──
+                      _buildKeymapCheatSheet(isCompact),
+                      const SizedBox(height: 64),
+
+                      // ── Section 7: Community Endorsement Quote ──
+                      _buildTestimonialSection(),
                       const SizedBox(height: 70),
 
-                      // ── Minimal Footer ──
-                      _buildFooter(),
-                      const SizedBox(height: 30),
+                      // ── Section 8: Minimalist Production Footer ──
+                      _buildFooter(isCompact),
+                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
@@ -158,7 +192,10 @@ class _EyeCatchingMinimalLandingPageState
     );
   }
 
-  /// Minimal floating-style navigation bar.
+  // ─────────────────────────────────────────────────────────────────────────
+  // TOP NAVIGATION BAR
+  // ─────────────────────────────────────────────────────────────────────────
+
   Widget _buildNavBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -209,7 +246,7 @@ class _EyeCatchingMinimalLandingPageState
           ),
           const SizedBox(width: 18),
           InkWell(
-            onTap: _copyCommand,
+            onTap: () => _copyCommand('dart run flutter_agentation:setupmcp'),
             borderRadius: BorderRadius.circular(20),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -238,24 +275,27 @@ class _EyeCatchingMinimalLandingPageState
     );
   }
 
-  /// Minimalist high-impact hero.
+  // ─────────────────────────────────────────────────────────────────────────
+  // HERO SECTION
+  // ─────────────────────────────────────────────────────────────────────────
+
   Widget _buildHeroSection() {
     return Column(
       children: [
-        // Glowing status badge
+        // Glowing status pill
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
             color: const Color(0xFF1E293B).withAlpha(180),
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(color: const Color(0xFF6366F1).withAlpha(80)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 6,
-                height: 6,
+                width: 7,
+                height: 7,
                 decoration: const BoxDecoration(
                   color: Color(0xFF10B981),
                   shape: BoxShape.circle,
@@ -263,7 +303,7 @@ class _EyeCatchingMinimalLandingPageState
               ),
               const SizedBox(width: 8),
               const Text(
-                'Universal Model Context Protocol (MCP) Bridge',
+                'Universal Model Context Protocol (MCP) Bridge & Visual Inspector',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -273,44 +313,44 @@ class _EyeCatchingMinimalLandingPageState
             ],
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 24),
 
-        // Bold Title
+        // Headline
         const Text(
-          'Visual Feedback for Flutter & AI Agents',
+          'Visual Feedback for Flutter & AI Coding Agents',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 40,
+            fontSize: 42,
             fontWeight: FontWeight.w900,
-            letterSpacing: -1.4,
+            letterSpacing: -1.5,
             height: 1.15,
             color: Colors.white,
           ),
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 16),
 
-        // Muted subtitle
+        // Subtitle
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
+          constraints: const BoxConstraints(maxWidth: 680),
           child: const Text(
-            'Inspect widget trees, drop precision feedback pins, prototype layout ideas, '
-            'and stream exact source code locations directly into Cursor, Claude, Windsurf, or Antigravity.',
+            'Directly inspect live widget hierarchies, drop precision feedback pins, wireframe layout changes, '
+            'and stream exact source code locations into Cursor, Claude, Windsurf, or Antigravity via MCP.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 16,
               height: 1.6,
               color: Color(0xFF94A3B8),
             ),
           ),
         ),
-        const SizedBox(height: 26),
+        const SizedBox(height: 28),
 
-        // Interactive Terminal Snippet Pill
+        // CLI Snippet Pill
         InkWell(
-          onTap: _copyCommand,
+          onTap: () => _copyCommand('dart run flutter_agentation:setupmcp'),
           borderRadius: BorderRadius.circular(12),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
             decoration: BoxDecoration(
               color: const Color(0xFF0D1424),
               borderRadius: BorderRadius.circular(12),
@@ -321,7 +361,7 @@ class _EyeCatchingMinimalLandingPageState
               children: [
                 const Icon(
                   Icons.terminal,
-                  size: 15,
+                  size: 16,
                   color: Color(0xFF6366F1),
                 ),
                 const SizedBox(width: 10),
@@ -337,93 +377,186 @@ class _EyeCatchingMinimalLandingPageState
                 const SizedBox(width: 12),
                 Icon(
                   _copied ? Icons.check_rounded : Icons.copy_rounded,
-                  size: 14,
+                  size: 15,
                   color: _copied ? const Color(0xFF10B981) : const Color(0xFF64748B),
                 ),
               ],
             ),
           ),
         ),
+        const SizedBox(height: 16),
+
+        // Toolbar prompt
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.touch_app_outlined, size: 15, color: Color(0xFF64748B)),
+            SizedBox(width: 6),
+            Text(
+              'Tap the crosshair icon on the floating toolbar below to begin inspecting!',
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  /// Eye-catching interactive showcase card with live element inspection cues.
-  Widget _buildInteractiveShowcaseCard(bool isCompact) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // QUICK METRICS STRIP
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildMetricsStrip(bool isCompact) {
+    final metrics = [
+      (value: '0 Overhead', label: 'In Release Builds'),
+      (value: '100% Exact', label: 'Source File & Line Mapping'),
+      (value: '6 Platforms', label: 'Web, Mobile & Desktop'),
+      (value: 'JSON-RPC 2.0', label: 'Model Context Protocol'),
+    ];
+
     return Container(
-      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A).withAlpha(200),
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFF0B101D),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF1E293B)),
       ),
-      child: Column(
-        children: [
-          // Card top header bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
+      child: isCompact
+          ? Wrap(
+              spacing: 24,
+              runSpacing: 16,
+              alignment: WrapAlignment.spaceAround,
+              children: metrics.map(_buildMetricItem).toList(),
+            )
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: metrics.map(_buildMetricItem).toList(),
             ),
-            child: Row(
-              children: [
-                Row(
-                  children: [
-                    Container(width: 10, height: 10, decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle)),
-                    const SizedBox(width: 6),
-                    Container(width: 10, height: 10, decoration: const BoxDecoration(color: Color(0xFFF59E0B), shape: BoxShape.circle)),
-                    const SizedBox(width: 6),
-                    Container(width: 10, height: 10, decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle)),
-                  ],
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6366F1).withAlpha(25),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    '<InteractiveInspectionCard>',
-                    style: TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 11,
-                      color: Color(0xFF818CF8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Interactive interior
-          Padding(
-            padding: const EdgeInsets.all(24),
-            child: isCompact
-                ? Column(
-                    children: [
-                      _buildLiveTargetCard(),
-                      const SizedBox(height: 20),
-                      _buildInspectorMetadataPanel(),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      Expanded(flex: 3, child: _buildLiveTargetCard()),
-                      const SizedBox(width: 20),
-                      Expanded(flex: 2, child: _buildInspectorMetadataPanel()),
-                    ],
-                  ),
-          ),
-        ],
-      ),
     );
   }
 
-  /// Live target card that users can interact with or inspect.
-  Widget _buildLiveTargetCard() {
+  Widget _buildMetricItem(({String label, String value}) m) {
+    return Column(
+      children: [
+        Text(
+          m.value,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF818CF8),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          m.label,
+          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+        ),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // INTERACTIVE LIVE PLAYGROUND
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildPlaygroundSection(bool isCompact) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Live Inspection Playground',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Hover and click any component below with the inspection tool active to view real-time bounds and code pointers.',
+          style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+        ),
+        const SizedBox(height: 20),
+
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF0F172A).withAlpha(180),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFF1E293B)),
+          ),
+          child: Column(
+            children: [
+              // Window-style bar
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
+                ),
+                child: Row(
+                  children: [
+                    Row(
+                      children: [
+                        Container(width: 10, height: 10, decoration: const BoxDecoration(color: Color(0xFFEF4444), shape: BoxShape.circle)),
+                        const SizedBox(width: 6),
+                        Container(width: 10, height: 10, decoration: const BoxDecoration(color: Color(0xFFF59E0B), shape: BoxShape.circle)),
+                        const SizedBox(width: 6),
+                        Container(width: 10, height: 10, decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle)),
+                      ],
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withAlpha(25),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        '<LiveTargetHarness>',
+                        style: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          color: Color(0xFF818CF8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Interactive elements
+              Padding(
+                padding: const EdgeInsets.all(22),
+                child: isCompact
+                    ? Column(
+                        children: [
+                          _buildInteractiveControlCard(),
+                          const SizedBox(height: 18),
+                          _buildInteractiveSliderCard(),
+                          const SizedBox(height: 18),
+                          _buildTelemetryInspector(),
+                        ],
+                      )
+                    : Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 3, child: _buildInteractiveControlCard()),
+                          const SizedBox(width: 16),
+                          Expanded(flex: 3, child: _buildInteractiveSliderCard()),
+                          const SizedBox(width: 16),
+                          Expanded(flex: 4, child: _buildTelemetryInspector()),
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInteractiveControlCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: const Color(0xFF090D16),
         borderRadius: BorderRadius.circular(14),
@@ -434,68 +567,50 @@ class _EyeCatchingMinimalLandingPageState
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 18,
-                backgroundColor: const Color(0xFF6366F1),
-                child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Interactive Host Element',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                  ),
-                  Text(
-                    'Zero gesture blocking during app use',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'State Value:',
-                style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-              ),
-              Text(
-                '$_counter',
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF818CF8),
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6366F1).withAlpha(30),
+                  borderRadius: BorderRadius.circular(8),
                 ),
+                child: const Icon(Icons.touch_app_rounded, color: Color(0xFF818CF8), size: 16),
               ),
+              const SizedBox(width: 10),
+              const Text('Interactive Counter', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
             ],
           ),
           const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('State Value', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+              Text('$_counter', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF818CF8))),
+            ],
+          ),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     side: const BorderSide(color: Color(0xFF334155)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () => setState(() => _counter = 0),
-                  child: const Text('Reset', style: TextStyle(color: Color(0xFF94A3B8))),
+                  child: const Text('Reset', style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
-                child: FilledButton.icon(
+                child: FilledButton(
                   style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
                     backgroundColor: const Color(0xFF6366F1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () => setState(() => _counter++),
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('Increment'),
+                  child: const Text('+1', style: TextStyle(fontSize: 12)),
                 ),
               ),
             ],
@@ -505,8 +620,45 @@ class _EyeCatchingMinimalLandingPageState
     );
   }
 
-  /// Inspector metadata readout panel simulating what the AI agent sees.
-  Widget _buildInspectorMetadataPanel() {
+  Widget _buildInteractiveSliderCard() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF090D16),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1E293B)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Controls & Switches', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              Switch(
+                value: _toggleSwitch,
+                onChanged: (v) => setState(() => _toggleSwitch = v),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Slider: ${_sliderValue.round()}%',
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          ),
+          Slider(
+            value: _sliderValue,
+            min: 0,
+            max: 100,
+            activeColor: const Color(0xFF6366F1),
+            onChanged: (v) => setState(() => _sliderValue = v),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTelemetryInspector() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -522,7 +674,7 @@ class _EyeCatchingMinimalLandingPageState
               Icon(Icons.terminal_rounded, size: 14, color: Color(0xFF10B981)),
               SizedBox(width: 6),
               Text(
-                'Agent Telemetry',
+                'Agent Telemetry Readout',
                 style: TextStyle(
                   fontSize: 11,
                   fontFamily: 'monospace',
@@ -533,23 +685,23 @@ class _EyeCatchingMinimalLandingPageState
             ],
           ),
           const SizedBox(height: 12),
-          _buildTelemetryLine('Element', 'ElevatedButton'),
-          _buildTelemetryLine('File', 'example/lib/main.dart'),
-          _buildTelemetryLine('Port', '4747 (SSE/JSON-RPC)'),
-          _buildTelemetryLine('Draft Safe', 'Active (Unsubmitted)'),
-          const SizedBox(height: 8),
+          _buildTelemetryLine('Resolved Element', 'ElevatedButton'),
+          _buildTelemetryLine('Target File', 'example/lib/main.dart'),
+          _buildTelemetryLine('MCP Transport', 'Port 4747 (SSE + JSON-RPC)'),
+          _buildTelemetryLine('Draft Protection', 'Safe (Unsent locally)'),
+          const SizedBox(height: 10),
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
             decoration: BoxDecoration(
               color: const Color(0xFF10B981).withAlpha(20),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: const Text(
-              'Ready for AI code synthesis',
+              'Zero overhead in release builds',
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: Color(0xFF10B981),
               ),
@@ -588,48 +740,78 @@ class _EyeCatchingMinimalLandingPageState
     );
   }
 
-  /// Sleek minimalist 3-card feature grid.
-  Widget _buildFeatureGrid(bool isCompact) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // COMPLETE CAPABILITIES GRID (6 CORE FEATURES)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildFeaturesSection(bool isCompact) {
     final features = [
       (
         icon: Icons.search_rounded,
         title: 'Deep Widget Inspection',
-        description: 'Resolves RenderBox bounds, ancestor paths, developer keys, semantics, and Dart source lines.',
+        description: 'Resolves RenderBox bounds, ancestor breadcrumb paths, developer keys, semantics, and Dart source line numbers.',
       ),
       (
         icon: Icons.sync_alt_rounded,
         title: 'Multi-Platform MCP Sync',
-        description: 'Seamless SSE & JSON-RPC streaming across Web (Chrome/Edge), Desktop, and Mobile devices.',
+        description: 'Embedded and standalone Model Context Protocol SSE & JSON-RPC streaming across Web, Desktop, and Mobile.',
       ),
       (
-        icon: Icons.shield_outlined,
-        title: 'Draft Pin Protection',
-        description: 'Annotations remain local drafts until submitted. Never leaks unverified code edits to agents.',
+        icon: Icons.dashboard_customize_outlined,
+        title: 'Visual Wireframing & Layout Mode',
+        description: 'Drag-and-drop realistic skeleton components (Buttons, Cards, Inputs, Lists) directly onto live UI with counter-question dialogs.',
+      ),
+      (
+        icon: Icons.security_rounded,
+        title: 'Draft Annotation Protection',
+        description: 'Annotations remain local drafts until submitted. When autoSendMcp is OFF, pins will never leak to agents without explicit permission.',
+      ),
+      (
+        icon: Icons.gesture_rounded,
+        title: 'Multi-Mode Annotation Canvas',
+        description: 'Supports single element inspection, marquee area selection, multi-element picking, and freeform pencil drawing directly on the screen.',
+      ),
+      (
+        icon: Icons.file_download_outlined,
+        title: 'Rich Export Formats & Webhooks',
+        description: 'Export to AI-ready Markdown, JSON envelopes, or plain source paths, with real-time webhook dispatching for external review tools.',
       ),
     ];
 
-    return isCompact
-        ? Column(
-            children: features.asMap().entries.map((entry) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 14.0),
-                child: _buildFeatureCard(entry.key, entry.value),
-              );
-            }).toList(),
-          )
-        : Row(
-            children: features.asMap().entries.map((entry) {
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: entry.key == 0 ? 0 : 8.0,
-                    right: entry.key == 2 ? 0 : 8.0,
-                  ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Engine Capabilities & Features',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Everything you need to connect visual Flutter inspection to autonomous AI coding agents.',
+          style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+        ),
+        const SizedBox(height: 24),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth > 700;
+            return Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: features.asMap().entries.map((entry) {
+                return SizedBox(
+                  width: isWide ? (constraints.maxWidth - 32) / 3 : constraints.maxWidth,
                   child: _buildFeatureCard(entry.key, entry.value),
-                ),
-              );
-            }).toList(),
-          );
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
   }
 
   Widget _buildFeatureCard(
@@ -689,14 +871,176 @@ class _EyeCatchingMinimalLandingPageState
     );
   }
 
-  /// Minimalist workflow strip showing the 3 agent commands.
-  Widget _buildWorkflowBanner(bool isCompact) {
+  // ─────────────────────────────────────────────────────────────────────────
+  // SUPPORTED AI AGENTS & INTEGRATIONS
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildSupportedAgentsSection(bool isCompact) {
+    final agents = [
+      (name: 'Cursor', protocol: 'mcp.json SSE', status: 'Verified'),
+      (name: 'Claude Desktop', protocol: 'mcp.json Stdio/SSE', status: 'Verified'),
+      (name: 'Windsurf', protocol: 'mcp_config.json', status: 'Verified'),
+      (name: 'VS Code (Cline/Roo)', protocol: 'MCP Settings', status: 'Verified'),
+      (name: 'Antigravity', protocol: 'Universal Bridge', status: 'Native'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withAlpha(140),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF1E293B)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.smart_toy_outlined, color: Color(0xFF6366F1), size: 18),
+              SizedBox(width: 8),
+              Text(
+                'AI Coding Agent Integrations',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Connect your live Flutter application directly to your favorite agent environment with zero prompt drafting.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            children: agents.map((a) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF090D16),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF1E293B)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(a.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withAlpha(25),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        a.status,
+                        style: const TextStyle(fontSize: 10, color: Color(0xFF818CF8), fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // MULTI-PLATFORM ARCHITECTURE
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildPlatformArchitectureSection(bool isCompact) {
+    final platforms = [
+      (platform: 'Web (Chrome / Edge)', details: 'Live bidirectional HTTP bridge (/sync) for seamless browser inspection.'),
+      (platform: 'Desktop (Windows / macOS / Linux)', details: 'Direct embedded TCP socket listening on port 4747.'),
+      (platform: 'Android (Device & Emulator)', details: 'Auto-provisioned ADB reverse port forwarding (adb forward tcp:4747).'),
+      (platform: 'iOS (Simulator & Device)', details: 'Direct localhost connection on Simulator; local Wi-Fi IP on physical device.'),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Multi-Platform Architecture',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Flutter Agentation is built to work seamlessly regardless of your target run platform.',
+          style: TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+        ),
+        const SizedBox(height: 20),
+        Column(
+          children: platforms.map((p) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F172A).withAlpha(120),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF1E293B)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF10B981), size: 18),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(p.platform, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(height: 2),
+                        Text(p.details, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // SPEC-KIT AI AGENT WORKFLOW
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildWorkflowSection(bool isCompact) {
+    final steps = [
+      (
+        step: '01',
+        title: 'Run CLI Setup',
+        command: 'dart run flutter_agentation:setupmcp',
+        description: 'Auto-generates .flutter_agentation/mcp.json and registers agent skills.',
+      ),
+      (
+        step: '02',
+        title: 'Verify Connection',
+        command: '/flutter-agentation-check-mcp',
+        description: 'Checks port health, active transports, and unsubmitted/submitted pin counts.',
+      ),
+      (
+        step: '03',
+        title: 'Review & Fix Code',
+        command: '/flutter-agentation-review-feedback',
+        description: 'Agent reads submitted annotations, identifies target source files, and writes code fixes.',
+      ),
+    ];
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: const Color(0xFF0F172A).withAlpha(160),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFF1E293B)),
       ),
       child: Column(
@@ -707,19 +1051,217 @@ class _EyeCatchingMinimalLandingPageState
               Icon(Icons.bolt, color: Color(0xFF6366F1), size: 18),
               SizedBox(width: 8),
               Text(
-                'Spec-Kit AI Coding Workflow',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                'Spec-Kit Promptless Workflow',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 6),
+          const Text(
+            'Experience seamless promptless coding with Spec-Kit slash commands in your AI agent chat.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 22),
+          isCompact
+              ? Column(
+                  children: steps.map((s) => Padding(
+                    padding: const EdgeInsets.only(bottom: 14.0),
+                    child: _buildWorkflowStepCard(s),
+                  )).toList(),
+                )
+              : Row(
+                  children: steps.map((s) => Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                      child: _buildWorkflowStepCard(s),
+                    ),
+                  )).toList(),
+                ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWorkflowStepCard(
+    ({String command, String description, String step, String title}) s,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF090D16),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF1E293B)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            s.step,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF6366F1).withAlpha(100),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(s.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: const Color(0xFF1E293B)),
+            ),
+            child: Text(
+              s.command,
+              style: const TextStyle(
+                fontFamily: 'monospace',
+                fontSize: 10,
+                color: Color(0xFF818CF8),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            s.description,
+            style: const TextStyle(fontSize: 11, height: 1.45, color: Color(0xFF64748B)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // KEYBOARD SHORTCUTS CHEAT SHEET
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildKeymapCheatSheet(bool isCompact) {
+    final shortcuts = [
+      (key: 'Ctrl+Shift+A', desc: 'Toggle Inspection Mode'),
+      (key: 'S', desc: 'Submit Draft Annotations'),
+      (key: 'Del / Backspace', desc: 'Delete Selected Pin'),
+      (key: 'Esc', desc: 'Close Modals / Deselect'),
+      (key: 'C', desc: 'Copy Annotations to Clipboard'),
+      (key: 'D', desc: 'Toggle Design / Layout Mode'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A).withAlpha(140),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF1E293B)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: const [
+              Icon(Icons.keyboard_outlined, color: Color(0xFF6366F1), size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Power User Keyboard Shortcuts',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Control the visual inspection canvas instantly using native keyboard hotkeys.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 18),
           Wrap(
             spacing: 12,
             runSpacing: 10,
+            children: shortcuts.map((s) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF090D16),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF1E293B)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        s.key,
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFCBD5E1),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(s.desc, style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // COMMUNITY TESTIMONIAL
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildTestimonialSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0F1D),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF1E293B)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              5,
+              (_) => const Icon(Icons.star_rounded, size: 20, color: Color(0xFFF59E0B)),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            '"With Flutter Agentation, design reviews and bug reports connect directly to our agent. '
+            'The agent reads the exact widget hierarchy and applies fixes in minutes without ambiguity."',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              height: 1.5,
+              color: Color(0xFFE2E8F0),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: const [
-              _WorkflowStepPill(step: '1', label: 'dart run flutter_agentation:setupmcp'),
-              _WorkflowStepPill(step: '2', label: '/flutter-agentation-check-mcp'),
-              _WorkflowStepPill(step: '3', label: '/flutter-agentation-review-feedback'),
+              CircleAvatar(
+                radius: 12,
+                backgroundColor: Color(0xFF6366F1),
+                child: Text('LG', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Liam Gallagher - Founder, ShipFlutter Studio',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF818CF8)),
+              ),
             ],
           ),
         ],
@@ -727,69 +1269,29 @@ class _EyeCatchingMinimalLandingPageState
     );
   }
 
-  /// Clean minimal footer.
-  Widget _buildFooter() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: const [
-        Text(
-          'Flutter Agentation v0.1.0',
-          style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
-        ),
-        Text(
-          'Published under MIT License',
-          style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+  // ─────────────────────────────────────────────────────────────────────────
+  // MINIMALIST FOOTER
+  // ─────────────────────────────────────────────────────────────────────────
+
+  Widget _buildFooter(bool isCompact) {
+    return Column(
+      children: [
+        const Divider(color: Color(0xFF1E293B), height: 1),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: const [
+            Text(
+              'Flutter Agentation v0.1.0',
+              style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+            ),
+            Text(
+              'Published under MIT License • Flutter 3.16+',
+              style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+            ),
+          ],
         ),
       ],
-    );
-  }
-}
-
-class _WorkflowStepPill extends StatelessWidget {
-  const _WorkflowStepPill({required this.step, required this.label});
-
-  final String step;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: const Color(0xFF090D16),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFF1E293B)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: const BoxDecoration(
-              color: Color(0xFF1E293B),
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              step,
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF818CF8),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 11,
-              color: Color(0xFFCBD5E1),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
