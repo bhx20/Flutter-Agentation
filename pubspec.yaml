@@ -1,6 +1,6 @@
 name: flutter_agentation
 description: Production-grade visual UI inspection, feedback annotation, and MCP server engine for Flutter apps and AI coding agents.
-version: 0.1.0
+version: 1.0.0
 homepage: https://github.com/bhx20/Flutter-Agentation
 repository: https://github.com/bhx20/Flutter-Agentation
 issue_tracker: https://github.com/bhx20/Flutter-Agentation/issues

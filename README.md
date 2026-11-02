@@ -26,7 +26,7 @@ Or add it directly to `pubspec.yaml`:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_agentation: ^0.1.0
+  flutter_agentation: ^1.0.0
 ```
 
 ### 2. Wrap Your App

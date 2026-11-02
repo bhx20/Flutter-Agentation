@@ -8,7 +8,7 @@ class PackageVersion {
   PackageVersion._();
 
   /// Default fallback version matching pubspec.yaml.
-  static const String defaultVersion = '0.1.0';
+  static const String defaultVersion = '1.0.0';
 
   static String _version = defaultVersion;
   static final ValueNotifier<String> versionNotifier = ValueNotifier<String>(_version);

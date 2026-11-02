@@ -221,7 +221,7 @@ class _MinimalLandingPageState extends State<MinimalLandingPage> {
                 ),
                 const SizedBox(width: 8),
                 const Text(
-                  '0.1.0',
+                  '1.0.0',
                   style: TextStyle(
                     fontSize: 12,
                     color: Color(0xFF71717A),
