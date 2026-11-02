@@ -1,9 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
-import '../../bin/setup.dart' as setup;
 import '../../bin/setupmcp.dart' as setupmcp;
-import '../../bin/setup_mcp.dart' as setup_mcp;
 
 void main() {
   group('CLI Setupmcp Command Tests', () {
@@ -83,20 +81,20 @@ void main() {
       }
     });
 
-    test('setup and setup_mcp aliases work identically to setupmcp', () async {
+    test('setupmcp handles custom ports and reconfigurations', () async {
       final originalDir = Directory.current;
       final tempDir = Directory.systemTemp.createTempSync('setup_alias_test_');
 
       try {
         Directory.current = tempDir;
-        setup.main(['--port=4949']);
+        setupmcp.main(['--port=4949']);
 
         final mcpFile = File('${tempDir.path}/.flutter_agentation/mcp.json');
         expect(mcpFile.existsSync(), isTrue);
         final mcpData = jsonDecode(mcpFile.readAsStringSync());
         expect(mcpData['mcpServers']['flutter-agentation']['url'], equals('http://127.0.0.1:4949/sse'));
 
-        setup_mcp.main(['--port=5050']);
+        setupmcp.main(['--port=5050']);
         final updatedData = jsonDecode(mcpFile.readAsStringSync());
         expect(updatedData['mcpServers']['flutter-agentation']['url'], equals('http://127.0.0.1:5050/sse'));
       } finally {

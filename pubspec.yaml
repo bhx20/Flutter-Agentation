@@ -29,6 +29,7 @@ dev_dependencies:
 executables:
   setupmcp: setupmcp
   setup_mcp: setupmcp
+  setup: setupmcp
   mcp: mcp
   flutter_agentation: setupmcp
 
