@@ -453,22 +453,35 @@ When an annotation is submitted, an HTTP `POST` request is sent with `Content-Ty
 
 ---
 
-## In-App Toolbar Modes
+## In-App Toolbar Modes & Controls
 
-The floating toolbar gives you five inspection modes:
+The floating toolbar combines **5 interactive canvas inspection modes** with **8 quick-action control tools**:
 
-1. **Element Inspect (Target Icon)**:
-   Hover over any widget to see its bounding box and widget type. Click to place a pin, write a comment, or inspect its parent hierarchy breadcrumbs.
-2. **Area Selection (Marquee Icon)**:
-   Click and drag a rectangle to select multiple widgets at once (useful for complex layout cards or lists).
-3. **Multi-Select (Plus-Box Icon)**:
-   Click multiple separate widgets across the screen to bundle them into a single grouped issue.
-4. **Freehand Drawing (Pen Icon)**:
-   Draw directly over your UI to highlight alignment issues, circle glitches, or sketch arrows.
-5. **Visual Design Mode (Palette Icon)**:
-   Drag skeleton wireframe components (Button, Input, Card, Text, Avatar, Image) onto your live app, or reposition existing widgets to generate coordinate delta diffs for your agent.
-6. **Animation Freeze (Pause/Play Icon)**:
-   Freezes running tickers, transitions, and loaders using Flutter native `TickerMode`. Inspect transient snackbars, dialogs, and animations without them closing.
+### 1. Interactive Canvas Modes
+
+1. **Element Inspect (Pointer Tool)**:
+   Hover over any widget to view real-time bounding box highlights, widget type, and ancestor breadcrumbs. Click to drop a pin, write feedback, and view exact Dart source line numbers.
+2. **Area Selection (Marquee Tool)**:
+   Click and drag a marquee rectangle across any region of the screen to capture and inspect multiple widgets simultaneously (ideal for complex card layouts or list views).
+3. **Multi-Select Picking**:
+   Click multiple distinct widgets across the viewport to bundle related UI components into a single composite feedback item.
+4. **Freehand Drawing (Sketch Tool)**:
+   Draw directly over your application UI using a pencil canvas to circle visual bugs, sketch alignment arrows, or highlight spacing issues.
+5. **Visual Wireframing & Design Mode (`L`)**:
+   Open a palette of drag-and-drop skeleton components (Button, Input, Card, Text, Avatar, Image) onto the live UI. Dropping a skeleton opens interactive counter-question dialogs to specify requirements and calculates relative coordinate deltas for your AI agent.
+
+### 2. Toolbar Quick-Action Controls
+
+| Icon / Control | Shortcut | Function |
+|---|---|---|
+| **Pause / Resume (`||` / `▶`)** | `P` | Freezes or resumes running transitions, loaders, tickers, and closing dialogs using Flutter's native `TickerMode` for in-place inspection. |
+| **Component Palette** | `L` | Toggles the visual wireframing skeleton palette for dragging UI components directly onto your live layout. |
+| **Show / Hide Markers (Eye)** | `H` / `Alt+V` | Toggles on-screen feedback pins and drawing strokes without deleting them, allowing you to view the clean UI underneath. |
+| **Copy Feedback** | `C` | Exports all active annotations as structured, AI-ready Markdown or JSON directly to your system clipboard. |
+| **Send Annotations (Paper Plane)** | `S` | Submits local draft annotations to the native MCP server and webhooks. Displays a live badge counter indicating unsubmitted drafts. |
+| **Clear All (Trash)** | `X` | Wipes all active markers, pins, skeleton placements, and drawing strokes from the screen. |
+| **Settings (Gear)** | None | Opens the configuration flyout with a live MCP connection status indicator dot (Connected / Connecting / Inactive), port settings, and webhook management. |
+| **Morphing End-Cap Toggle** | `Esc` / `Ctrl+Shift+A` | Minimizes the toolbar into a compact circular badge or expands it into the full action bar. |
 
 ---
 
