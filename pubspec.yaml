@@ -33,6 +33,14 @@ executables:
   mcp: mcp
   flutter_agentation: setupmcp
 
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  web:
+  windows:
+
 flutter:
   assets:
     - pubspec.yaml
