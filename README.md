@@ -13,31 +13,134 @@ Instead of manually hunting for widget source files and copying layout dimension
 ## Architecture Overview
 
 ```
-+-------------------------------------------------------------------+
-|                        Running Flutter App                        |
-|                                                                   |
-|   1. Click / hover any widget element                             |
-|   2. Add feedback note, sketch, or skeleton wireframe             |
-|   3. Flutter Agentation captures source path, line, bounds & tree |
-+---------------------------------+---------------------------------+
-                                  |
-         +------------------------+------------------------+
-         |                                                 |
-         v                                                 v
-+-------------------------------+         +-------------------------------+
-|       Native MCP Server       |         |       Webhook Dispatcher      |
-|    (SSE / JSON-RPC :4747)     |         |     (HTTP POST to any URL)    |
-+---------------+---------------+         +---------------+---------------+
-                |                                                 |
-                v                                                 v
-+-------------------------------+                 +---------------+---------------+
-| AI Agents (Cursor, Claude,    |                 | Custom Bot / Slack / CI       |
-| Windsurf, VS Code, etc.)      |                 | Automated PR generation       |
-|                               |                 +-------------------------------+
-| Reads feedback via MCP tools  |
-| and edits the code directly!  |
-+-------------------------------+
++---------------------------------------------------------------------------------------------------------+
+|                                    RUNNING FLUTTER APPLICATION                                          |
+|                                                                                                         |
+|   +------------------------------------+  +----------------------------------+  +-------------------+   |
+|   |   Visual Ingestion & Overlay       |  |   Visual Wireframing & Design    |  |  Runtime Control  |   |
+|   |   - Element Inspection (Crosshair) |  |   - Skeleton Component Palette   |  |  - Keymap (Ctrl+  |   |
+|   |   - Marquee Area Selection         |  |   - Drag & Drop Placement        |  |     Shift+A, S, C) |   |
+|   |   - Multi-Element Grouping         |  |   - Relative Coordinate Diffs    |  |  - Animation      |   |
+|   |   - Freehand Pencil Sketching      |  |   - Counter-Question Dialogs     |  |     Freeze Mode   |   |
+|   +-----------------+------------------+  +-----------------+----------------+  +---------+---------+   |
+|                     |                                       |                             |             |
+|                     +-------------------+-------------------+-----------------------------+             |
+|                                         |                                                               |
+|                                         v                                                               |
+|   +-------------------------------------------------------------------------------------------------+   |
+|   |                            CONTEXT & SOURCE RESOLUTION ENGINE                                   |   |
+|   |                                                                                                 |   |
+|   |   - HitTestEngine: Traverses render object trees & resolves RenderBox global bounds             |   |
+|   |   - SourceLocationResolver: Walks Element ancestors to resolve file:line (e.g. home.dart:42)    |   |
+|   |   - WidgetPathResolver: Extracts breadcrumb hierarchy (MaterialApp > Scaffold > ... > Button)   |   |
+|   |   - SourceCodeExtractor: Reads local Dart source snippet around identified line number          |   |
+|   |   - Semantics & Text Resolver: Extracts developer keys, semantic labels, and text contents       |   |
+|   +-------------------------------------+-----------------------------------------------------------+   |
+|                                         |                                                               |
+|                                         v                                                               |
+|   +-------------------------------------------------------------------------------------------------+   |
+|   |                          STATE STORAGE & DRAFT PROTECTION LAYER                                 |   |
+|   |                                                                                                 |   |
+|   |   - Draft Protection: autoSendMcp=false keeps pins as private drafts until explicit submission  |   |
+|   |   - Local Storage: In-memory & JSON file persistence across Flutter Hot Reloads                  |   |
+|   |   - Output Adapters: 4 Detail Levels (Compact, Standard, Detailed, Forensic)                   |   |
+|   +-------------------------------------+-----------------------------------------------------------+   |
++-----------------------------------------|---------------------------------------------------------------+
+                                          |
+               +--------------------------+--------------------------+
+               |                                                     |
+               v                                                     v
++-------------------------------+                     +-------------------------------+
+|      NATIVE MCP SERVER        |                     |      WEBHOOK DISPATCHER       |
+|    (JSON-RPC 2.0 via SSE)     |                     |     (Automated HTTP POST)     |
+|                               |                     |                               |
+|   - Port 4747 (/sse, /mcp)    |                     |   - CI/CD Automated Pipelines |
+|   - 6 Native LLM Tools:       |                     |   - Slack / Discord Bot Hooks |
+|     * list_annotations        |                     |   - Proxy Endpoints & PRs     |
+|     * get_app_state           |                     +-------------------------------+
+|     * inspect_widget          |                                    |
+|     * add_annotation          |                                    |
+|     * clear_annotations       |                     +--------------v----------------+
+|     * take_screenshot         |                     |      CLIPBOARD EXPORTER       |
++---------------+---------------+                     |  (Markdown & JSON Envelopes)  |
+                |                                     +-------------------------------+
+                v
++---------------------------------------------------------------------------------------------------------+
+|                                MULTI-PLATFORM TRANSPORT GATEWAY                                         |
+|                                                                                                         |
+|   +-------------------+  +-------------------+  +-------------------+  +----------------------------+   |
+|   |      Desktop      |  |      Android      |  |        iOS        |  |       Web (Browser)        |   |
+|   | (macOS/Win/Linux) |  | (Device/Emulator) |  | (Simulator/Device)|  | (Chrome, Edge, Safari)     |   |
+|   | Direct TCP Socket |  | ADB Port Forward  |  | Localhost / Wi-Fi |  | Background Bridge Process  |   |
+|   |   port :4747      |  | tcp:4747 tcp:4747 |  |  LAN IP port 4747 |  | dart run ..:mcp --port 4747|   |
+|   +---------+---------+  +---------+---------+  +---------+---------+  +--------------+-------------+   |
++-------------|----------------------|----------------------|---------------------------|-----------------+
+              +----------------------+----------------------+---------------------------+
+                                     |
+                                     v
++---------------------------------------------------------------------------------------------------------+
+|                                     AI CODING AGENTS & SPEC-KIT                                         |
+|                                                                                                         |
+|     Cursor  |  Claude Desktop  |  Windsurf  |  VS Code (Cline / Roo)  |  Antigravity                    |
+|                                                                                                         |
+|   Automated Slash Commands:                                                                             |
+|   * /flutter-agentation-check-mcp: Queries port health, SSE transports, submitted vs draft pins         |
+|   * /flutter-agentation-review-feedback: Reads annotations, opens source file, modifies code,           |
+|                                         triggers Hot Reload, and automatically resolves pin             |
++---------------------------------------------------------------------------------------------------------+
 ```
+
+### Architectural Subsystems
+
+1. **Ingestion & Visual Overlay Canvas (`lib/src/ui/`)**:
+   - Injected globally via `FlutterAgentation.builder()` across all screens, modals, and route navigations.
+   - Provides 5 interactive inspection modes: single element inspection, marquee bounding box selection, multi-element picking, freehand pencil sketching, and layout wireframing.
+   - Embeds the floating, draggable `AgentationToolbar` with interactive minimization, color marker selection, and theme-adaptive styling.
+   - Houses the `AnimationFreeze` controller using Flutter's native `TickerMode` to pause and inspect transient loaders, snackbars, and animations in place.
+
+2. **Context & Source Resolution Engine (`lib/src/inspection/` & `lib/src/source_location/`)**:
+   - `HitTestEngine`: Performs deep hit-testing against active render object trees and computes exact global `Rect` bounds via `BoundsResolver`.
+   - `SourceLocationResolver`: Walks up the widget Element hierarchy to discover author code files, extracting file paths and source line numbers (e.g. `lib/views/home.dart:42`).
+   - `WidgetPathResolver`: Builds complete ancestor breadcrumb paths (`MaterialApp > Scaffold > SafeArea > Column > ElevatedButton`).
+   - `WidgetCodeResolver` & `SourceCodeExtractor`: Extracts surrounding source code context around the widget declaration for instant AI model comprehension.
+   - `SemanticsResolver`: Captures accessibility labels, values, flags, and developer keys.
+
+3. **State Management & Draft Safety Protection (`lib/src/core/` & `lib/src/domain/`)**:
+   - `AgentationController`: Unified central controller managing mode transitions, selection bounds, and annotation lifecycles.
+   - **Draft Protection Barrier**: Annotations remain local drafts when `autoSendMcp` is disabled. Prevents AI agents from reading work-in-progress or unapproved notes until the user explicitly presses `S` or taps the Send button.
+   - `AgentationFormatAdapter`: Formats annotations into 4 discrete detail levels (`Compact`, `Standard`, `Detailed`, `Forensic`).
+
+4. **Dual Dispatch & Networking Gateway (`lib/src/networking/`)**:
+   - **Native Model Context Protocol (MCP) Server**: Embedded HTTP/SSE JSON-RPC 2.0 server operating on port 4747. Exposes 6 LLM tools (`list_annotations`, `get_app_state`, `inspect_widget`, `add_annotation`, `clear_annotations`, `take_screenshot`).
+   - **Webhook Dispatcher**: Dispatches asynchronous JSON HTTP POST payloads directly to CI/CD pipelines, automated PR bots, Slack, or proxy endpoints.
+   - **Clipboard Exporter**: One-click export of AI-ready Markdown and structured JSON payloads directly to system clipboard.
+
+5. **Multi-Platform Transport Gateway**:
+   - **Desktop (Windows, macOS, Linux)**: Direct TCP socket listening on `127.0.0.1:4747`.
+   - **Android (Emulator & Physical Device)**: Automated ADB reverse port forwarding (`adb forward tcp:4747 tcp:4747`).
+   - **iOS (Simulator & Physical Device)**: Direct localhost socket on Simulator; local Wi-Fi LAN IP on physical device.
+   - **Web (Chrome, Edge, Safari)**: Automated background sync bridge (`dart run flutter_agentation:mcp --port 4747`).
+
+6. **AI Agent & Spec-Kit Orchestration (`.flutter_agentation/`)**:
+   - Configured via `dart run flutter_agentation:setupmcp`.
+   - Dispatches slash commands (`/flutter-agentation-check-mcp`, `/flutter-agentation-review-feedback`) natively supported by Cursor, Claude Desktop, Windsurf, VS Code (Cline/Roo), and Antigravity.
+
+---
+
+### Use-Case Coverage Matrix
+
+| Use Case | Trigger | Subsystems Involved | Output / Result |
+|---|---|---|---|
+| **1. Widget Bug Reporting & Source Mapping** | Click widget in inspection mode | `HitTestEngine`, `BoundsResolver`, `SourceLocationResolver` | Captures widget type, exact `file:line`, hierarchy, and bounds. |
+| **2. Autonomous AI Code Fixes (MCP)** | `/flutter-agentation-review-feedback` | MCP Server, `list_annotations`, `clear_annotations` | AI agent reads pin, locates source line, edits code, hot reloads, and clears pin. |
+| **3. Spec-Kit Health & Transport Diagnostics** | `/flutter-agentation-check-mcp` | MCP Server, `get_app_state` | Reports connection status, port health, draft pins, and submitted pins. |
+| **4. Visual Wireframing & Layout Drafting** | Drag skeleton component from palette | Design Mode, `ComponentCounterQuestionDialog` | Drops skeleton (Button, Card, Input) and captures relative coordinates & spec requirements. |
+| **5. Transient Animation & Loader Freeze** | Tap Pause icon or press `P` | `TickerMode`, `InspectionOverlay` | Freezes transitions, loaders, and closing dialogs for inspection. |
+| **6. Multi-Widget & Area Issue Grouping** | Drag marquee box or multi-click | Marquee selector, Grouped annotation model | Bundles multiple widgets into a single composite issue ticket. |
+| **7. Freehand Drawing & Visual Alignment** | Draw with pen tool | `DrawingStroke`, `CustomPainter` | Renders freehand callouts and circles on screen, exported in Markdown report. |
+| **8. Automated CI/CD & Webhook Pipelines** | Submit annotation with Webhook URL | `WebhookDispatcher`, HTTP Client | Sends instant JSON payload to remote servers, Slack bots, or PR generators. |
+| **9. Manual Prompt Copy-Paste Fallback** | Tap Copy or press `C` | `ClipboardExporter`, `AnnotationMarkdownEncoder` | Copies AI-ready Markdown report to clipboard for manual chat pasting. |
+| **10. Zero-Overhead Production Builds** | `kDebugMode == false` (Release build) | `FlutterAgentation.builder(debugOnly: true)` | Bypasses all overlays, listeners, and servers; returns child widget directly. |
 
 ---
 
