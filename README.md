@@ -10,7 +10,7 @@ Instead of manually hunting for widget source files and copying layout dimension
 
 ---
 
-## Installation & Quickstart
+## Installation
 
 ### 1. Add Dependency
 
