@@ -474,7 +474,7 @@ The floating toolbar combines **5 interactive canvas inspection modes** with **8
 
 | Icon / Control | Shortcut | Function |
 |---|---|---|
-| **Pause / Resume (`||` / `▶`)** | `P` | Freezes or resumes running transitions, loaders, tickers, and closing dialogs using Flutter's native `TickerMode` for in-place inspection. |
+| **Pause / Resume (Pause / Play)** | `P` | Freezes or resumes running transitions, loaders, tickers, and closing dialogs using Flutter's native `TickerMode` for in-place inspection. |
 | **Component Palette** | `L` | Toggles the visual wireframing skeleton palette for dragging UI components directly onto your live layout. |
 | **Show / Hide Markers (Eye)** | `H` / `Alt+V` | Toggles on-screen feedback pins and drawing strokes without deleting them, allowing you to view the clean UI underneath. |
 | **Copy Feedback** | `C` | Exports all active annotations as structured, AI-ready Markdown or JSON directly to your system clipboard. |
