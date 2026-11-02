@@ -525,35 +525,50 @@ When you click **Copy**, formatted markdown is copied to your clipboard, ready t
 You can access and control Flutter Agentation from anywhere in your widget tree:
 
 ```dart
-// Retrieve controller from context
+// 1. Retrieve controller from context
 final controller = AgentationController.of(context);
+// or:
+final controller = AgentationScope.of(context);
 
-// Show / Hide / Toggle overlay
-controller.activate();
-controller.deactivate();
-controller.toggle();
+// 2. Control inspection overlay state
+controller.activate(freeze: false); // Activate inspection mode
+controller.deactivate();            // Deactivate overlay
+controller.toggle();                // Toggle between inspecting and inactive
 
-// Switch modes
-controller.setMode(InspectionMode.inspect);
-controller.setMode(InspectionMode.draw);
-controller.setMode(InspectionMode.design);
+// 3. Switch interaction tool modes
+controller.setToolMode(AnnotationToolMode.pointer);     // Single element inspector
+controller.setToolMode(AnnotationToolMode.area);        // Marquee bounding box
+controller.setToolMode(AnnotationToolMode.multiSelect); // Multi-widget picker
+controller.setToolMode(AnnotationToolMode.draw);        // Freehand pencil sketch
+controller.setToolMode(AnnotationToolMode.design);      // Wireframe layout skeleton
 
-// Freeze / Unfreeze animations
+// 4. Freeze / resume tickers & animations (TickerMode)
 controller.toggleFreeze();
+controller.freeze();
+controller.unfreeze();
 
-// Cycle detail level
-controller.cycleDetailLevel();
+// 5. Toggle layout palette, markers, and settings
+controller.toggleLayoutMode();          // Open/close wireframe skeleton palette
+controller.toggleCommentsVisibility();  // Show/hide on-screen markers
+controller.toggleSettings();            // Open/close settings & MCP flyout
+controller.toggleToolbarMinimized();    // Collapse/expand floating toolbar
 
-// Copy to clipboard programmatically
+// 6. Manage output detail levels
+controller.cycleDetailLevel();                          // Cycle through levels
+controller.setDetailLevel(OutputDetailLevel.detailed);  // compact, standard, detailed, forensic
+
+// 7. Export, copy, and submit annotations
 final markdown = await controller.copyToClipboard(format: ExportFormat.markdown);
+final json = await controller.copyToClipboard(format: ExportFormat.json);
+await controller.submitAnnotations(); // Submit unsent drafts to MCP server & webhooks
+await controller.clearAnnotations();  // Clear all annotations from screen
 
-// Clear annotations
-controller.clearAnnotations();
-
-// Listen to state changes
-controller.stateNotifier.addListener(() {
-  final state = controller.stateNotifier.value;
-  debugPrint('Active mode: ${state.mode}, Annotations: ${state.annotations.length}');
+// 8. Reactive state listening (AgentationController is a ChangeNotifier)
+controller.addListener(() {
+  final state = controller.state;
+  debugPrint('Mode: ${state.mode}, Tool: ${state.toolMode}, Frozen: ${state.isFrozen}');
+  debugPrint('Total Annotations: ${controller.annotations.length}');
+  debugPrint('Unsent Drafts: ${controller.unsentAnnotations.length}');
 });
 ```
 
@@ -589,3 +604,27 @@ flutter analyze
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+```
+MIT License
+
+Copyright (c) 2026 Flutter Agentation Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```

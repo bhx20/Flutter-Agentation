@@ -35,10 +35,20 @@ import '../networking/agent_sync_client.dart';
 import '../networking/mcp/flutter_mcp_server.dart';
 import '../source_location/widget_source_location.dart';
 import 'agentation_logger.dart';
+import 'agentation_scope.dart';
 import 'agentation_state.dart';
 
 /// Programmatic controller for the FlutterAgentation inspection overlay, toolbar, and annotations.
 class AgentationController extends ChangeNotifier {
+  /// Looks up the nearest [AgentationController] ancestor in the widget tree.
+  static AgentationController of(BuildContext context) => AgentationScope.of(context);
+
+  /// Looks up the nearest [AgentationController] ancestor, or returns null if not found.
+  static AgentationController? maybeOf(BuildContext context) => AgentationScope.maybeOf(context);
+
+  /// Toggles between inspecting and inactive modes.
+  void toggle() => toggleInspect();
+
   AgentationController({
     FlutterInspectionEngine? engine,
     AnnotationStorage? storage,
