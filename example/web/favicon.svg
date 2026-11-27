@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Rounded circular base matching app theme -->
+  <circle cx="64" cy="64" r="64" fill="#2563EB"/>
+  <!-- Clean & minimal target pin mark -->
+  <circle cx="64" cy="64" r="30" fill="none" stroke="#FFFFFF" stroke-width="9"/>
+  <circle cx="64" cy="64" r="13" fill="#FFFFFF"/>
+</svg>
