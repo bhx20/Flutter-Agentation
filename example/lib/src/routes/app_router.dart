@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../pages/landing_page.dart';
 
 /// Centralized route definitions, URL normalization, and page route generator
@@ -57,14 +58,23 @@ abstract final class AppRouter {
     return normalized == overview ? '/' : '/$normalized';
   }
 
-  /// Builds a smooth instantaneous PageRoute for web navigation.
+  /// Updates the browser address bar with the canonical URL path without reconstructing routes.
+  static void updateUrl(String targetRoute) {
+    final normalized = normalizeRoute(targetRoute);
+    try {
+      SystemNavigator.routeInformationUpdated(
+        uri: Uri.parse(pathFor(normalized)),
+        replace: false,
+      );
+    } catch (_) {}
+  }
+
+  /// Builds a clean MaterialPageRoute for initial page loading and deep links.
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final route = normalizeRoute(settings.name);
-    return PageRouteBuilder(
+    return MaterialPageRoute(
       settings: settings,
-      pageBuilder: (context, animation, secondaryAnimation) => LandingPage(route: route),
-      transitionDuration: Duration.zero,
-      reverseTransitionDuration: Duration.zero,
+      builder: (context) => LandingPage(route: route),
     );
   }
 
@@ -80,13 +90,13 @@ abstract final class AppRouter {
       if (scrollController != null && scrollController.hasClients) {
         scrollController.animateTo(
           0,
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 250),
           curve: Curves.easeOut,
         );
       }
       return;
     }
 
-    Navigator.of(context).pushReplacementNamed(pathFor(normalizedTarget));
+    updateUrl(normalizedTarget);
   }
 }

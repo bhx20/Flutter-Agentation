@@ -18,7 +18,13 @@ class McpWebhooksPage extends StatefulWidget {
 }
 
 class _McpWebhooksPageState extends State<McpWebhooksPage> {
-  int _selectedPayloadTab = 0;
+  final ValueNotifier<int> _selectedPayloadTab = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    _selectedPayloadTab.dispose();
+    super.dispose();
+  }
 
   final List<String> _tabs = ['Generic JSON', 'Slack Incoming', 'Discord Webhook'];
 
@@ -488,35 +494,40 @@ X-Agentation-Signature: sha256=d3f789ab5c81...''';
                         ),
                       ],
                     ),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: List.generate(_tabs.length, (idx) {
-                          final isSelected = _selectedPayloadTab == idx;
-                          return Padding(
-                            padding: AppInsets.l6,
-                            child: InkWell(
-                              onTap: () => setState(() => _selectedPayloadTab = idx),
-                              borderRadius: AppRadii.rounded6,
-                              child: Container(
-                                padding: AppInsets.h10v5,
-                                decoration: BoxDecoration(
-                                  color: isSelected ? AppColors.textDark : AppColors.pageBackground,
+                    ValueListenableBuilder<int>(
+                      valueListenable: _selectedPayloadTab,
+                      builder: (context, selectedTab, _) {
+                        return SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(_tabs.length, (idx) {
+                              final isSelected = selectedTab == idx;
+                              return Padding(
+                                padding: AppInsets.l6,
+                                child: InkWell(
+                                  onTap: () => _selectedPayloadTab.value = idx,
                                   borderRadius: AppRadii.rounded6,
-                                  border: Border.all(
-                                    color: isSelected ? AppColors.textDark : AppColors.borderSubtle,
+                                  child: Container(
+                                    padding: AppInsets.h10v5,
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? AppColors.textDark : AppColors.pageBackground,
+                                      borderRadius: AppRadii.rounded6,
+                                      border: Border.all(
+                                        color: isSelected ? AppColors.textDark : AppColors.borderSubtle,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      _tabs[idx],
+                                      style: isSelected ? AppTypography.captionBold.copyWith(color: AppColors.textWhite) : AppTypography.captionSecondary,
+                                    ),
                                   ),
                                 ),
-                                child: Text(
-                                  _tabs[idx],
-                                  style: isSelected ? AppTypography.captionBold.copyWith(color: AppColors.textWhite) : AppTypography.captionSecondary,
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
+                              );
+                            }),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -524,22 +535,27 @@ X-Agentation-Signature: sha256=d3f789ab5c81...''';
               const Divider(color: AppColors.borderSubtle, height: AppDimensions.d1),
               Padding(
                 padding: AppInsets.all20,
-                child: isMobile
-                    ? Column(
-                        children: [
-                          _buildCodeSnippetBox('HTTP Headers', _httpHeaders),
-                          AppDimensions.h16,
-                          _buildCodeSnippetBox('Generic JSON Schema application/json', _getActivePayloadJson()),
-                        ],
-                      )
-                    : Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: _buildCodeSnippetBox('HTTP Headers', _httpHeaders)),
-                          AppDimensions.w16,
-                          Expanded(child: _buildCodeSnippetBox('Generic JSON Schema application/json', _getActivePayloadJson())),
-                        ],
-                      ),
+                child: ValueListenableBuilder<int>(
+                  valueListenable: _selectedPayloadTab,
+                  builder: (context, selectedTab, _) {
+                    return isMobile
+                        ? Column(
+                            children: [
+                              _buildCodeSnippetBox('HTTP Headers', _httpHeaders),
+                              AppDimensions.h16,
+                              _buildCodeSnippetBox('Generic JSON Schema application/json', _getActivePayloadJson(selectedTab)),
+                            ],
+                          )
+                        : Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: _buildCodeSnippetBox('HTTP Headers', _httpHeaders)),
+                              AppDimensions.w16,
+                              Expanded(child: _buildCodeSnippetBox('Generic JSON Schema application/json', _getActivePayloadJson(selectedTab))),
+                            ],
+                          );
+                  },
+                ),
               ),
             ],
           ),
@@ -548,8 +564,8 @@ X-Agentation-Signature: sha256=d3f789ab5c81...''';
     );
   }
 
-  String _getActivePayloadJson() {
-    switch (_selectedPayloadTab) {
+  String _getActivePayloadJson(int selectedTab) {
+    switch (selectedTab) {
       case 1:
         return _slackJson;
       case 2:

@@ -174,6 +174,11 @@ abstract final class AppTheme {
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: AppColors.pageBackground,
+      textSelectionTheme: const TextSelectionThemeData(
+        selectionColor: AppColors.textSelection,
+        cursorColor: AppColors.textPrimary,
+        selectionHandleColor: AppColors.textPrimary,
+      ),
       colorScheme: const ColorScheme.light(
         primary: AppColors.primaryButton,
         onPrimary: AppColors.textWhite,

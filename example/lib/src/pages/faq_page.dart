@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:example/src/theme/app_dimensions.dart';
 
+import '../components/app_text.dart';
 import '../constants/app_strings.dart';
 import '../theme/app_insets.dart';
 import '../theme/app_radii.dart';
@@ -17,7 +18,14 @@ class FaqPage extends StatefulWidget {
 }
 
 class _FaqPageState extends State<FaqPage> {
-  final Set<int> _expandedIndices = {0, 1};
+  final ValueNotifier<Set<int>> _expandedIndicesNotifier =
+      ValueNotifier<Set<int>>({0, 1});
+
+  @override
+  void dispose() {
+    _expandedIndicesNotifier.dispose();
+    super.dispose();
+  }
 
   static const List<_FaqData> _faqs = [
     _FaqData(
@@ -59,13 +67,13 @@ class _FaqPageState extends State<FaqPage> {
   ];
 
   void _toggleIndex(int index) {
-    setState(() {
-      if (_expandedIndices.contains(index)) {
-        _expandedIndices.remove(index);
-      } else {
-        _expandedIndices.add(index);
-      }
-    });
+    final next = Set<int>.from(_expandedIndicesNotifier.value);
+    if (next.contains(index)) {
+      next.remove(index);
+    } else {
+      next.add(index);
+    }
+    _expandedIndicesNotifier.value = next;
   }
 
   @override
@@ -85,12 +93,12 @@ class _FaqPageState extends State<FaqPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                const AppText(
                   AppStrings.faqOverline,
                   style: AppTypography.overline,
                 ),
                 AppDimensions.h6,
-                Text(
+                AppText(
                   AppStrings.faqTitle,
                   style: isMobile ? AppTypography.h3 : AppTypography.h2,
                 ),
@@ -98,7 +106,7 @@ class _FaqPageState extends State<FaqPage> {
             ),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: AppDimensions.d480),
-              child: const Text(
+              child: const AppText(
                 AppStrings.faqSubtitle,
                 style: AppTypography.bodyMedium,
               ),
@@ -110,86 +118,105 @@ class _FaqPageState extends State<FaqPage> {
         AppDimensions.h20,
 
         // Accordion List
-        ListView.separated(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _faqs.length,
-          separatorBuilder: (context, index) => AppDimensions.h12,
-          itemBuilder: (context, index) {
-            final faq = _faqs[index];
-            final isExpanded = _expandedIndices.contains(index);
+        ValueListenableBuilder<Set<int>>(
+          valueListenable: _expandedIndicesNotifier,
+          builder: (context, expandedIndices, _) {
+            return ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _faqs.length,
+              separatorBuilder: (context, index) => AppDimensions.h12,
+              itemBuilder: (context, index) {
+                final faq = _faqs[index];
+                final isExpanded = expandedIndices.contains(index);
 
-            return Container(
-              decoration: BoxDecoration(
-                color: AppColors.cardBackground,
-                borderRadius: AppRadii.rounded8,
-                border: Border.all(
-                  color: isExpanded ? AppColors.accentBlue : AppColors.borderSubtle,
-                  width: isExpanded ? AppDimensions.d1_5 : AppDimensions.d1,
-                ),
-                boxShadow: isExpanded
-                    ? const [
-                        BoxShadow(
-                          color: AppColors.accentBlueGlow,
-                          blurRadius: 8,
-                          offset: Offset(0, 2),
-                        ),
-                      ]
-                    : null,
-              ),
-              child: InkWell(
-                onTap: () => _toggleIndex(index),
-                borderRadius: AppRadii.rounded8,
-                child: Padding(
-                  padding: AppInsets.h20v16,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBackground,
+                    borderRadius: AppRadii.rounded8,
+                    border: Border.all(
+                      color: isExpanded ? AppColors.accentBlue : AppColors.borderSubtle,
+                      width: isExpanded ? AppDimensions.d1_5 : AppDimensions.d1,
+                    ),
+                    boxShadow: isExpanded
+                        ? const [
+                            BoxShadow(
+                              color: AppColors.accentBlueGlow,
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: InkWell(
+                    onTap: () => _toggleIndex(index),
+                    borderRadius: AppRadii.rounded8,
+                    mouseCursor: SystemMouseCursors.click,
+                    child: Padding(
+                      padding: AppInsets.h20v16,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: AppInsets.h6v2,
-                            decoration: BoxDecoration(
-                              color: AppColors.cardBackgroundAlt,
-                              borderRadius: AppRadii.rounded4,
-                            ),
-                            child: Text(
-                              faq.category,
-                              style: AppTypography.badgeMicro,
+                          SelectionContainer.disabled(
+                            child: MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: AppInsets.h6v2,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.cardBackgroundAlt,
+                                      borderRadius: AppRadii.rounded4,
+                                    ),
+                                    child: AppText(
+                                      faq.category,
+                                      style: AppTypography.badgeMicro,
+                                      mouseCursor: SystemMouseCursors.click,
+                                    ),
+                                  ),
+                                  AppDimensions.w12,
+                                  Expanded(
+                                    child: AppText(
+                                      faq.question,
+                                      mouseCursor: SystemMouseCursors.click,
+                                      style: isExpanded
+                                          ? AppTypography.faqQuestion.copyWith(
+                                              fontWeight: FontWeight.w500,
+                                              color: AppColors.accentBlue,
+                                              height: 1.3,
+                                            )
+                                          : AppTypography.faqQuestion.copyWith(height: 1.3),
+                                    ),
+                                  ),
+                                  AppDimensions.w12,
+                                  AnimatedRotation(
+                                    turns: isExpanded ? 0.25 : 0.0,
+                                    duration: const Duration(milliseconds: 200),
+                                    child: AgentationIcons.send(
+                                      size: AppDimensions.d14,
+                                      color: isExpanded ? AppColors.accentBlue : AppColors.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                          AppDimensions.w12,
-                          Expanded(
-                            child: Text(
-                              faq.question,
-                              style: isExpanded ? AppTypography.faqQuestion.copyWith(fontWeight: FontWeight.w500, color: AppColors.accentBlue, height: 1.3) : AppTypography.faqQuestion.copyWith(height: 1.3),
+                          if (isExpanded) ...[
+                            AppDimensions.h12,
+                            const Divider(color: AppColors.cardBackgroundAlt, height: AppDimensions.d1),
+                            AppDimensions.h12,
+                            AppText(
+                              faq.answer,
+                              style: AppTypography.faqAnswer,
                             ),
-                          ),
-                          AppDimensions.w12,
-                          AnimatedRotation(
-                            turns: isExpanded ? 0.25 : 0.0,
-                            duration: const Duration(milliseconds: 200),
-                            child: AgentationIcons.send(
-                              size: AppDimensions.d14,
-                              color: isExpanded ? AppColors.accentBlue : AppColors.textMuted,
-                            ),
-                          ),
+                          ],
                         ],
                       ),
-                      if (isExpanded) ...[
-                        AppDimensions.h12,
-                        const Divider(color: AppColors.cardBackgroundAlt, height: AppDimensions.d1),
-                        AppDimensions.h12,
-                        Text(
-                          faq.answer,
-                          style: AppTypography.faqAnswer,
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             );
           },
         ),

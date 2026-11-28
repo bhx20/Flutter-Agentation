@@ -10,6 +10,7 @@ import '../services/pub_dev_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/breakpoints.dart';
 import '../utils/clipboard_helper.dart';
+import 'native_link_wrapper.dart';
 
 class FooterSection extends StatelessWidget {
   const FooterSection({super.key});
@@ -90,32 +91,35 @@ class FooterSection extends StatelessWidget {
         _buildPillBadge('${data.grantedPoints}/${data.maxPoints} pts'),
         _buildPillBadge('Publisher: ${data.publisherId}'),
         _buildPillBadge(AppStrings.footerLicense),
-        InkWell(
-          onTap: () {
-            ClipboardHelper.copy(
-              context,
-              data.repositoryUrl,
-              successMessage: AppStrings.msgGithubCopied,
-            );
-          },
-          borderRadius: AppRadii.rounded4,
-          child: Container(
-            padding: AppInsets.h9v5,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceMuted,
-              borderRadius: AppRadii.rounded4,
-              border: Border.all(color: AppColors.borderMedium),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AgentationIcons.send(size: AppDimensions.d13, color: AppColors.slateText),
-                AppDimensions.w5,
-                const Text(
-                  AppStrings.footerGithubRepo,
-                  style: AppTypography.buttonSlate,
-                ),
-              ],
+        NativeLinkWrapper(
+          url: data.repositoryUrl,
+          child: InkWell(
+            onTap: () {
+              ClipboardHelper.copy(
+                context,
+                data.repositoryUrl,
+                successMessage: AppStrings.msgGithubCopied,
+              );
+            },
+            borderRadius: AppRadii.rounded4,
+            child: Container(
+              padding: AppInsets.h9v5,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceMuted,
+                borderRadius: AppRadii.rounded4,
+                border: Border.all(color: AppColors.borderMedium),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AgentationIcons.send(size: AppDimensions.d13, color: AppColors.slateText),
+                  AppDimensions.w5,
+                  const Text(
+                    AppStrings.footerGithubRepo,
+                    style: AppTypography.buttonSlate,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

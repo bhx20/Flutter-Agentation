@@ -45,7 +45,7 @@ abstract final class AppRadii {
   static const BorderRadius cardLarge = rounded12;
 
   static const BorderRadius dialog = rounded8;
-  static const BorderRadius browserWindow = rounded12;
+  static const BorderRadius browserWindow = rounded10;
   static const BorderRadius codeBlock = rounded8;
   static const BorderRadius input = rounded6;
   static const BorderRadius scrollbar = rounded5;

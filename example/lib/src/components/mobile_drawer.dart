@@ -11,6 +11,7 @@ import '../theme/app_theme.dart';
 import '../theme/app_typography.dart';
 import '../utils/clipboard_helper.dart';
 import 'agentation_logo.dart';
+import 'native_link_wrapper.dart';
 
 /// Responsive navigation drawer for mobile and compact viewports.
 class MobileDrawer extends StatelessWidget {
@@ -25,9 +26,10 @@ class MobileDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Drawer(
-      backgroundColor: AppColors.cardBackground,
-      child: SafeArea(
+    return SelectionContainer.disabled(
+      child: Drawer(
+        backgroundColor: AppColors.cardBackground,
+        child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -36,7 +38,17 @@ class MobileDrawer extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Flexible(child: AgentationLogo(height: AppDimensions.d18)),
+                  Flexible(
+                    child: NativeLinkWrapper(
+                      url: AppRouter.pathFor(AppRouter.overview),
+                      target: LinkTarget.self,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        onNavigate(AppRouter.overview);
+                      },
+                      child: const AgentationLogo(height: AppDimensions.d18),
+                    ),
+                  ),
                   IconButton(
                     icon: AgentationIcons.close(size: AppDimensions.d18, color: AppColors.textPrimary),
                     onPressed: () => Navigator.of(context).pop(),
@@ -135,32 +147,44 @@ class MobileDrawer extends StatelessWidget {
               padding: AppInsets.all16,
               child: Column(
                 children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      style: AppTheme.drawerPrimaryButton,
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        ClipboardHelper.copy(
-                          context,
-                          AppStrings.defaultRepoUrl,
-                          successMessage: AppStrings.msgGithubCopied,
-                        );
-                      },
-                      icon: AgentationIcons.component(size: AppDimensions.d14, color: AppColors.textWhite),
-                      label: const Text(AppStrings.navGitHub, style: AppTypography.buttonBold),
+                  NativeLinkWrapper(
+                    url: AppStrings.defaultRepoUrl,
+                    target: LinkTarget.blank,
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        style: AppTheme.drawerPrimaryButton,
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          ClipboardHelper.copy(
+                            context,
+                            AppStrings.defaultRepoUrl,
+                            successMessage: AppStrings.msgGithubCopied,
+                          );
+                        },
+                        icon: AgentationIcons.component(size: AppDimensions.d14, color: AppColors.textWhite),
+                        label: const Text(AppStrings.navGitHub, style: AppTypography.buttonBold),
+                      ),
                     ),
                   ),
                   AppDimensions.h10,
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      style: AppTheme.drawerOutlinedButton,
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                        onNavigate(AppRouter.installation);
-                      },
-                      child: const Text(AppStrings.navGetStarted, style: AppTypography.button),
+                  NativeLinkWrapper(
+                    url: AppRouter.pathFor(AppRouter.installation),
+                    target: LinkTarget.self,
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      onNavigate(AppRouter.installation);
+                    },
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        style: AppTheme.drawerOutlinedButton,
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          onNavigate(AppRouter.installation);
+                        },
+                        child: const Text(AppStrings.navGetStarted, style: AppTypography.button),
+                      ),
                     ),
                   ),
                 ],
@@ -169,8 +193,9 @@ class MobileDrawer extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _DrawerTile extends StatelessWidget {
@@ -190,13 +215,23 @@ class _DrawerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: icon,
-      title: Text(
-        label,
-        style: isActive ? AppTypography.navLinkActive : AppTypography.navLink,
+    return SelectionContainer.disabled(
+      child: NativeLinkWrapper(
+        url: AppRouter.pathFor(routeKey),
+        target: LinkTarget.self,
+        onTap: onTap,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: ListTile(
+            leading: icon,
+            title: Text(
+              label,
+              style: isActive ? AppTypography.navLinkActive : AppTypography.navLink,
+            ),
+            onTap: onTap,
+          ),
+        ),
       ),
-      onTap: onTap,
     );
   }
 }

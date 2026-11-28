@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:example/src/theme/app_dimensions.dart';
 
-import 'package:flutter_agentation/flutter_agentation.dart';
-
 import '../constants/app_strings.dart';
+import '../components/app_icons.dart';
+import '../components/native_link_wrapper.dart';
 import '../routes/app_router.dart';
 import '../services/pub_dev_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_insets.dart';
-import '../theme/app_radii.dart';
 import '../theme/app_typography.dart';
 import '../utils/breakpoints.dart';
-import '../utils/clipboard_helper.dart';
 import 'code_mapping_page.dart';
 import 'interactive_preview_page.dart';
 import 'workflow_page.dart';
@@ -34,12 +32,9 @@ class OverviewPage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         HeroSection(
-          onGetStarted: () => onNavigate(AppRouter.installation),
           onNavigate: onNavigate,
           activeSection: AppRouter.overview,
         ),
-        AppDimensions.h36,
-        const MetricsSection(),
         SizedBox(height: verticalSpacing),
         const InteractivePreviewPage(),
         SizedBox(height: verticalSpacing),
@@ -74,10 +69,13 @@ class HeroSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top quick install pill
+            // Top quick CTA pill
             Align(
               alignment: isMobile ? Alignment.centerLeft : Alignment.centerRight,
-              child: _InstallPill(command: 'flutter pub add ${data.name}'),
+              child: _InstallPill(
+                url: data.homepageUrl,
+                onTap: onGetStarted,
+              ),
             ),
             AppDimensions.h24,
 
@@ -96,54 +94,6 @@ class HeroSection extends StatelessWidget {
                 style: isMobile ? AppTypography.body : AppTypography.lead,
               ),
             ),
-            AppDimensions.h24,
-
-            // Focused CTAs Row (rounded 4px, py 10, px 16)
-            Wrap(
-              spacing: AppDimensions.d8,
-              runSpacing: AppDimensions.d10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                FilledButton(
-                  onPressed: onGetStarted ??
-                      () {
-                        ClipboardHelper.copy(
-                          context,
-                          'flutter pub add ${data.name}',
-                          successMessage: 'Added ${data.name} to pubspec.yaml',
-                        );
-                      },
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Flexible(
-                        child: Text(
-                          AppStrings.heroCtaGetStarted,
-                          style: AppTypography.buttonWhite,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      AppDimensions.w8,
-                      AgentationIcons.send(size: AppDimensions.d13, color: AppColors.textWhite),
-                    ],
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    ClipboardHelper.copy(
-                      context,
-                      AppStrings.heroCommandSetup,
-                      successMessage: AppStrings.msgSetupMcpCopied,
-                    );
-                  },
-                  icon: AgentationIcons.component(size: AppDimensions.d15, color: AppColors.textSecondary),
-                  label: const Text(
-                    AppStrings.heroCtaCliSetup,
-                    style: AppTypography.button,
-                  ),
-                ),
-              ],
-            ),
           ],
         );
       },
@@ -152,69 +102,74 @@ class HeroSection extends StatelessWidget {
 }
 
 class _InstallPill extends StatefulWidget {
-  const _InstallPill({required this.command});
+  const _InstallPill({this.url, this.onTap});
 
-  final String command;
+  final String? url;
+  final VoidCallback? onTap;
 
   @override
   State<_InstallPill> createState() => _InstallPillState();
 }
 
 class _InstallPillState extends State<_InstallPill> {
-  bool _copied = false;
+  final ValueNotifier<bool> _isHoveredNotifier = ValueNotifier<bool>(false);
 
-  void _onTap() {
-    ClipboardHelper.copy(context, widget.command);
-    if (!mounted) return;
-    setState(() => _copied = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _copied = false);
-    });
+  @override
+  void dispose() {
+    _isHoveredNotifier.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: _onTap,
-      borderRadius: AppRadii.rounded6,
-      child: Padding(
-        padding: AppInsets.v4,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 200),
-                style: _copied
-                    ? AppTypography.codeMedium.copyWith(color: AppColors.accentGreen, fontWeight: FontWeight.w500)
-                    : AppTypography.codeMedium.copyWith(color: AppColors.textCodeDark, fontWeight: FontWeight.w500),
-                child: Text(
-                  widget.command,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-            AppDimensions.w8,
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-              child: _copied
-                  ? KeyedSubtree(
-                      key: const ValueKey('install_check'),
-                      child: AgentationIcons.check(
-                        size: AppDimensions.d13,
-                        color: AppColors.accentGreen,
+    final targetUrl = widget.url ?? AppStrings.defaultHomepageUrl;
+
+    return SelectionContainer.disabled(
+      child: NativeLinkWrapper(
+        url: targetUrl,
+        target: LinkTarget.blank,
+        onTap: widget.onTap,
+        hoverNotifier: _isHoveredNotifier,
+        child: Padding(
+          padding: AppInsets.v4,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _isHoveredNotifier,
+            builder: (context, isHovered, _) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 150),
+                      curve: Curves.easeOut,
+                      style: AppTypography.codeMedium.copyWith(
+                        color: isHovered
+                            ? AppColors.primaryButton
+                            : AppColors.textCodeDark,
+                        fontWeight: FontWeight.w500,
                       ),
-                    )
-                  : KeyedSubtree(
-                      key: const ValueKey('install_copy'),
-                      child: AgentationIcons.copy(
-                        size: AppDimensions.d13,
-                        color: AppColors.textTertiary,
+                      child: const Text(
+                        AppStrings.heroCtaGetStarted,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-            ),
-          ],
+                  ),
+                  AppDimensions.w8,
+                  AnimatedSlide(
+                    duration: const Duration(milliseconds: 150),
+                    curve: Curves.easeOut,
+                    offset: isHovered ? const Offset(0.3, 0) : Offset.zero,
+                    child: AppIcons.arrowRight(
+                      size: AppDimensions.d13,
+                      color: isHovered
+                          ? AppColors.primaryButton
+                          : AppColors.textTertiary,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -262,7 +217,7 @@ class MetricsSection extends StatelessWidget {
           width: double.infinity,
           padding: isMobile ? AppInsets.v18 : AppInsets.v22,
           decoration: const BoxDecoration(
-            color: Colors.transparent,
+            color: AppColors.transparent,
             border: Border(
               top: BorderSide(color: AppColors.borderSubtle, width: AppDimensions.d1),
               bottom: BorderSide(color: AppColors.borderSubtle, width: AppDimensions.d1),

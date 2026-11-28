@@ -19,8 +19,15 @@ class ToolbarPlatformsPage extends StatefulWidget {
 }
 
 class _ToolbarPlatformsPageState extends State<ToolbarPlatformsPage> {
-  int _selectedStyleIndex = 0;
-  int _selectedStateIndex = 0;
+  final ValueNotifier<int> _selectedStyleIndex = ValueNotifier<int>(0);
+  final ValueNotifier<int> _selectedStateIndex = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    _selectedStyleIndex.dispose();
+    _selectedStateIndex.dispose();
+    super.dispose();
+  }
 
   static const String _specJson = '''{
   "jsonrpc": "2.0",
@@ -749,7 +756,7 @@ class _ToolbarPlatformsPageState extends State<ToolbarPlatformsPage> {
                   height: AppDimensions.d18,
                   margin: AppInsets.h2,
                   decoration: BoxDecoration(
-                    color: i == 0 ? AppColors.cardBackground : Colors.transparent,
+                    color: i == 0 ? AppColors.cardBackground : AppColors.transparent,
                     borderRadius: AppRadii.rounded4,
                   ),
                 ),
@@ -800,15 +807,20 @@ class _ToolbarPlatformsPageState extends State<ToolbarPlatformsPage> {
           // 1. BUTTON INTENT & STYLE VARIANT
           const Text('1. BUTTON INTENT & STYLE VARIANT', style: AppTypography.overlineMini),
           AppDimensions.h8,
-          Wrap(
-            spacing: AppDimensions.d6,
-            runSpacing: AppDimensions.d6,
-            children: [
-              _buildDialogOption('Elevated Primary', _selectedStyleIndex == 0, () => setState(() => _selectedStyleIndex = 0), isBlack: true),
-              _buildDialogOption('Outlined Secondary', _selectedStyleIndex == 1, () => setState(() => _selectedStyleIndex = 1)),
-              _buildDialogOption('Filled Tonal', _selectedStyleIndex == 2, () => setState(() => _selectedStyleIndex = 2)),
-              _buildDialogOption('Text Only', _selectedStyleIndex == 3, () => setState(() => _selectedStyleIndex = 3)),
-            ],
+          ValueListenableBuilder<int>(
+            valueListenable: _selectedStyleIndex,
+            builder: (context, styleIndex, _) {
+              return Wrap(
+                spacing: AppDimensions.d6,
+                runSpacing: AppDimensions.d6,
+                children: [
+                  _buildDialogOption('Elevated Primary', styleIndex == 0, () => _selectedStyleIndex.value = 0, isBlack: true),
+                  _buildDialogOption('Outlined Secondary', styleIndex == 1, () => _selectedStyleIndex.value = 1),
+                  _buildDialogOption('Filled Tonal', styleIndex == 2, () => _selectedStyleIndex.value = 2),
+                  _buildDialogOption('Text Only', styleIndex == 3, () => _selectedStyleIndex.value = 3),
+                ],
+              );
+            },
           ),
           AppDimensions.h14,
 
@@ -833,15 +845,20 @@ class _ToolbarPlatformsPageState extends State<ToolbarPlatformsPage> {
           // 3. STATE MANAGEMENT BINDING
           const Text('3. STATE MANAGEMENT BINDING', style: AppTypography.overlineMini),
           AppDimensions.h8,
-          Wrap(
-            spacing: AppDimensions.d6,
-            runSpacing: AppDimensions.d6,
-            children: [
-              _buildDialogOption('Riverpod Notifier', _selectedStateIndex == 0, () => setState(() => _selectedStateIndex = 0), isBlue: true),
-              _buildDialogOption('Bloc / Cubit', _selectedStateIndex == 1, () => setState(() => _selectedStateIndex = 1)),
-              _buildDialogOption('ValueNotifier', _selectedStateIndex == 2, () => setState(() => _selectedStateIndex = 2)),
-              _buildDialogOption('Ephemeral setState', _selectedStateIndex == 3, () => setState(() => _selectedStateIndex = 3)),
-            ],
+          ValueListenableBuilder<int>(
+            valueListenable: _selectedStateIndex,
+            builder: (context, stateIndex, _) {
+              return Wrap(
+                spacing: AppDimensions.d6,
+                runSpacing: AppDimensions.d6,
+                children: [
+                  _buildDialogOption('Riverpod Notifier', stateIndex == 0, () => _selectedStateIndex.value = 0, isBlue: true),
+                  _buildDialogOption('Bloc / Cubit', stateIndex == 1, () => _selectedStateIndex.value = 1),
+                  _buildDialogOption('ValueNotifier', stateIndex == 2, () => _selectedStateIndex.value = 2),
+                  _buildDialogOption('Ephemeral setState', stateIndex == 3, () => _selectedStateIndex.value = 3),
+                ],
+              );
+            },
           ),
           AppDimensions.h14,
 

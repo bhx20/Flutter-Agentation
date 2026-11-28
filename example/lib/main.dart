@@ -20,6 +20,7 @@ export 'src/pages/workflow_page.dart';
 export 'src/routes/app_router.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
   runApp(const AgentationExampleApp());
 }

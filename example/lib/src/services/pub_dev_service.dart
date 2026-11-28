@@ -1,7 +1,33 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:http/http.dart' as http;
+
+/// Minimal HTTP client interface decoupling network operations from external packages.
+abstract class SimpleHttpClient {
+  Future<SimpleHttpResponse> get(Uri uri, {Map<String, String>? headers});
+  void close();
+}
+
+/// Minimal HTTP response representation.
+class SimpleHttpResponse {
+  const SimpleHttpResponse(this.statusCode, this.body, {this.headers = const {}});
+  final int statusCode;
+  final String body;
+  final Map<String, String> headers;
+}
+
+/// Default no-op / fallback HTTP client when external network libraries are excluded.
+class DefaultSimpleHttpClient implements SimpleHttpClient {
+  const DefaultSimpleHttpClient();
+
+  @override
+  Future<SimpleHttpResponse> get(Uri uri, {Map<String, String>? headers}) async {
+    return const SimpleHttpResponse(503, 'Network client disabled');
+  }
+
+  @override
+  void close() {}
+}
 
 /// Change item describing a feature or improvement in a package release.
 class PackageChange {
@@ -247,7 +273,7 @@ class PubDevService {
   PubPackageData get current => packageNotifier.value;
 
   /// Fetches package details, score, publisher, and CHANGELOG.md dynamically.
-  Future<void> fetchPackageData({http.Client? client}) async {
+  Future<void> fetchPackageData({SimpleHttpClient? client}) async {
     // Avoid triggering unmocked real network calls during widget testing
     if (client == null &&
         (!enableNetworkCalls ||
@@ -257,7 +283,7 @@ class PubDevService {
       return;
     }
 
-    final httpClient = client ?? http.Client();
+    final httpClient = client ?? const DefaultSimpleHttpClient();
     final shouldCloseClient = client == null;
 
     packageNotifier.value = current.copyWith(isLoading: true, error: null);

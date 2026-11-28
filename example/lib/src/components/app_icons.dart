@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_colors.dart';
+
 /// Pixel-perfect vector icons specific to the Agentation example showcase and mockups.
 class AppIcons {
   const AppIcons._();
 
   /// Lock icon matching upstream Agentation URL bar security badge.
-  static Widget lock({double size = 14.0, Color color = Colors.white}) {
+  static Widget lock({double size = 14.0, Color color = AppColors.textWhite}) {
     return CustomPaint(
       size: Size(size, size),
       painter: _LockIconPainter(color: color),
+    );
+  }
+
+  /// Right-pointing forward arrow icon matching modern UI action buttons.
+  static Widget arrowRight({double size = 14.0, Color color = AppColors.textWhite}) {
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _ArrowRightIconPainter(color: color),
     );
   }
 }
@@ -52,4 +62,38 @@ class _LockIconPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_LockIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _ArrowRightIconPainter extends CustomPainter {
+  const _ArrowRightIconPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final strokePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final scale = size.width / 16.0;
+    canvas.save();
+    canvas.scale(scale);
+
+    // Stem horizontal line from (3.0, 8.0) to (12.5, 8.0)
+    canvas.drawLine(const Offset(3.0, 8.0), const Offset(12.5, 8.0), strokePaint);
+
+    // Arrowhead chevron
+    final head = Path()
+      ..moveTo(8.5, 4.0)
+      ..lineTo(12.5, 8.0)
+      ..lineTo(8.5, 12.0);
+    canvas.drawPath(head, strokePaint);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_ArrowRightIconPainter oldDelegate) => oldDelegate.color != color;
 }

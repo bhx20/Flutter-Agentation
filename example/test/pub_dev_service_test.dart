@@ -1,8 +1,18 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:example/src/services/pub_dev_service.dart';
+
+class MockSimpleHttpClient implements SimpleHttpClient {
+  MockSimpleHttpClient(this.handler);
+
+  final Future<SimpleHttpResponse> Function(Uri uri, Map<String, String>? headers) handler;
+
+  @override
+  Future<SimpleHttpResponse> get(Uri uri, {Map<String, String>? headers}) => handler(uri, headers);
+
+  @override
+  void close() {}
+}
 
 void main() {
   group('PubDevService Tests', () {
@@ -45,11 +55,12 @@ void main() {
     test('fetchPackageData successfully parses pub.dev mock responses and changelog', () async {
       final service = PubDevService.instance;
 
-      final mockClient = MockClient((request) async {
-        final path = request.url.path;
+      final mockClient = MockSimpleHttpClient((uri, headers) async {
+        final path = uri.path;
 
         if (path.endsWith('/packages/flutter_agentation')) {
-          return http.Response(
+          return SimpleHttpResponse(
+            200,
             jsonEncode({
               'name': 'flutter_agentation',
               'latest': {
@@ -69,11 +80,11 @@ void main() {
                 {'version': '1.0.0'},
               ],
             }),
-            200,
             headers: {'content-type': 'application/json'},
           );
         } else if (path.endsWith('/packages/flutter_agentation/score')) {
-          return http.Response(
+          return SimpleHttpResponse(
+            200,
             jsonEncode({
               'grantedPoints': 150,
               'maxPoints': 160,
@@ -91,29 +102,28 @@ void main() {
                 'publisher:coddynet.com',
               ],
             }),
-            200,
             headers: {'content-type': 'application/json'},
           );
         } else if (path.endsWith('/packages/flutter_agentation/publisher')) {
-          return http.Response(
+          return SimpleHttpResponse(
+            200,
             jsonEncode({
               'publisherId': 'coddynet.com',
             }),
-            200,
             headers: {'content-type': 'application/json'},
           );
         } else if (path.endsWith('/CHANGELOG.md')) {
-          return http.Response(
+          return const SimpleHttpResponse(
+            200,
             '''
 ## 1.0.0
 * First official stable release of Flutter Agentation.
 * Comprehensive Model Context Protocol (MCP) server daemon.
 ''',
-            200,
           );
         }
 
-        return http.Response('Not found', 404);
+        return const SimpleHttpResponse(404, 'Not found');
       });
 
       await service.fetchPackageData(client: mockClient);

@@ -61,7 +61,6 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Get Started with pub.dev'), findsOneWidget);
-      expect(find.text('CLI Setup'), findsOneWidget);
 
       await tester.tap(find.text('Get Started with pub.dev'));
       expect(getStartedTapped, isTrue);
@@ -93,8 +92,7 @@ void main() {
         ),
       );
 
-      expect(find.text('Interactive Target App & Pin Resolver'), findsOneWidget);
-      expect(find.text('Target Screen: /dashboard'), findsOneWidget);
+      expect(find.text('localhost:3000'), findsOneWidget);
       expect(find.text('Benji\'s dashboard'), findsOneWidget);
       expect(find.text('Change to primary style'), findsOneWidget);
 

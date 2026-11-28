@@ -5,6 +5,7 @@ import '../theme/app_insets.dart';
 import '../theme/app_radii.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
+import 'app_text.dart';
 
 class SectionBadge extends StatelessWidget {
   const SectionBadge({
@@ -54,7 +55,7 @@ class SectionBadge extends StatelessWidget {
             AppDimensions.w4,
           ],
           Flexible(
-            child: Text(
+            child: AppText(
               label.toUpperCase(),
               style: AppTypography.overline.copyWith(
                 color: isLight ? AppColors.textSecondary : AppColors.textWhite,

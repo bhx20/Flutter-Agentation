@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:example/src/theme/app_dimensions.dart';
 
 import '../constants/app_strings.dart';
+import '../routes/app_router.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_insets.dart';
-import '../theme/app_radii.dart';
 import '../theme/app_typography.dart';
 import 'package:flutter_agentation/flutter_agentation.dart';
 import 'agentation_logo.dart';
 import 'hover_tile.dart';
+import 'native_link_wrapper.dart';
 import '../services/pub_dev_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/breakpoints.dart';
@@ -28,14 +29,16 @@ class NavbarSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<PubPackageData>(
-      valueListenable: PubDevService.instance.packageNotifier,
-      builder: (context, data, _) {
-        if (isVertical) {
-          return _buildVerticalSidebar(context, data);
-        }
-        return _buildHorizontalNavbar(context, data);
-      },
+    return SelectionContainer.disabled(
+      child: ValueListenableBuilder<PubPackageData>(
+        valueListenable: PubDevService.instance.packageNotifier,
+        builder: (context, data, _) {
+          if (isVertical) {
+            return _buildVerticalSidebar(context, data);
+          }
+          return _buildHorizontalNavbar(context, data);
+        },
+      ),
     );
   }
 
@@ -48,9 +51,10 @@ class NavbarSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Logo at top
-          InkWell(
-            onTap: () => onNavigate?.call('overview'),
-            borderRadius: AppRadii.rounded4,
+          NativeLinkWrapper(
+            url: AppRouter.pathFor(AppRouter.overview),
+            target: LinkTarget.self,
+            onTap: () => onNavigate?.call(AppRouter.overview),
             child: const FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
@@ -62,38 +66,44 @@ class NavbarSection extends StatelessWidget {
           // Working Primary Navigation Links
           _SidebarLink(
             label: AppStrings.navOverview,
-            isActive: activeSection == 'overview',
-            onTap: () => onNavigate?.call('overview'),
+            routeKey: AppRouter.overview,
+            isActive: activeSection == AppRouter.overview,
+            onTap: () => onNavigate?.call(AppRouter.overview),
           ),
           AppDimensions.h10,
           _SidebarLink(
             label: AppStrings.navInstallation,
-            isActive: activeSection == 'installation',
-            onTap: () => onNavigate?.call('installation'),
+            routeKey: AppRouter.installation,
+            isActive: activeSection == AppRouter.installation,
+            onTap: () => onNavigate?.call(AppRouter.installation),
           ),
           AppDimensions.h10,
           _SidebarLink(
             label: AppStrings.navMcp,
-            isActive: activeSection == 'mcp',
-            onTap: () => onNavigate?.call('mcp'),
+            routeKey: AppRouter.mcp,
+            isActive: activeSection == AppRouter.mcp,
+            onTap: () => onNavigate?.call(AppRouter.mcp),
           ),
           AppDimensions.h10,
           _SidebarLink(
             label: AppStrings.navPlatforms,
-            isActive: activeSection == 'platforms',
-            onTap: () => onNavigate?.call('platforms'),
+            routeKey: AppRouter.platforms,
+            isActive: activeSection == AppRouter.platforms,
+            onTap: () => onNavigate?.call(AppRouter.platforms),
           ),
           AppDimensions.h10,
           _SidebarLink(
             label: AppStrings.navChangelog,
-            isActive: activeSection == 'changelog',
-            onTap: () => onNavigate?.call('changelog'),
+            routeKey: AppRouter.changelog,
+            isActive: activeSection == AppRouter.changelog,
+            onTap: () => onNavigate?.call(AppRouter.changelog),
           ),
           AppDimensions.h10,
           _SidebarLink(
             label: AppStrings.navFaq,
-            isActive: activeSection == 'faq',
-            onTap: () => onNavigate?.call('faq'),
+            routeKey: AppRouter.faq,
+            isActive: activeSection == AppRouter.faq,
+            onTap: () => onNavigate?.call(AppRouter.faq),
           ),
 
           AppDimensions.h24,
@@ -101,6 +111,8 @@ class NavbarSection extends StatelessWidget {
           // Resources Link
           _SidebarLink(
             label: AppStrings.navGitHub,
+            url: data.repositoryUrl,
+            target: LinkTarget.blank,
             isActive: false,
             onTap: () {
               ClipboardHelper.copy(
@@ -113,6 +125,8 @@ class NavbarSection extends StatelessWidget {
           AppDimensions.h10,
           _SidebarLink(
             label: 'pub.dev Package',
+            url: data.homepageUrl,
+            target: LinkTarget.blank,
             isActive: false,
             onTap: () {
               ClipboardHelper.copy(
@@ -175,7 +189,10 @@ class NavbarSection extends StatelessWidget {
           decoration: const BoxDecoration(
             color: AppColors.cardBackground,
             border: Border(
-              bottom: BorderSide(color: AppColors.borderSubtle, width: AppDimensions.d1),
+              bottom: BorderSide(
+                color: AppColors.borderSubtle,
+                width: AppDimensions.d1,
+              ),
             ),
           ),
           child: Center(
@@ -191,9 +208,10 @@ class NavbarSection extends StatelessWidget {
                   children: [
                     // Brand Logo on Left (Official SVG Logo)
                     Flexible(
-                      child: InkWell(
-                        onTap: () => onNavigate?.call('overview'),
-                        borderRadius: AppRadii.rounded4,
+                      child: NativeLinkWrapper(
+                        url: AppRouter.pathFor(AppRouter.overview),
+                        target: LinkTarget.self,
+                        onTap: () => onNavigate?.call(AppRouter.overview),
                         child: const Padding(
                           padding: AppInsets.v4,
                           child: FittedBox(
@@ -228,38 +246,51 @@ class NavbarSection extends StatelessWidget {
                               children: [
                                 _NavLink(
                                   label: AppStrings.navOverview,
-                                  isActive: activeSection == 'overview',
-                                  onTap: () => onNavigate?.call('overview'),
+                                  routeKey: AppRouter.overview,
+                                  isActive: activeSection == AppRouter.overview,
+                                  onTap: () =>
+                                      onNavigate?.call(AppRouter.overview),
                                 ),
                                 AppDimensions.w20,
                                 _NavLink(
                                   label: AppStrings.navInstallation,
-                                  isActive: activeSection == 'installation',
-                                  onTap: () => onNavigate?.call('installation'),
+                                  routeKey: AppRouter.installation,
+                                  isActive:
+                                      activeSection == AppRouter.installation,
+                                  onTap: () =>
+                                      onNavigate?.call(AppRouter.installation),
                                 ),
                                 AppDimensions.w20,
                                 _NavLink(
                                   label: AppStrings.navMcp,
-                                  isActive: activeSection == 'mcp',
-                                  onTap: () => onNavigate?.call('mcp'),
+                                  routeKey: AppRouter.mcp,
+                                  isActive: activeSection == AppRouter.mcp,
+                                  onTap: () => onNavigate?.call(AppRouter.mcp),
                                 ),
                                 AppDimensions.w20,
                                 _NavLink(
                                   label: AppStrings.navPlatforms,
-                                  isActive: activeSection == 'platforms',
-                                  onTap: () => onNavigate?.call('platforms'),
+                                  routeKey: AppRouter.platforms,
+                                  isActive:
+                                      activeSection == AppRouter.platforms,
+                                  onTap: () =>
+                                      onNavigate?.call(AppRouter.platforms),
                                 ),
                                 AppDimensions.w20,
                                 _NavLink(
                                   label: AppStrings.navChangelog,
-                                  isActive: activeSection == 'changelog',
-                                  onTap: () => onNavigate?.call('changelog'),
+                                  routeKey: AppRouter.changelog,
+                                  isActive:
+                                      activeSection == AppRouter.changelog,
+                                  onTap: () =>
+                                      onNavigate?.call(AppRouter.changelog),
                                 ),
                                 AppDimensions.w20,
                                 _NavLink(
                                   label: AppStrings.navFaq,
-                                  isActive: activeSection == 'faq',
-                                  onTap: () => onNavigate?.call('faq'),
+                                  routeKey: AppRouter.faq,
+                                  isActive: activeSection == AppRouter.faq,
+                                  onTap: () => onNavigate?.call(AppRouter.faq),
                                 ),
                               ],
                             ),
@@ -268,23 +299,27 @@ class NavbarSection extends StatelessWidget {
                       ),
 
                       // Right Action Button: < > GitHub
-                      FilledButton.icon(
-                        style: AppTheme.compactPrimaryButton,
-                        onPressed: () {
-                          ClipboardHelper.copy(
-                            context,
-                            data.repositoryUrl,
-                            successMessage:
-                                'GitHub repository link copied to clipboard',
-                          );
-                        },
-                        icon: AgentationIcons.component(
-                          size: AppDimensions.d13,
-                          color: AppColors.textWhite,
-                        ),
-                        label: const Text(
-                          'GitHub',
-                          style: AppTypography.captionWhite,
+                      NativeLinkWrapper(
+                        url: data.repositoryUrl,
+                        target: LinkTarget.blank,
+                        child: FilledButton.icon(
+                          style: AppTheme.compactPrimaryButton,
+                          onPressed: () {
+                            ClipboardHelper.copy(
+                              context,
+                              data.repositoryUrl,
+                              successMessage:
+                                  'GitHub repository link copied to clipboard',
+                            );
+                          },
+                          icon: AgentationIcons.component(
+                            size: AppDimensions.d13,
+                            color: AppColors.textWhite,
+                          ),
+                          label: const Text(
+                            'GitHub',
+                            style: AppTypography.captionWhite,
+                          ),
                         ),
                       ),
                     ],
@@ -299,47 +334,80 @@ class NavbarSection extends StatelessWidget {
   }
 }
 
-class _SidebarLink extends StatelessWidget {
+class _SidebarLink extends StatefulWidget {
   const _SidebarLink({
+    super.key,
     required this.label,
     required this.isActive,
-    required this.onTap,
+    this.routeKey,
+    this.url,
+    this.target = LinkTarget.self,
+    this.onTap,
   });
 
   final String label;
   final bool isActive;
-  final VoidCallback onTap;
+  final String? routeKey;
+  final String? url;
+  final LinkTarget target;
+  final VoidCallback? onTap;
+
+  @override
+  State<_SidebarLink> createState() => _SidebarLinkState();
+}
+
+class _SidebarLinkState extends State<_SidebarLink> {
+  final ValueNotifier<bool> _isHovered = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _isHovered.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return HoverTile(
-      isSelected: isActive,
-      onTap: onTap,
-      padding: AppInsets.v4,
-      builder: (context, isHovered, isSelected) {
-        final Color textColor;
-        final FontWeight fontWeight;
+    final effectiveUrl = widget.url ??
+        (widget.routeKey != null ? AppRouter.pathFor(widget.routeKey!) : '');
 
-        if (isSelected) {
-          textColor = AppColors.accentBlue;
-          fontWeight = FontWeight.w500;
-        } else if (isHovered) {
-          textColor = AppColors.textPrimary;
-          fontWeight = FontWeight.w500;
-        } else {
-          textColor = AppColors.textTertiary;
-          fontWeight = FontWeight.w400;
-        }
+    return SelectionContainer.disabled(
+      child: NativeLinkWrapper(
+        url: effectiveUrl,
+        target: widget.target,
+        onTap: widget.onTap,
+        hoverNotifier: _isHovered,
+        child: HoverTile(
+          isSelected: widget.isActive,
+          onTap: widget.onTap,
+          hoverNotifier: _isHovered,
+          cursor: SystemMouseCursors.click,
+          padding: AppInsets.v4,
+          builder: (context, isHovered, isSelected) {
+            final Color textColor;
+            final FontWeight fontWeight;
 
-        return Text(
-          label,
-          style: AppTypography.sidebarLink.copyWith(
-            color: textColor,
-            fontWeight: fontWeight,
-          ),
-        );
-      },
-      child: const SizedBox.shrink(),
+            if (isSelected) {
+              textColor = AppColors.accentBlue;
+              fontWeight = FontWeight.w500;
+            } else if (isHovered) {
+              textColor = AppColors.textPrimary;
+              fontWeight = FontWeight.w500;
+            } else {
+              textColor = AppColors.textTertiary;
+              fontWeight = FontWeight.w400;
+            }
+
+            return Text(
+              widget.label,
+              style: AppTypography.sidebarLink.copyWith(
+                color: textColor,
+                fontWeight: fontWeight,
+              ),
+            );
+          },
+          child: const SizedBox.shrink(),
+        ),
+      ),
     );
   }
 }
@@ -348,23 +416,31 @@ class _NavLink extends StatelessWidget {
   const _NavLink({
     required this.label,
     required this.isActive,
-    required this.onTap,
+    required this.routeKey,
+    this.onTap,
   });
 
   final String label;
   final bool isActive;
-  final VoidCallback onTap;
+  final String routeKey;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: AppRadii.rounded4,
-      child: Padding(
-        padding: AppInsets.h4v4,
-        child: Text(
-          label,
-          style: isActive ? AppTypography.navLinkActive : AppTypography.navLink,
+    return SelectionContainer.disabled(
+      child: NativeLinkWrapper(
+        url: AppRouter.pathFor(routeKey),
+        target: LinkTarget.self,
+        onTap: onTap,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Padding(
+            padding: AppInsets.h4v4,
+            child: Text(
+              label,
+              style: isActive ? AppTypography.navLinkActive : AppTypography.navLink,
+            ),
+          ),
         ),
       ),
     );

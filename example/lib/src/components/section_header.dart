@@ -4,6 +4,7 @@ import 'package:example/src/theme/app_dimensions.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../utils/breakpoints.dart';
+import 'app_text.dart';
 
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
@@ -42,7 +43,7 @@ class SectionHeader extends StatelessWidget {
               AppDimensions.w8,
             ],
             Expanded(
-              child: Text(
+              child: AppText(
                 tag.toUpperCase(),
                 style: AppTypography.overline.copyWith(
                   color: AppColors.textTertiary,
@@ -55,9 +56,9 @@ class SectionHeader extends StatelessWidget {
         ),
         AppDimensions.h8,
         if (isMobile) ...[
-          Text(title, style: AppTypography.h1),
+          AppText(title, style: AppTypography.h1),
           AppDimensions.h8,
-          Text(description, style: AppTypography.lead.copyWith(fontSize: 16)),
+          AppText(description, style: AppTypography.lead.copyWith(fontSize: 16)),
           if (trailing != null) ...[
             AppDimensions.h12,
             trailing!,
@@ -68,7 +69,7 @@ class SectionHeader extends StatelessWidget {
             children: [
               Expanded(
                 flex: 5,
-                child: Text(title, style: AppTypography.h1),
+                child: AppText(title, style: AppTypography.h1),
               ),
               AppDimensions.w32,
               Expanded(
@@ -77,7 +78,7 @@ class SectionHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Text(
+                      child: AppText(
                         description,
                         style: AppTypography.lead.copyWith(fontSize: 16),
                       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:example/src/theme/app_dimensions.dart';
 
+import '../components/app_text.dart';
 import '../constants/app_strings.dart';
 import '../theme/app_insets.dart';
 import '../theme/app_radii.dart';
@@ -13,14 +14,13 @@ class WorkflowPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // ── "How you use it" Header with trailing rule ──
         Row(
           children: [
-            const Text(
+            const AppText(
               AppStrings.workflowHeader,
               style: AppTypography.cardTitle,
             ),
@@ -37,7 +37,7 @@ class WorkflowPage extends StatelessWidget {
           number: '1.',
           title: AppStrings.workflowStep1Title,
           description: AppStrings.workflowStep1Desc,
-          iconWidget: AgentationIcons.gear(size: AppDimensions.d13, color: AppColors.textSecondary),
+          iconWidget: AgentationIcons.listSparkle(size: AppDimensions.d13, color: AppColors.textSecondary),
         ),
         AppDimensions.h12,
         _buildStepRow(
@@ -83,8 +83,8 @@ class WorkflowPage extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              RichText(
-                text: const TextSpan(
+              AppText.rich(
+                const TextSpan(
                   style: AppTypography.bodyMediumLoose,
                   children: [
                     TextSpan(text: AppStrings.workflowMcpCalloutPrefix),
@@ -105,7 +105,7 @@ class WorkflowPage extends StatelessWidget {
                   color: AppColors.cardBackgroundAlt,
                   borderRadius: AppRadii.rounded4,
                 ),
-                child: const Text(
+                child: const AppText(
                   AppStrings.workflowZeroCopy,
                   style: AppTypography.caption,
                 ),
@@ -118,7 +118,7 @@ class WorkflowPage extends StatelessWidget {
         // ── "How agents use it" Header with trailing rule ──
         Row(
           children: [
-            const Text(
+            const AppText(
               'How agents use it',
               style: AppTypography.cardTitle,
             ),
@@ -132,7 +132,7 @@ class WorkflowPage extends StatelessWidget {
 
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: AppDimensions.d860),
-          child: const Text(
+          child: const AppText(
             'Give the output to Claude, Codex, Gemini, Grok, or any coding agent with access to your codebase. Depending on your output settings and what the page contains, your agent receives widget hierarchy, file:line paths, RenderBox bounds, and screenshot context.',
             style: AppTypography.bodyMediumLoose,
           ),
@@ -152,7 +152,7 @@ class WorkflowPage extends StatelessWidget {
       children: [
         SizedBox(
           width: AppDimensions.d24,
-          child: Text(
+          child: AppText(
             number,
             style: AppTypography.bodyMuted,
           ),
@@ -165,7 +165,7 @@ class WorkflowPage extends StatelessWidget {
                 crossAxisAlignment: WrapCrossAlignment.center,
                 spacing: AppDimensions.d6,
                 children: [
-                  Text(
+                  AppText(
                     title,
                     style: AppTypography.sectionItemTitlePrimary,
                   ),
@@ -182,7 +182,7 @@ class WorkflowPage extends StatelessWidget {
                 ],
               ),
               AppDimensions.h2,
-              Text(
+              AppText(
                 description,
                 style: AppTypography.bodyMedium,
               ),

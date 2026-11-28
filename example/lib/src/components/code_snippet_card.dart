@@ -7,6 +7,7 @@ import 'package:flutter_agentation/flutter_agentation.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_typography.dart';
 import '../utils/clipboard_helper.dart';
+import 'app_text.dart';
 
 class CodeSnippetCard extends StatefulWidget {
   const CodeSnippetCard({
@@ -27,7 +28,13 @@ class CodeSnippetCard extends StatefulWidget {
 }
 
 class _CodeSnippetCardState extends State<CodeSnippetCard> {
-  bool _copied = false;
+  final ValueNotifier<bool> _copiedNotifier = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _copiedNotifier.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleCopy() async {
     final success = await ClipboardHelper.copy(
@@ -36,9 +43,9 @@ class _CodeSnippetCardState extends State<CodeSnippetCard> {
       successMessage: 'Code copied to clipboard',
     );
     if (success && mounted) {
-      setState(() => _copied = true);
+      _copiedNotifier.value = true;
       Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) setState(() => _copied = false);
+        if (mounted) _copiedNotifier.value = false;
       });
     }
   }
@@ -65,41 +72,48 @@ class _CodeSnippetCardState extends State<CodeSnippetCard> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    widget.title!,
-                    style: AppTypography.codeSnippetTitle,
-                  ),
+                  AppText(widget.title!, style: AppTypography.codeSnippetTitle),
                   InkWell(
                     onTap: _handleCopy,
                     child: Padding(
                       padding: AppInsets.all2,
-                      child: Row(
-                        children: [
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 200),
-                            transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-                            child: _copied
-                                ? KeyedSubtree(
-                                    key: const ValueKey('code_check'),
-                                    child: AgentationIcons.check(
-                                      size: AppDimensions.d13,
-                                      color: AppColors.accentGreen,
-                                    ),
-                                  )
-                                : KeyedSubtree(
-                                    key: const ValueKey('code_copy'),
-                                    child: AgentationIcons.copy(
-                                      size: AppDimensions.d13,
-                                      color: AppColors.codeComment,
-                                    ),
-                                  ),
-                          ),
-                          AppDimensions.w4,
-                          Text(
-                            _copied ? 'Copied' : 'Copy',
-                            style: _copied ? AppTypography.codeSnippetCopy.copyWith(color: AppColors.accentGreen) : AppTypography.codeSnippetCopy,
-                          ),
-                        ],
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _copiedNotifier,
+                        builder: (context, copied, _) {
+                          return Row(
+                            children: [
+                              AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 200),
+                                transitionBuilder: (child, anim) =>
+                                    ScaleTransition(scale: anim, child: child),
+                                child: copied
+                                    ? KeyedSubtree(
+                                        key: const ValueKey('code_check'),
+                                        child: AgentationIcons.check(
+                                          size: AppDimensions.d13,
+                                          color: AppColors.accentGreen,
+                                        ),
+                                      )
+                                    : KeyedSubtree(
+                                        key: const ValueKey('code_copy'),
+                                        child: AgentationIcons.copy(
+                                          size: AppDimensions.d13,
+                                          color: AppColors.codeComment,
+                                        ),
+                                      ),
+                              ),
+                              AppDimensions.w4,
+                              AppText(
+                                copied ? 'Copied' : 'Copy',
+                                style: copied
+                                    ? AppTypography.codeSnippetCopy.copyWith(
+                                        color: AppColors.accentGreen,
+                                      )
+                                    : AppTypography.codeSnippetCopy,
+                              ),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -111,10 +125,7 @@ class _CodeSnippetCardState extends State<CodeSnippetCard> {
             padding: AppInsets.all14,
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: SelectableText(
-                widget.code,
-                style: AppTypography.code,
-              ),
+              child: AppText(widget.code, style: AppTypography.code),
             ),
           ),
         ],
@@ -122,4 +133,3 @@ class _CodeSnippetCardState extends State<CodeSnippetCard> {
     );
   }
 }
-

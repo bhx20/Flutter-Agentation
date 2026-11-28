@@ -5,6 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:example/src/components/action_button.dart';
 import 'package:example/src/components/agentation_logo.dart';
 import 'package:example/src/components/app_icons.dart';
+import 'package:example/src/components/app_text.dart';
+import 'package:example/src/components/desktop_scrollbar.dart';
+import 'package:example/src/components/smooth_scroll.dart';
 import 'package:example/src/components/browser_window_frame.dart';
 import 'package:example/src/components/code_snippet_card.dart';
 import 'package:example/src/components/copy_pill.dart';
@@ -208,6 +211,189 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    testWidgets('AppIcons renders arrowRight icon with custom paint', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: AppIcons.arrowRight(size: 14, color: Colors.white),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is CustomPaint && w.size == const Size(14, 14),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('DesktopScrollbar renders rail, stepper buttons, and updates on scroll', (tester) async {
+      final controller = ScrollController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 400,
+              width: 300,
+              child: DesktopScrollbar(
+                controller: controller,
+                child: SingleChildScrollView(
+                  controller: controller,
+                  child: Column(
+                    children: List.generate(
+                      40,
+                      (i) => SizedBox(
+                        height: 50,
+                        child: Text('Item $i'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DesktopScrollbar), findsOneWidget);
+      expect(controller.offset, 0.0);
+
+      // Scroll using controller
+      controller.jumpTo(200.0);
+      await tester.pump();
+      expect(controller.offset, 200.0);
+
+      controller.dispose();
+    });
+
+    testWidgets('SmoothScroll intercepts pointer scroll and smoothly animates', (tester) async {
+      final controller = ScrollController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 400,
+              width: 300,
+              child: SmoothScroll(
+                controller: controller,
+                child: SingleChildScrollView(
+                  controller: controller,
+                  child: Column(
+                    children: List.generate(
+                      40,
+                      (i) => SizedBox(
+                        height: 50,
+                        child: Text('Row $i'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(controller.offset, 0.0);
+
+      // Trigger smoothScrollTo
+      final state = tester.state<SmoothScrollState>(find.byType(SmoothScroll));
+      state.smoothScrollTo(300.0);
+
+      // Advance frames and ensure it smoothly interpolates towards target
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(controller.offset, greaterThan(0.0));
+      expect(controller.offset, lessThanOrEqualTo(300.0));
+
+      await tester.pumpAndSettle();
+      expect(controller.offset, 300.0);
+
+      controller.dispose();
+    });
+
+    testWidgets('SmoothScrollController creates smooth position and animates pointer scroll', (tester) async {
+      final controller = SmoothScrollController(damping: 5.0, speedMultiplier: 1.0);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 400,
+              width: 300,
+              child: SingleChildScrollView(
+                controller: controller,
+                child: Column(
+                  children: List.generate(
+                    40,
+                    (i) => SizedBox(
+                      height: 50,
+                      child: Text('Smooth Row $i'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      expect(controller.offset, 0.0);
+
+      // Simulate mouse wheel pointer scroll event
+      final pointer = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(pointer.hover(const Offset(150, 200)));
+      await tester.sendEventToBinding(pointer.scroll(const Offset(0.0, 100.0)));
+
+      // Advance one frame
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(controller.offset, greaterThan(0.0));
+
+      await tester.pumpAndSettle();
+      expect(controller.offset, 100.0);
+
+      controller.dispose();
+    });
+
+    testWidgets('AppText renders selectable text and rich text correctly', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Column(
+              children: [
+                AppText('Selectable String'),
+                AppSelectableText.rich(
+                  TextSpan(
+                    text: 'Rich ',
+                    children: [
+                      TextSpan(text: 'Span'),
+                    ],
+                  ),
+                ),
+                AppText(
+                  'Overflow Ellipsis Text',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Selectable String'), findsOneWidget);
+      expect(find.text('Rich Span', findRichText: true), findsOneWidget);
+      expect(find.text('Overflow Ellipsis Text'), findsOneWidget);
+      expect(find.byType(AppText), findsNWidgets(3));
     });
   });
 }

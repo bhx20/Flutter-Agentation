@@ -17,6 +17,7 @@ class HoverTile extends StatefulWidget {
     super.key,
     required this.child,
     this.onTap,
+    this.cursor,
     this.isSelected = false,
     this.showBox = false,
     this.padding = EdgeInsets.zero,
@@ -31,6 +32,7 @@ class HoverTile extends StatefulWidget {
     this.selectedBorderColor,
     this.showLeftIndicator = false,
     this.builder,
+    this.hoverNotifier,
   });
 
   /// The child content widget to display inside the tile.
@@ -38,6 +40,10 @@ class HoverTile extends StatefulWidget {
 
   /// Optional tap handler. When provided, shows a click cursor on hover.
   final VoidCallback? onTap;
+
+  /// Custom mouse cursor when hovering over this tile.
+  /// Defaults to [SystemMouseCursors.click] if [onTap] is provided, or [SystemMouseCursors.defer].
+  final MouseCursor? cursor;
 
   /// Whether this tile is in active / selected state.
   final bool isSelected;
@@ -90,17 +96,28 @@ class HoverTile extends StatefulWidget {
   /// to conditionally style text or icons inside the child.
   final Widget Function(BuildContext context, bool isHovered, bool isSelected)? builder;
 
+  /// Optional external notifier for hover state (e.g. from NativeLinkWrapper).
+  final ValueNotifier<bool>? hoverNotifier;
+
   @override
   State<HoverTile> createState() => _HoverTileState();
 }
 
 class _HoverTileState extends State<HoverTile> {
-  bool _isHovered = false;
+  late final ValueNotifier<bool> _internalHoverNotifier;
+  ValueNotifier<bool> get _effectiveHoverNotifier =>
+      widget.hoverNotifier ?? _internalHoverNotifier;
 
-  void _setHovered(bool value) {
-    if (_isHovered != value) {
-      setState(() => _isHovered = value);
-    }
+  @override
+  void initState() {
+    super.initState();
+    _internalHoverNotifier = ValueNotifier<bool>(false);
+  }
+
+  @override
+  void dispose() {
+    _internalHoverNotifier.dispose();
+    super.dispose();
   }
 
   @override
@@ -108,104 +125,117 @@ class _HoverTileState extends State<HoverTile> {
     final effectiveDefaultTextColor = widget.defaultTextColor ?? AppColors.textTertiary;
     final effectiveHoverTextColor = widget.hoverTextColor ?? AppColors.textPrimary;
     final effectiveSelectedTextColor = widget.selectedTextColor ?? AppColors.accentBlue;
+    final effectiveCursor = widget.cursor ??
+        (widget.onTap != null ? SystemMouseCursors.click : MouseCursor.defer);
 
-    final Color currentColor;
-    final FontWeight currentWeight;
-
-    if (widget.isSelected) {
-      currentColor = effectiveSelectedTextColor;
-      currentWeight = FontWeight.w500;
-    } else if (_isHovered) {
-      currentColor = effectiveHoverTextColor;
-      currentWeight = FontWeight.w500;
-    } else {
-      currentColor = effectiveDefaultTextColor;
-      currentWeight = FontWeight.w400;
-    }
-
-    final Widget content;
-    if (widget.builder != null) {
-      content = widget.builder!(context, _isHovered, widget.isSelected);
-    } else {
-      content = AnimatedDefaultTextStyle(
-        duration: const Duration(milliseconds: 140),
-        style: TextStyle(
-          color: currentColor,
-          fontWeight: currentWeight,
-        ),
-        child: IconTheme.merge(
-          data: IconThemeData(color: currentColor),
-          child: widget.child,
-        ),
-      );
-    }
-
-    Widget body = content;
-    if (widget.showLeftIndicator) {
-      body = Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 140),
-            width: AppDimensions.d3,
-            height: AppDimensions.d14,
-            decoration: BoxDecoration(
-              color: (widget.isSelected || _isHovered)
-                  ? AppColors.primaryButton
-                  : Colors.transparent,
-              borderRadius: AppRadii.rounded2,
-            ),
-          ),
-          AppDimensions.w6,
-          Flexible(child: content),
-        ],
-      );
-    }
-
-    BoxDecoration? decoration;
-    if (widget.showBox) {
-      final effectiveHoverColor = widget.hoverColor ?? AppColors.surfaceMuted;
-      final effectiveSelectedColor = widget.selectedColor ?? AppColors.accentBlueSubtle;
-      final effectiveHoverBorder = widget.hoverBorderColor ?? AppColors.borderSubtle;
-      final effectiveSelectedBorder = widget.selectedBorderColor ?? AppColors.accentBlueBorder;
-
-      final Color bgColor;
-      final Color borderColor;
-
-      if (widget.isSelected) {
-        bgColor = effectiveSelectedColor;
-        borderColor = effectiveSelectedBorder;
-      } else if (_isHovered) {
-        bgColor = effectiveHoverColor;
-        borderColor = effectiveHoverBorder;
-      } else {
-        bgColor = Colors.transparent;
-        borderColor = Colors.transparent;
-      }
-
-      decoration = BoxDecoration(
-        color: bgColor,
-        borderRadius: widget.borderRadius,
-        border: Border.all(color: borderColor, width: AppDimensions.d1),
-      );
-    }
-
-    return MouseRegion(
-      onEnter: (_) => _setHovered(true),
-      onExit: (_) => _setHovered(false),
-      cursor: widget.onTap != null ? SystemMouseCursors.click : SystemMouseCursors.basic,
+    Widget result = MouseRegion(
+      onEnter: (_) => _effectiveHoverNotifier.value = true,
+      onExit: (_) => _effectiveHoverNotifier.value = false,
+      cursor: effectiveCursor,
       child: GestureDetector(
         onTap: widget.onTap,
         behavior: HitTestBehavior.opaque,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          curve: Curves.easeOut,
-          margin: widget.margin,
-          padding: widget.padding,
-          decoration: decoration,
-          child: body,
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _effectiveHoverNotifier,
+          builder: (context, isHovered, _) {
+            final Color currentColor;
+            final FontWeight currentWeight;
+
+            if (widget.isSelected) {
+              currentColor = effectiveSelectedTextColor;
+              currentWeight = FontWeight.w500;
+            } else if (isHovered) {
+              currentColor = effectiveHoverTextColor;
+              currentWeight = FontWeight.w500;
+            } else {
+              currentColor = effectiveDefaultTextColor;
+              currentWeight = FontWeight.w400;
+            }
+
+            final Widget content;
+            if (widget.builder != null) {
+              content = widget.builder!(context, isHovered, widget.isSelected);
+            } else {
+              content = AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 140),
+                style: TextStyle(
+                  color: currentColor,
+                  fontWeight: currentWeight,
+                ),
+                child: IconTheme.merge(
+                  data: IconThemeData(color: currentColor),
+                  child: widget.child,
+                ),
+              );
+            }
+
+            Widget body = content;
+            if (widget.showLeftIndicator) {
+              body = Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    width: AppDimensions.d3,
+                    height: AppDimensions.d14,
+                    decoration: BoxDecoration(
+                      color: (widget.isSelected || isHovered)
+                          ? AppColors.primaryButton
+                          : AppColors.transparent,
+                      borderRadius: AppRadii.rounded2,
+                    ),
+                  ),
+                  AppDimensions.w6,
+                  Flexible(child: content),
+                ],
+              );
+            }
+
+            BoxDecoration? decoration;
+            if (widget.showBox) {
+              final effectiveHoverColor = widget.hoverColor ?? AppColors.surfaceMuted;
+              final effectiveSelectedColor = widget.selectedColor ?? AppColors.accentBlueSubtle;
+              final effectiveHoverBorder = widget.hoverBorderColor ?? AppColors.borderSubtle;
+              final effectiveSelectedBorder = widget.selectedBorderColor ?? AppColors.accentBlueBorder;
+
+              final Color bgColor;
+              final Color borderColor;
+
+              if (widget.isSelected) {
+                bgColor = effectiveSelectedColor;
+                borderColor = effectiveSelectedBorder;
+              } else if (isHovered) {
+                bgColor = effectiveHoverColor;
+                borderColor = effectiveHoverBorder;
+              } else {
+                bgColor = AppColors.transparent;
+                borderColor = AppColors.transparent;
+              }
+
+              decoration = BoxDecoration(
+                color: bgColor,
+                borderRadius: widget.borderRadius,
+                border: Border.all(color: borderColor, width: AppDimensions.d1),
+              );
+            }
+
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOut,
+              margin: widget.margin,
+              padding: widget.padding,
+              decoration: decoration,
+              child: body,
+            );
+          },
         ),
       ),
     );
+
+    if (effectiveCursor == SystemMouseCursors.click || widget.onTap != null) {
+      result = SelectionContainer.disabled(child: result);
+    }
+
+    return result;
   }
 }

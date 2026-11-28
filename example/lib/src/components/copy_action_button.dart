@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:example/src/theme/app_dimensions.dart';
 import 'package:flutter_agentation/flutter_agentation.dart';
 
+import '../components/app_text.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radii.dart';
 import '../theme/app_typography.dart';
@@ -29,14 +30,20 @@ class CopyActionButton extends StatefulWidget {
 }
 
 class _CopyActionButtonState extends State<CopyActionButton> {
-  bool _copied = false;
+  final ValueNotifier<bool> _copiedNotifier = ValueNotifier<bool>(false);
+
+  @override
+  void dispose() {
+    _copiedNotifier.dispose();
+    super.dispose();
+  }
 
   void _onTap() {
     ClipboardHelper.copy(context, widget.text);
     if (!mounted) return;
-    setState(() => _copied = true);
+    _copiedNotifier.value = true;
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _copied = false);
+      if (mounted) _copiedNotifier.value = false;
     });
   }
 
@@ -46,34 +53,39 @@ class _CopyActionButtonState extends State<CopyActionButton> {
     return InkWell(
       onTap: _onTap,
       borderRadius: AppRadii.rounded4,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
-        child: _copied
-            ? Row(
-                key: const ValueKey('copied'),
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AgentationIcons.check(size: widget.iconSize, color: AppColors.accentGreen),
-                  AppDimensions.w4,
-                  Text(
-                    widget.copiedLabel,
-                    style: AppTypography.badgeSmall.copyWith(color: AppColors.accentGreen),
+      child: ValueListenableBuilder<bool>(
+        valueListenable: _copiedNotifier,
+        builder: (context, copied, _) {
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+            child: copied
+                ? Row(
+                    key: const ValueKey('copied'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AgentationIcons.check(size: widget.iconSize, color: AppColors.accentGreen),
+                      AppDimensions.w4,
+                      AppText(
+                        widget.copiedLabel,
+                        style: AppTypography.badgeSmall.copyWith(color: AppColors.accentGreen),
+                      ),
+                    ],
+                  )
+                : Row(
+                    key: const ValueKey('copy'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AgentationIcons.copy(size: widget.iconSize, color: activeColor),
+                      AppDimensions.w4,
+                      AppText(
+                        widget.label,
+                        style: AppTypography.badgeSmall.copyWith(color: activeColor),
+                      ),
+                    ],
                   ),
-                ],
-              )
-            : Row(
-                key: const ValueKey('copy'),
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AgentationIcons.copy(size: widget.iconSize, color: activeColor),
-                  AppDimensions.w4,
-                  Text(
-                    widget.label,
-                    style: AppTypography.badgeSmall.copyWith(color: activeColor),
-                  ),
-                ],
-              ),
+          );
+        },
       ),
     );
   }

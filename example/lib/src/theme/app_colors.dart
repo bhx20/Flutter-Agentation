@@ -22,6 +22,23 @@ abstract final class AppColors {
   static const Color scrollbarThumb = Color(0xFF94A3B8);
   static const Color scrollbarThumbHover = Color(0xFF64748B);
   static const Color scrollbarTrack = Color(0xFFF1F5F9);
+  static const Color scrollbarBtnIdle = Color(0xFFEDEDED);
+  static const Color scrollbarBtnHover = Color(0xFFE0E0E0);
+  static const Color scrollbarBtnPressed = Color(0xFFD4D4D8);
+  static const Color scrollbarBorderRail = Color(0xFFE2E8F0);
+  static const Color scrollbarBorderButton = Color(0xFFD1D5DB);
+  static const Color scrollbarTrackBg = Color(0xFFF8FAFC);
+  static const Color scrollbarThumbIdle = Color(0xFFCBD5E1);
+  static const Color scrollbarThumbDrag = Color(0xFF64748B);
+  static const Color scrollbarArrow = Color(0xFF475569);
+  static const Color scrollbarGripIdle = Color(0xFF94A3B8);
+  static const Color scrollbarGripActive = Color(0xFF475569);
+
+  // Text Selection
+  static const Color textSelection = Color(0xFFEDEDED);
+
+  // Transparency
+  static const Color transparent = Colors.transparent;
 
   // Typography
   static const Color textPrimary = Color(0xFF111827);

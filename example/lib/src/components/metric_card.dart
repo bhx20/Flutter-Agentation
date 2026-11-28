@@ -5,6 +5,7 @@ import '../theme/app_insets.dart';
 import '../theme/app_radii.dart';
 import '../theme/app_typography.dart';
 import '../theme/app_colors.dart';
+import 'app_text.dart';
 
 class MetricCard extends StatelessWidget {
   const MetricCard({
@@ -36,7 +37,7 @@ class MetricCard extends StatelessWidget {
             spacing: AppDimensions.d6,
             runSpacing: AppDimensions.d4,
             children: [
-              Text(
+              AppText(
                 value,
                 style: AppTypography.metricValue,
               ),
@@ -47,7 +48,7 @@ class MetricCard extends StatelessWidget {
                     color: AppColors.accentGreenSubtle,
                     borderRadius: AppRadii.rounded4,
                   ),
-                  child: Text(
+                  child: AppText(
                     badge!,
                     style: AppTypography.metricSub,
                   ),
@@ -55,7 +56,7 @@ class MetricCard extends StatelessWidget {
             ],
           ),
           AppDimensions.h4,
-          Text(
+          AppText(
             label,
             style: AppTypography.metricLabel,
           ),
